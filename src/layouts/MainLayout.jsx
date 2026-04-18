@@ -43,23 +43,40 @@ const PlaceholderModule = ({ title, onBack }) => (
   </motion.div>
 );
 
-// ─── CapCut-style tool definitions ───
-const CREATOR_TOOLS = [
-  { Icon: Image,         label: 'Editor de Foto',   id: 'viral', badge: null },
-  { Icon: Wand2,         label: 'Texto p/ Imagem',  id: 'viral', badge: 'PRO' },
-  { Icon: Scissors,      label: 'AutoViral',         id: 'viral', badge: null },
-  { Icon: Globe,         label: 'Tradutor AI',       id: 'viral', badge: 'PRO' },
-  { Icon: Camera,        label: 'Camera',            id: 'viral', badge: null },
-  { Icon: ShoppingBag,   label: 'Produto IA',        id: 'viral', badge: 'PRO' },
-  { Icon: PenTool,       label: 'AI Poster',         id: 'viral', badge: 'PRO' },
-  { Icon: Sparkles,      label: 'AI Effects',        id: 'viral', badge: 'PRO' },
-  { Icon: Film,          label: 'AI Model',          id: 'viral', badge: null },
-  { Icon: Sliders,       label: 'Retouch',           id: 'viral', badge: null },
-  { Icon: MessageSquare, label: 'Legendas Auto',     id: 'viral', badge: null },
-  { Icon: Monitor,       label: 'Teleprompter',      id: 'viral', badge: null },
-  { Icon: Eraser,        label: 'Remov. Fundo',      id: 'viral', badge: 'FREE' },
-  { Icon: ArrowUpCircle, label: 'Melhorar HD',       id: 'viral', badge: 'FREE' },
-  { Icon: TrendingUp,    label: 'Tendências',        id: 'trends', badge: null },
+// ─── Categorized Tool Definitions ───
+const CREATOR_CATEGORIES = [
+  {
+    title: '🚀 Video & Viral AI',
+    tools: [
+      { Icon: Scissors,      label: 'AutoViral',       id: 'viral', badge: 'HOT' },
+      { Icon: Video,         label: 'Reels IA',        id: 'viral', badge: 'NEW' },
+      { Icon: MessageSquare, label: 'Legendas Auto',   id: 'viral', badge: null },
+      { Icon: Monitor,       label: 'Teleprompter',    id: 'viral', badge: null },
+      { Icon: Globe,         label: 'Tradutor Vídeo',   id: 'viral', badge: 'PRO' },
+      { Icon: Play,          label: 'Script Master',   id: 'viral', badge: 'BETA' },
+    ]
+  },
+  {
+    title: '🧪 IA Labs (Alpha)',
+    tools: [
+      { Icon: Mic,           label: 'Clonagem Voz',    id: 'viral', badge: 'PRO' },
+      { Icon: Wand2,         label: 'Efeito Viral',    id: 'viral', badge: 'HOT' },
+      { Icon: Sparkles,      label: 'Face Swap',       id: 'viral', badge: 'NEW' },
+      { Icon: Target,        label: 'IA Tracking',     id: 'viral', badge: null },
+      { Icon: Sliders,       label: 'Remix IA',        id: 'viral', badge: 'FREE' },
+    ]
+  },
+  {
+    title: '🎨 Design & Social',
+    tools: [
+      { Icon: Image,         label: 'Editor Pro',      id: 'viral', badge: null },
+      { Icon: Eraser,        label: 'Remov. Fundo',    id: 'viral', badge: 'FREE' },
+      { Icon: ArrowUpCircle, label: 'Upscale HD',      id: 'viral', badge: 'FREE' },
+      { Icon: PenTool,       label: 'Post Master',     id: 'viral', badge: 'HOT' },
+      { Icon: ShoppingBag,   label: 'E-com IA',        id: 'viral', badge: 'PRO' },
+      { Icon: Camera,        label: 'Smart Cam',       id: 'viral', badge: null },
+    ]
+  }
 ];
 
 const deleteProject = (id) => {
@@ -268,45 +285,64 @@ const CreatorDashboard = ({ onNavigate, showSettings, onToggleSettings }) => {
           </motion.div>
         </div>
 
-        {/* Trending Section */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 24px' }}>
-          <h2 className="creator-section-title vibrant-gradient-text" style={{ padding: 0, margin: 0 }}>Ferramentas Populares</h2>
-          <span style={{ fontSize: '0.85rem', fontWeight: '800', color: '#7c3aed' }}>Ver Todas</span>
-        </div>
-        
-        <div style={{ padding: '20px 24px 32px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
-            {[
-              { label: 'Editor de Foto', color: '#fff', bg: 'linear-gradient(135deg, #3b82f6, #2563eb)', icon: <Image />, glow: 'icon-glow-blue' },
-              { label: 'Remover Fundo', color: '#fff', bg: 'linear-gradient(135deg, #d946ef, #a21caf)', icon: <Eraser />, glow: 'icon-glow-purple' },
-              { label: 'Upscale IA', color: '#fff', bg: 'linear-gradient(135deg, #f59e0b, #d97706)', icon: <ArrowUpCircle />, glow: 'icon-glow-orange' },
-              { label: 'Prompt Maker', color: '#fff', bg: 'linear-gradient(135deg, #10b981, #059669)', icon: <Wand2 />, glow: 'icon-glow-green' },
-            ].map((tool, i) => (
-              <motion.div 
-                key={i} 
-                whileHover={{ scale: 1.02, y: -4 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => onNavigate('viral')}
-                className="glass-panel-creator"
-                style={{ 
-                  padding: '24px 20px', 
-                  borderRadius: '28px', 
-                  display: 'flex', 
-                  flexDirection: 'column', 
-                  gap: '14px', 
-                  cursor: 'pointer',
-                  border: '1px solid rgba(255,255,255,0.6)',
-                  boxShadow: '0 10px 25px rgba(0,0,0,0.03)'
-                }}
-              >
-                <div className={tool.glow} style={{ width: '52px', height: '52px', borderRadius: '18px', background: tool.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: tool.color, boxShadow: '0 8px 20px rgba(0,0,0,0.1)' }}>
-                  {React.cloneElement(tool.icon, { size: 26 })}
-                </div>
-                <span style={{ fontSize: '0.95rem', fontWeight: '900', color: '#000', letterSpacing: '-0.3px' }}>{tool.label}</span>
-              </motion.div>
-            ))}
+        {/* Horizontal Category Shelves */}
+        {CREATOR_CATEGORIES.map((cat, idx) => (
+          <div key={idx} style={{ marginBottom: '40px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 24px', marginBottom: '16px' }}>
+              <h2 className="creator-section-title vibrant-gradient-text" style={{ padding: 0, margin: 0, fontSize: '1.2rem' }}>{cat.title}</h2>
+              <span style={{ fontSize: '0.8rem', fontWeight: '800', color: '#7c3aed', cursor: 'pointer' }}>View All</span>
+            </div>
+            
+            <div className="creator-hero-scroll" style={{ padding: '0 16px 20px', gap: '12px' }}>
+              {cat.tools.map((tool, i) => (
+                <motion.div 
+                  key={i} 
+                  whileHover={{ scale: 1.05, y: -5 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => onNavigate(tool.id)}
+                  className="glass-panel-creator"
+                  style={{ 
+                    minWidth: '150px',
+                    padding: '24px 16px', 
+                    borderRadius: '24px', 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    alignItems: 'center',
+                    gap: '12px', 
+                    cursor: 'pointer',
+                    border: '1px solid rgba(255,255,255,0.4)',
+                    boxShadow: '0 10px 30px rgba(0,0,0,0.03)',
+                    position: 'relative'
+                  }}
+                >
+                  {tool.badge && (
+                    <span 
+                      style={{ 
+                        position: 'absolute', top: '10px', right: '10px', fontSize: '0.6rem', 
+                        fontWeight: '900', color: tool.badge === 'HOT' ? '#f43f5e' : '#7c3aed',
+                        background: tool.badge === 'HOT' ? '#fff1f2' : '#f5f3ff',
+                        padding: '2px 6px', borderRadius: '6px'
+                      }}
+                    >
+                      {tool.badge}
+                    </span>
+                  )}
+                  <div 
+                    className={`icon-glow-${i%2===0 ? 'purple' : 'blue'}`} 
+                    style={{ 
+                      width: '48px', height: '48px', borderRadius: '14px', 
+                      background: i%2===0 ? 'linear-gradient(135deg, #7c3aed, #4c1d95)' : 'linear-gradient(135deg, #2563eb, #1e40af)', 
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' 
+                    }}
+                  >
+                    <tool.Icon size={24} />
+                  </div>
+                  <span style={{ fontSize: '0.85rem', fontWeight: '900', color: '#000', textAlign: 'center' }}>{tool.label}</span>
+                </motion.div>
+              ))}
+            </div>
           </div>
-        </div>
+        ))}
 
         {/* Projects Section */}
         <div style={{ padding: '0 24px 120px' }}>
