@@ -280,13 +280,31 @@ const SlidesModule = () => {
       const rect = el.getBoundingClientRect();
 
       const canvas = await html2canvas(el, { 
-        scale: 3, 
+        scale: 2, 
         useCORS: true, 
-        backgroundColor: null,
-        width: rect.width,
-        height: rect.height,
-        windowWidth: rect.width,
-        windowHeight: rect.height
+        backgroundColor: activeTheme?.gradient.split(',')[1] || '#111', 
+        onclone: (doc) => {
+          const clone = doc.getElementById('slide-capture-node');
+          if (clone) {
+            clone.style.width = '1280px';
+            clone.style.height = '720px';
+            clone.style.flex = 'none';
+            clone.style.transform = 'none';
+            clone.style.position = 'relative';
+            // Set the solid background explicitly to guarantee it renders
+            clone.style.background = activeTheme?.gradient || '#1e293b';
+            
+            // Remove framer motion blurs
+            const allNodes = clone.querySelectorAll('*');
+            allNodes.forEach(n => {
+              n.style.filter = 'none';
+              n.style.animation = 'none';
+              if (n.style.transform && n.style.transform.includes('translateY')) {
+                n.style.transform = 'none';
+              }
+            });
+          }
+        }
       });
       
       const imgData = canvas.toDataURL("image/png");
@@ -401,7 +419,7 @@ const SlidesModule = () => {
 
           {/* Canvas */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', minHeight: 0 }}>
-            <div ref={slideRef} style={{ flex: 1, borderRadius: '22px', position: 'relative', overflow: 'hidden', boxShadow: `0 25px 70px -10px rgba(0,0,0,0.6), 0 0 0 1px ${activeTheme.accent}20`, minHeight: 0 }}>
+            <div id="slide-capture-node" ref={slideRef} style={{ flex: 1, borderRadius: '22px', position: 'relative', overflow: 'hidden', boxShadow: `0 25px 70px -10px rgba(0,0,0,0.6), 0 0 0 1px ${activeTheme.accent}20`, minHeight: 0 }}>
 
               {/* ── ANIMATED BACKGROUND ── */}
               <AnimatePresence mode="wait">
