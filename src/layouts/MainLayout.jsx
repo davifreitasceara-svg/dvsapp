@@ -389,8 +389,8 @@ const MainLayout = () => {
           <motion.div key="dashboard" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ display: 'flex', flexDirection: 'column', width: '100%', background: '#fff' }}>
             
             {/* Hero Section V2 (Estilo Klarna) */}
-            <div className="hero-v2" style={{ background: 'linear-gradient(135deg, #020617 0%, #1e1b4b 100%)' }}>
-              <div className="hero-v2-overlay" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0) 50%, rgba(255,255,255,1) 100%)' }} />
+            <div className="hero-v2 hero-dark-blue">
+              <div className="hero-v2-overlay" />
               
               <div style={{ position: 'relative', zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
                 {/* Brand Circle Logo */}
@@ -431,7 +431,12 @@ const MainLayout = () => {
             <div style={{ padding: '8px 24px 12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                 <h3 style={{ fontSize: '1.25rem', fontWeight: '900', color: '#111' }}>Destaques</h3>
-                <span style={{ fontSize: '0.85rem', fontWeight: '700', color: '#7c3aed', cursor: 'pointer' }}>Ver tudo</span>
+                <span 
+                  onClick={() => setCurrentView('summaries')}
+                  style={{ fontSize: '0.85rem', fontWeight: '700', color: '#7c3aed', cursor: 'pointer' }}
+                >
+                  Ver tudo
+                </span>
               </div>
             </div>
 

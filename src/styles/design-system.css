@@ -383,19 +383,40 @@ body[data-mode="creator"] .cc-nav-item:hover {
   height: 62vh;
   min-height: 480px;
   overflow: hidden;
-  background-size: cover;
-  background-position: center;
   color: white;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
   padding: 0 32px 100px;
+  background: #020617;
+}
+
+.hero-dark-blue {
+  background: radial-gradient(at 0% 0%, #1e1b4b 0, transparent 50%),
+              radial-gradient(at 50% 0%, #1e1b4b 0, transparent 50%),
+              radial-gradient(at 100% 0%, #312e81 0, transparent 50%),
+              radial-gradient(at 0% 50%, #1e1b4b 0, transparent 50%),
+              radial-gradient(at 100% 50%, #1e3a8a 0, transparent 50%),
+              radial-gradient(at 0% 100%, #171717 0, transparent 50%),
+              radial-gradient(at 50% 100%, #020617 0, transparent 50%),
+              radial-gradient(at 100% 100%, #171717 0, transparent 50%);
+  background-color: #020617;
+  animation: mesh-float 20s ease infinite;
+}
+
+@keyframes mesh-float {
+  0%, 100% { background-position: 0% 0%; }
+  50% { background-position: 100% 100%; }
 }
 
 .hero-v2-overlay {
   position: absolute;
   top: 0; left: 0; right: 0; bottom: 0;
-  background: linear-gradient(to bottom, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0) 40%, rgba(0,0,0,0.6) 100%);
+  background: linear-gradient(to bottom, 
+    rgba(2, 6, 23, 0.4) 0%, 
+    rgba(2, 6, 23, 0) 50%, 
+    rgba(255, 255, 255, 1) 100%
+  );
   z-index: 1;
 }
 
