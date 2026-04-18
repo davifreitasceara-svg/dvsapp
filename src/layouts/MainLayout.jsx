@@ -389,8 +389,8 @@ const MainLayout = () => {
           <motion.div key="dashboard" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ display: 'flex', flexDirection: 'column', width: '100%', background: '#fff' }}>
             
             {/* Hero Section V2 (Estilo Klarna) */}
-            <div className="hero-v2" style={{ backgroundImage: "url('/src/assets/hero-v2.png')" }}>
-              <div className="hero-v2-overlay" />
+            <div className="hero-v2" style={{ background: 'linear-gradient(135deg, #020617 0%, #1e1b4b 100%)' }}>
+              <div className="hero-v2-overlay" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0) 50%, rgba(255,255,255,1) 100%)' }} />
               
               <div style={{ position: 'relative', zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
                 {/* Brand Circle Logo */}
@@ -403,7 +403,11 @@ const MainLayout = () => {
                 <span style={{ fontSize: '0.85rem', fontWeight: '800', opacity: 0.9, letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '8px' }}>Evolua seu Estudo</span>
                 <h1 style={{ fontSize: '2.8rem', fontWeight: '900', marginBottom: '24px', lineHeight: 1.1, letterSpacing: '-1px', maxWidth: '300px' }}>Onde a IA Cria por Você</h1>
                 
-                <button className="glass-pill" style={{ padding: '12px 32px', background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.3)', color: '#fff', fontSize: '1rem', fontWeight: '700', borderRadius: '100px', cursor: 'pointer' }}>
+                <button 
+                  className="glass-pill" 
+                  onClick={() => setCurrentView('summaries')}
+                  style={{ padding: '12px 32px', background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.3)', color: '#fff', fontSize: '1rem', fontWeight: '700', borderRadius: '100px', cursor: 'pointer' }}
+                >
                   Começar Agora
                 </button>
 
@@ -459,11 +463,17 @@ const MainLayout = () => {
 
             {/* Explore Grid */}
             <div style={{ padding: '16px 24px', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
-               <div style={{ padding: '20px', borderRadius: '24px', background: 'linear-gradient(135deg, #eff6ff, #dbeafe)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+               <div 
+                 onClick={() => setCurrentView('summaries')}
+                 style={{ padding: '20px', borderRadius: '24px', background: 'linear-gradient(135deg, #eff6ff, #dbeafe)', display: 'flex', flexDirection: 'column', gap: '8px', cursor: 'pointer' }}
+               >
                   <Globe size={20} color="#3b82f6" />
                   <span style={{ fontWeight: '800', fontSize: '0.9rem' }}>Explorar<br/>Matérias</span>
                </div>
-               <div style={{ padding: '20px', borderRadius: '24px', background: 'linear-gradient(135deg, #fdf4ff, #fae8ff)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+               <div 
+                 onClick={() => setCurrentView('summaries')}
+                 style={{ padding: '20px', borderRadius: '24px', background: 'linear-gradient(135deg, #fdf4ff, #fae8ff)', display: 'flex', flexDirection: 'column', gap: '8px', cursor: 'pointer' }}
+               >
                   <Wand2 size={20} color="#d946ef" />
                   <span style={{ fontWeight: '800', fontSize: '0.9rem' }}>Tutor IA<br/>Pro</span>
                </div>
