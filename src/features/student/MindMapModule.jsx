@@ -270,8 +270,50 @@ const MindMapModule = () => {
   };
 
   return (
-    <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -15 }}
-      style={{ display: 'flex', flexDirection: 'column', gap: '20px', height: 'calc(100vh - 120px)' }}>
+    <>
+      <AnimatePresence>
+        {isFullscreen && mapData && activeTheme && (
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }} 
+            style={{ 
+              position: 'fixed', 
+              inset: 0, 
+              zIndex: 99999, 
+              background: activeTheme.bg || '#fff',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden'
+            }}
+          >
+            {/* Fullscreen Canvas */}
+            <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+              <MindMapCanvas mapData={mapData} theme={activeTheme} zoom={zoom * 1.5} />
+              
+              {/* Sair Button */}
+              <button
+                onClick={toggleFullscreen}
+                style={{
+                  position: 'absolute', top: '24px', left: '24px', zIndex: 100000,
+                  background: 'rgba(0,0,0,0.6)', padding: '12px 24px', borderRadius: '100px', border: '1px solid rgba(255,255,255,0.2)',
+                  color: 'white', fontWeight: '800', fontSize: '0.9rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', backdropFilter: 'blur(10px)'
+                }}
+              >
+                <X size={20} /> Sair da Apresentação
+              </button>
+
+              {/* Theme Indicator */}
+              <div style={{ position: 'absolute', bottom: '24px', right: '24px', padding: '10px 20px', background: 'rgba(255,255,255,0.8)', backdropFilter: 'blur(10px)', borderRadius: '100px', fontSize: '0.8rem', fontWeight: '800', color: activeTheme.color, border: `1px solid ${activeTheme.color}20` }}>
+                {mapData.topic} · DVS IA
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -15 }}
+        style={{ display: 'flex', flexDirection: 'column', gap: '20px', height: 'calc(100vh - 120px)' }}>
 
       <div>
         <h2 style={{ fontSize: '1.6rem', fontWeight: '800', color: '#111' }}>Mapa Mental com IA</h2>
@@ -413,30 +455,13 @@ const MindMapModule = () => {
             <div ref={mapRef} style={{ 
               flex: 1, 
               background: activeTheme?.bg || '#fff', 
-              position: isFullscreen ? 'fixed' : 'relative', 
-              inset: isFullscreen ? 0 : 'auto',
-              zIndex: isFullscreen ? 9999 : 1,
+              position: 'relative', 
               overflow: 'hidden', 
-              minHeight: isFullscreen ? '100vh' : '380px',
-              width: isFullscreen ? '100vw' : '100%',
+              minHeight: '380px',
               display: 'flex',
               flexDirection: 'column'
             }}>
-              {mapData && activeTheme && <MindMapCanvas mapData={mapData} theme={activeTheme} zoom={isFullscreen ? zoom * 1.5 : zoom} />}
-              
-              {/* Sair Fullscreen Button */}
-              {isFullscreen && (
-                <button
-                  onClick={toggleFullscreen}
-                  style={{
-                    position: 'absolute', top: '18px', left: '20px', zIndex: 20,
-                    background: 'rgba(0,0,0,0.5)', padding: '8px 16px', borderRadius: '100px', border: '1px solid rgba(255,255,255,0.2)',
-                    color: 'white', fontWeight: '700', fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', backdropFilter: 'blur(10px)'
-                  }}
-                >
-                  <X size={15} /> Sair
-                </button>
-              )}
+              {mapData && activeTheme && <MindMapCanvas mapData={mapData} theme={activeTheme} zoom={zoom} />}
             </div>
           </div>
           )}
@@ -478,6 +503,7 @@ const MindMapModule = () => {
 
       <style dangerouslySetInnerHTML={{ __html: `@keyframes spin { to { transform: rotate(360deg); } }` }} />
     </motion.div>
+    </>
   );
 };
 

@@ -356,8 +356,59 @@ const SlidesModule = () => {
   const current = slides?.[currentSlide];
 
   return (
-    <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -15 }}
-      style={{ display: 'flex', flexDirection: 'column', gap: '20px', height: 'calc(100vh - 120px)' }}>
+    <>
+      <AnimatePresence>
+        {isFullscreen && slides && (
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }} 
+            style={{ 
+              position: 'fixed', 
+              inset: 0, 
+              zIndex: 99999, 
+              background: activeTheme?.gradient || '#000',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              overflow: 'hidden'
+            }}
+          >
+            {/* Animated BG for Fullscreen */}
+            <div style={{ position: 'absolute', inset: 0, zIndex: 0 }}>
+              <AnimatedBackground accent={activeTheme.accent} gradient={activeTheme.gradient} />
+            </div>
+
+            {/* Slide Content */}
+            <div onClick={handleSlideClick} style={{ width: '100%', height: '100%', position: 'relative', zIndex: 2, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <AnimatePresence mode="wait">
+                <motion.div key={`fs-c-${currentSlide}`}
+                  initial={{ opacity: 0, filter: 'blur(10px)', y: 20 }}
+                  animate={{ opacity: 1, filter: 'blur(0px)', y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.4 }}
+                  style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <SlideRenderer slide={current} accent={activeTheme.accent} />
+                </motion.div>
+              </AnimatePresence>
+            </div>
+
+            {/* Controls Overlay */}
+            <div style={{ position: 'absolute', bottom: '24px', left: '24px', right: '24px', zIndex: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+               <button onClick={toggleFullscreen} style={{ background: 'rgba(0,0,0,0.5)', padding: '10px 20px', borderRadius: '100px', border: '1px solid rgba(255,255,255,0.2)', color: 'white', fontWeight: '800', fontSize: '0.9rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', backdropFilter: 'blur(10px)' }}>
+                 <X size={18} /> Sair
+               </button>
+               <div style={{ padding: '8px 20px', background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(12px)', borderRadius: '100px', color: 'white', fontSize: '0.8rem', fontWeight: '700', border: '1px solid rgba(255,255,255,0.1)' }}>
+                 Slide {currentSlide + 1} de {slides.length}
+               </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -15 }}
+        style={{ display: 'flex', flexDirection: 'column', gap: '20px', height: 'calc(100vh - 120px)' }}>
 
       <div>
         <h2 style={{ fontSize: '1.6rem', fontWeight: '800', color: '#111' }}>Slides com IA</h2>
@@ -481,70 +532,21 @@ const SlidesModule = () => {
             </button>
           </div>
 
-          {/* Canvas Center */}
+          {/* In-page Slide Preview */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', minHeight: 0 }}>
-            <div onClick={handleSlideClick} id="slide-capture-node" ref={slideRef} style={{ 
-              flex: 1, 
-              borderRadius: isFullscreen ? '0px' : '22px', 
-              position: isFullscreen ? 'fixed' : 'relative', 
-              inset: isFullscreen ? 0 : 'auto',
-              zIndex: isFullscreen ? 9999 : 1,
-              width: isFullscreen ? '100vw' : '100%',
-              height: isFullscreen ? '100vh' : 'auto',
-              overflow: 'hidden', 
-              boxShadow: isFullscreen ? 'none' : `0 25px 70px -10px rgba(0,0,0,0.6), 0 0 0 1px ${activeTheme.accent}20`, 
-              minHeight: isFullscreen ? '100vh' : '0', 
-              cursor: 'pointer',
-              display: 'flex',
-              flexDirection: 'column'
-            }}>
-
-              {/* ── ANIMATED BACKGROUND ── */}
-              <AnimatePresence mode="wait">
-                <motion.div key={`bg-${currentSlide}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }}
-                  style={{ position: 'absolute', inset: 0, zIndex: 0 }}>
-                  <AnimatedBackground accent={activeTheme.accent} gradient={activeTheme.gradient} />
-                </motion.div>
-              </AnimatePresence>
-
-              {/* Slide content */}
+            <div onClick={handleSlideClick} id="slide-capture-node" ref={slideRef} style={{ flex: 1, borderRadius: '22px', position: 'relative', overflow: 'hidden', boxShadow: `0 25px 70px -10px rgba(0,0,0,0.6), 0 0 0 1px ${activeTheme.accent}20`, minHeight: 0, cursor: 'pointer' }}>
+              <div style={{ position: 'absolute', inset: 0, zIndex: 0 }}>
+                <AnimatedBackground accent={activeTheme.accent} gradient={activeTheme.gradient} />
+              </div>
               <div style={{ position: 'absolute', inset: 0, zIndex: 2, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <AnimatePresence mode="wait">
-                  <motion.div key={`c-${currentSlide}`}
-                    initial={{ opacity: 0, filter: 'blur(10px)', y: 20 }}
-                    animate={{ opacity: 1, filter: 'blur(0px)', y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                    transition={{ duration: 0.4 }}
+                  <motion.div key={`preview-${currentSlide}`}
+                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                     style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <SlideRenderer slide={current} accent={activeTheme.accent} />
                   </motion.div>
                 </AnimatePresence>
               </div>
-
-              {/* Bottom badge */}
-              <div style={{ position: 'absolute', bottom: '18px', left: '20px', zIndex: 10, padding: '5px 14px', background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(12px)', borderRadius: '100px', color: 'white', fontSize: '0.7rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '7px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: activeTheme.accent, boxShadow: `0 0 10px ${activeTheme.accent}` }} />
-                DVS IA Pro · Slide {currentSlide + 1} de {slides.length}
-              </div>
-
-              {/* Slide number overlay top-right */}
-              <div style={{ position: 'absolute', top: '18px', right: '18px', zIndex: 10, padding: '5px 14px', background: `${activeTheme.accent}25`, backdropFilter: 'blur(12px)', borderRadius: '100px', color: activeTheme.accent, fontSize: '0.7rem', fontWeight: '800', border: `1px solid ${activeTheme.accent}40`, textTransform: 'uppercase', letterSpacing: '1px' }}>
-                {['Intro', 'Pontos', 'Conclusão'][currentSlide]}
-              </div>
-
-              {/* Sair Fullscreen Button */}
-              {isFullscreen && (
-                <button
-                  onClick={toggleFullscreen}
-                  style={{
-                    position: 'absolute', top: '18px', left: '20px', zIndex: 10000,
-                    background: 'rgba(0,0,0,0.5)', padding: '8px 16px', borderRadius: '100px', border: '1px solid rgba(255,255,255,0.2)',
-                    color: 'white', fontWeight: '700', fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', backdropFilter: 'blur(10px)'
-                  }}
-                >
-                  <X size={15} /> Sair
-                </button>
-              )}
             </div>
 
             {/* Toolbar */}
@@ -593,7 +595,9 @@ const SlidesModule = () => {
           </div>
         </div>
       )}
+      <style dangerouslySetInnerHTML={{ __html: `@keyframes spin { to { transform: rotate(360deg); } }` }} />
     </motion.div>
+    </>
   );
 };
 
