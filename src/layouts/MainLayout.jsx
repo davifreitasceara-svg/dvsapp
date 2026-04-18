@@ -231,13 +231,15 @@ const StudentTopBar = ({ currentView }) => {
   };
 
   return (
-    <header style={{ 
-      background: isDashboard ? '#020617' : '#fff', 
-      borderBottom: isDashboard ? 'none' : '1px solid #ebebeb', 
-      padding: '0 24px', height: '72px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0,
-      transition: 'background 0.3s' 
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: isDashboard ? '#fff' : '#111' }}>
+    <header 
+      className={isDashboard ? 'premium-gradient' : ''} 
+      style={{ 
+        background: isDashboard ? 'transparent' : '#fff', 
+        borderBottom: isDashboard ? 'none' : '1px solid #ebebeb', 
+        padding: '0 24px', height: '72px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0,
+        transition: 'all 0.3s' 
+      }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: isDashboard ? '#fff' : '#111', position: 'relative', zIndex: 10 }}>
         {isDashboard && <Wand2 size={24} />}
         <span style={{ fontWeight: '800', fontSize: '1.4rem', letterSpacing: '-0.5px' }}>{titles[currentView] || 'Módulo'}</span>
       </div>
@@ -383,63 +385,80 @@ const MainLayout = () => {
     switch (currentView) {
       case 'dashboard':
         return (
-          <motion.div key="dashboard" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+          <motion.div 
+            key="dashboard" 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }} 
+            className="premium-gradient"
+            style={{ display: 'flex', flexDirection: 'column', width: '100%', minHeight: '100%' }}>
             
-            {/* Header Dark Mode Section */}
-            <div style={{ background: '#020617', padding: '16px 24px 56px', display: 'flex', justifyContent: 'center', gap: '40px', color: '#fff' }}>
+            {/* Header Unified Section */}
+            <div style={{ padding: '24px 24px 40px', position: 'relative', zIndex: 1 }}>
               
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', flex: 1 }} onClick={() => setCurrentView('summaries')}>
-                <motion.div whileHover={{ scale: 1.08, boxShadow: '0 10px 30px rgba(56,189,248,0.4)' }} style={{ width: '72px', height: '72px', borderRadius: '50%', background: 'linear-gradient(135deg, #38bdf8, #2563eb)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '14px', boxShadow: '0 4px 15px rgba(37,99,235,0.2)', transition: 'all 0.2s' }}>
-                  <FileText size={32} color="#fff" />
-                </motion.div>
-                <span style={{ fontSize: '0.95rem', fontWeight: '800', letterSpacing: '0.5px' }}>Resumos</span>
+              {/* Quick Action Icons */}
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', color: '#fff', marginBottom: '40px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', flex: 1 }} onClick={() => setCurrentView('summaries')}>
+                  <motion.div whileHover={{ scale: 1.05 }} className="glass-pill" style={{ width: '64px', height: '64px', borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '12px' }}>
+                    <FileText size={28} color="#38bdf8" />
+                  </motion.div>
+                  <span style={{ fontSize: '0.8rem', fontWeight: '700', opacity: 0.9 }}>Resumos</span>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', flex: 1 }} onClick={() => setCurrentView('mindmaps')}>
+                  <motion.div whileHover={{ scale: 1.05 }} className="glass-pill" style={{ width: '64px', height: '64px', borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '12px' }}>
+                    <Layers size={28} color="#a855f7" />
+                  </motion.div>
+                  <span style={{ fontSize: '0.8rem', fontWeight: '700', opacity: 0.9 }}>Mapas</span>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', flex: 1 }} onClick={() => setCurrentView('slides')}>
+                  <motion.div whileHover={{ scale: 1.05 }} className="glass-pill" style={{ width: '64px', height: '64px', borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '12px' }}>
+                    <Layout size={28} color="#34d399" />
+                  </motion.div>
+                  <span style={{ fontSize: '0.8rem', fontWeight: '700', opacity: 0.9 }}>Slides</span>
+                </div>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', flex: 1 }} onClick={() => setCurrentView('mindmaps')}>
-                <motion.div whileHover={{ scale: 1.08, boxShadow: '0 10px 30px rgba(167,139,250,0.4)' }} style={{ width: '72px', height: '72px', borderRadius: '50%', background: 'linear-gradient(135deg, #a855f7, #6366f1)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '14px', boxShadow: '0 4px 15px rgba(99,102,241,0.2)', transition: 'all 0.2s' }}>
-                  <Layers size={32} color="#fff" />
-                </motion.div>
-                <span style={{ fontSize: '0.95rem', fontWeight: '800', letterSpacing: '0.5px' }}>Mapas</span>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', flex: 1 }} onClick={() => setCurrentView('slides')}>
-                <motion.div whileHover={{ scale: 1.08, boxShadow: '0 10px 30px rgba(52,211,153,0.4)' }} style={{ width: '72px', height: '72px', borderRadius: '50%', background: 'linear-gradient(135deg, #34d399, #059669)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '14px', boxShadow: '0 4px 15px rgba(5,150,105,0.2)', transition: 'all 0.2s' }}>
-                  <Layout size={32} color="#fff" />
-                </motion.div>
-                <span style={{ fontSize: '0.95rem', fontWeight: '800', letterSpacing: '0.5px' }}>Slides</span>
-              </div>
-
-            </div>
-
-            {/* White Body Section */}
-            <div style={{ background: '#fff', flex: 1 }}>
-              
-              {/* Horizontal Scroll Cards Section */}
-              <div style={{ display: 'flex', gap: '16px', overflowX: 'auto', padding: '32px 24px 24px', msOverflowStyle: 'none', scrollbarWidth: 'none', marginTop: '-16px' }}>
-                <style>{`div::-webkit-scrollbar { display: none; }`}</style>
-
-                <motion.div whileHover={{ y: -8 }} style={{ minWidth: '170px', height: '160px', background: 'linear-gradient(135deg, #0f172a, #1e293b)', borderRadius: '24px', padding: '24px', display: 'flex', flexDirection: 'column', color: '#fff', border: '1px solid rgba(255,255,255,0.05)', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)', cursor: 'pointer' }}>
-                  <div style={{ width: '42px', height: '42px', borderRadius: '50%', background: 'linear-gradient(135deg, #38bdf8, #0ea5e9)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', marginBottom: 'auto', boxShadow: '0 4px 10px rgba(14,165,233,0.3)' }}>
-                    <Globe size={22} strokeWidth={2.5} />
+              {/* Bento Grid Features (Closing the rectangle) */}
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', 
+                gap: '12px',
+                width: '100%'
+              }}>
+                <motion.div whileHover={{ scale: 1.02 }} className="glass-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div style={{ width: '36px', height: '36px', borderRadius: '12px', background: 'rgba(56,189,248,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#38bdf8' }}>
+                    <Globe size={18} />
                   </div>
-                  <h4 style={{ fontWeight: '800', fontSize: '1.15rem', lineHeight: 1.2, letterSpacing: '-0.5px' }}>Explorar<br/>matérias</h4>
+                  <h4 style={{ fontWeight: '700', fontSize: '1rem', color: '#fff' }}>Explorar<br/>matérias</h4>
                 </motion.div>
 
-                <motion.div whileHover={{ y: -8 }} style={{ minWidth: '170px', height: '160px', background: 'linear-gradient(135deg, #0f172a, #1e293b)', borderRadius: '24px', padding: '24px', display: 'flex', flexDirection: 'column', color: '#fff', border: '1px solid rgba(255,255,255,0.05)', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)', cursor: 'pointer' }}>
-                  <div style={{ width: '42px', height: '42px', borderRadius: '50%', background: 'linear-gradient(135deg, #a855f7, #8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', marginBottom: 'auto', boxShadow: '0 4px 10px rgba(139,92,246,0.3)' }}>
-                    <Sparkles size={22} strokeWidth={2.5} />
+                <motion.div whileHover={{ scale: 1.02 }} className="glass-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div style={{ width: '36px', height: '36px', borderRadius: '12px', background: 'rgba(168,85,247,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#a855f7' }}>
+                    <Sparkles size={18} />
                   </div>
-                  <h4 style={{ fontWeight: '800', fontSize: '1.15rem', lineHeight: 1.2, letterSpacing: '-0.5px' }}>Busca<br/>inteligente</h4>
+                  <h4 style={{ fontWeight: '700', fontSize: '1rem', color: '#fff' }}>Busca<br/>inteligente</h4>
                 </motion.div>
                 
-                <motion.div whileHover={{ y: -8 }} style={{ minWidth: '170px', height: '160px', background: 'linear-gradient(135deg, #0f172a, #1e293b)', borderRadius: '24px', padding: '24px', display: 'flex', flexDirection: 'column', color: '#fff', border: '1px solid rgba(255,255,255,0.05)', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)', cursor: 'pointer' }}>
-                  <div style={{ width: '42px', height: '42px', borderRadius: '50%', background: 'linear-gradient(135deg, #34d399, #10b981)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', marginBottom: 'auto', boxShadow: '0 4px 10px rgba(16,185,129,0.3)' }}>
-                    <Target size={22} strokeWidth={2.5} />
+                <motion.div whileHover={{ scale: 1.02 }} className="glass-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div style={{ width: '36px', height: '36px', borderRadius: '12px', background: 'rgba(52,211,153,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#34d399' }}>
+                    <Target size={18} />
                   </div>
-                  <h4 style={{ fontWeight: '800', fontSize: '1.15rem', lineHeight: 1.2, letterSpacing: '-0.5px' }}>Foco nas<br/>provas</h4>
+                  <h4 style={{ fontWeight: '700', fontSize: '1rem', color: '#fff' }}>Foco nas<br/>provas</h4>
                 </motion.div>
 
+                <motion.div whileHover={{ scale: 1.02 }} className="glass-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div style={{ width: '36px', height: '36px', borderRadius: '12px', background: 'rgba(251,191,36,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fbbf24' }}>
+                    <Wand2 size={18} />
+                  </div>
+                  <h4 style={{ fontWeight: '700', fontSize: '1rem', color: '#fff' }}>Tutor IA<br/>Pro</h4>
+                </motion.div>
               </div>
+            </div>
+
+            {/* Content Section (Transitions to blue/white) */}
+            <div style={{ background: '#fff', borderTopLeftRadius: '32px', borderTopRightRadius: '32px', marginTop: '8px', padding: '32px 0 0', flex: 1 }}>
 
               {/* Big Hero Visual Card */}
               <div style={{ padding: '0 24px 40px' }}>
