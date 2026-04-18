@@ -68,13 +68,23 @@ const deleteProject = (id) => {
   localStorage.setItem('dvs-creator-projects', JSON.stringify(filtered));
   window.dispatchEvent(new Event('storage'));
 };
-  { Icon: ArrowUpCircle, label: 'Melhorar HD',       id: 'viral', badge: 'FREE' },
-  { Icon: TrendingUp,    label: 'Tendências',        id: 'trends', badge: null },
-];
 
 // ─── Creator Dashboard ───
 const CreatorDashboard = ({ onNavigate }) => {
-  const projects = loadProjects();
+  const [projects, setProjects] = useState(loadProjects());
+
+  // Listen for storage changes to refresh projects
+  React.useEffect(() => {
+    const handleSync = () => setProjects(loadProjects());
+    window.addEventListener('storage', handleSync);
+    return () => window.removeEventListener('storage', handleSync);
+  }, []);
+
+  const handleDelete = (e, id) => {
+    e.stopPropagation();
+    deleteProject(id);
+    setProjects(loadProjects()); // Immediate local update
+  };
 
   return (
     <motion.div
@@ -237,11 +247,7 @@ const CreatorDashboard = ({ onNavigate }) => {
                     </div>
                     <motion.button 
                       whileTap={{ scale: 0.9 }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deleteProject(project.id);
-                        // Force a re-render by hitting the state indirectly via storage listener
-                      }}
+                      onClick={(e) => handleDelete(e, project.id)}
                       style={{ background: '#fff1f2', border: 'none', width: '40px', height: '40px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f43f5e', cursor: 'pointer' }}
                     >
                       <Trash2 size={20} />
