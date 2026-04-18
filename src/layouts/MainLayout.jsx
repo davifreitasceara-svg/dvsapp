@@ -242,7 +242,7 @@ const StudentTopBar = ({ currentView }) => {
         <span style={{ fontWeight: '800', fontSize: '1.4rem', letterSpacing: '-0.5px' }}>{titles[currentView] || 'Módulo'}</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-        {!isDashboard && <ModeToggle />}
+        <ModeToggle />
         <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: isDashboard ? 'rgba(255,255,255,0.15)' : 'linear-gradient(135deg, #a8edea, #00c6ff)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem' }}>👤</div>
       </div>
     </header>
