@@ -354,6 +354,7 @@ const MainLayout = () => {
   const [currentView, setCurrentView] = useState('dashboard');
 
   // Reset to dashboard when switching modes
+  const prevMode = React.useRef(mode);
   React.useEffect(() => {
     if (prevMode.current !== mode) {
       setCurrentView('dashboard');
