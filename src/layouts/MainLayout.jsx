@@ -394,65 +394,65 @@ const MainLayout = () => {
             style={{ display: 'flex', flexDirection: 'column', width: '100%', minHeight: '100%' }}>
             
             {/* Header Unified Section */}
-            <div style={{ padding: '24px 24px 40px', position: 'relative', zIndex: 1 }}>
+            <div style={{ padding: '12px 20px 24px', position: 'relative', zIndex: 1 }}>
               
               {/* Quick Action Icons */}
-              <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', color: '#fff', marginBottom: '40px' }}>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', color: '#fff', marginBottom: '24px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', flex: 1 }} onClick={() => setCurrentView('summaries')}>
-                  <motion.div whileHover={{ scale: 1.05 }} className="glass-pill" style={{ width: '64px', height: '64px', borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '12px' }}>
-                    <FileText size={28} color="#38bdf8" />
+                  <motion.div whileHover={{ scale: 1.05 }} className="glass-pill" style={{ width: '56px', height: '56px', borderRadius: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '8px' }}>
+                    <FileText size={24} color="#38bdf8" />
                   </motion.div>
-                  <span style={{ fontSize: '0.8rem', fontWeight: '700', opacity: 0.9 }}>Resumos</span>
+                  <span style={{ fontSize: '0.75rem', fontWeight: '700', opacity: 0.9 }}>Resumos</span>
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', flex: 1 }} onClick={() => setCurrentView('mindmaps')}>
-                  <motion.div whileHover={{ scale: 1.05 }} className="glass-pill" style={{ width: '64px', height: '64px', borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '12px' }}>
-                    <Layers size={28} color="#a855f7" />
+                  <motion.div whileHover={{ scale: 1.05 }} className="glass-pill" style={{ width: '56px', height: '56px', borderRadius: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '8px' }}>
+                    <Layers size={24} color="#a855f7" />
                   </motion.div>
-                  <span style={{ fontSize: '0.8rem', fontWeight: '700', opacity: 0.9 }}>Mapas</span>
+                  <span style={{ fontSize: '0.75rem', fontWeight: '700', opacity: 0.9 }}>Mapas</span>
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', flex: 1 }} onClick={() => setCurrentView('slides')}>
-                  <motion.div whileHover={{ scale: 1.05 }} className="glass-pill" style={{ width: '64px', height: '64px', borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '12px' }}>
-                    <Layout size={28} color="#34d399" />
+                  <motion.div whileHover={{ scale: 1.05 }} className="glass-pill" style={{ width: '56px', height: '56px', borderRadius: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '8px' }}>
+                    <Layout size={24} color="#34d399" />
                   </motion.div>
-                  <span style={{ fontSize: '0.8rem', fontWeight: '700', opacity: 0.9 }}>Slides</span>
+                  <span style={{ fontSize: '0.75rem', fontWeight: '700', opacity: 0.9 }}>Slides</span>
                 </div>
               </div>
 
-              {/* Bento Grid Features (Closing the rectangle) */}
+              {/* Bento Grid Features (Wider, Lower Height) */}
               <div style={{ 
                 display: 'grid', 
-                gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', 
-                gap: '12px',
+                gridTemplateColumns: 'repeat(2, 1fr)', 
+                gap: '10px',
                 width: '100%'
               }}>
-                <motion.div whileHover={{ scale: 1.02 }} className="glass-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                  <div style={{ width: '36px', height: '36px', borderRadius: '12px', background: 'rgba(56,189,248,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#38bdf8' }}>
-                    <Globe size={18} />
+                <motion.div whileHover={{ scale: 1.02 }} className="glass-card" style={{ padding: '14px', display: 'flex', alignItems: 'center', gap: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div style={{ width: '32px', height: '32px', borderRadius: '10px', background: 'rgba(56,189,248,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#38bdf8', flexShrink: 0 }}>
+                    <Globe size={16} />
                   </div>
-                  <h4 style={{ fontWeight: '700', fontSize: '1rem', color: '#fff' }}>Explorar<br/>matérias</h4>
+                  <h4 style={{ fontWeight: '700', fontSize: '0.85rem', color: '#fff', lineHeight: 1.1 }}>Explorar<br/>matérias</h4>
                 </motion.div>
 
-                <motion.div whileHover={{ scale: 1.02 }} className="glass-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                  <div style={{ width: '36px', height: '36px', borderRadius: '12px', background: 'rgba(168,85,247,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#a855f7' }}>
-                    <Sparkles size={18} />
+                <motion.div whileHover={{ scale: 1.02 }} className="glass-card" style={{ padding: '14px', display: 'flex', alignItems: 'center', gap: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div style={{ width: '32px', height: '32px', borderRadius: '10px', background: 'rgba(168,85,247,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#a855f7', flexShrink: 0 }}>
+                    <Sparkles size={16} />
                   </div>
-                  <h4 style={{ fontWeight: '700', fontSize: '1rem', color: '#fff' }}>Busca<br/>inteligente</h4>
+                  <h4 style={{ fontWeight: '700', fontSize: '0.85rem', color: '#fff', lineHeight: 1.1 }}>Busca<br/>inteligente</h4>
                 </motion.div>
                 
-                <motion.div whileHover={{ scale: 1.02 }} className="glass-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                  <div style={{ width: '36px', height: '36px', borderRadius: '12px', background: 'rgba(52,211,153,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#34d399' }}>
-                    <Target size={18} />
+                <motion.div whileHover={{ scale: 1.02 }} className="glass-card" style={{ padding: '14px', display: 'flex', alignItems: 'center', gap: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div style={{ width: '32px', height: '32px', borderRadius: '10px', background: 'rgba(52,211,153,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#34d399', flexShrink: 0 }}>
+                    <Target size={16} />
                   </div>
-                  <h4 style={{ fontWeight: '700', fontSize: '1rem', color: '#fff' }}>Foco nas<br/>provas</h4>
+                  <h4 style={{ fontWeight: '700', fontSize: '0.85rem', color: '#fff', lineHeight: 1.1 }}>Foco nas<br/>provas</h4>
                 </motion.div>
 
-                <motion.div whileHover={{ scale: 1.02 }} className="glass-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                  <div style={{ width: '36px', height: '36px', borderRadius: '12px', background: 'rgba(251,191,36,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fbbf24' }}>
-                    <Wand2 size={18} />
+                <motion.div whileHover={{ scale: 1.02 }} className="glass-card" style={{ padding: '14px', display: 'flex', alignItems: 'center', gap: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div style={{ width: '32px', height: '32px', borderRadius: '10px', background: 'rgba(251,191,36,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fbbf24', flexShrink: 0 }}>
+                    <Wand2 size={16} />
                   </div>
-                  <h4 style={{ fontWeight: '700', fontSize: '1rem', color: '#fff' }}>Tutor IA<br/>Pro</h4>
+                  <h4 style={{ fontWeight: '700', fontSize: '0.85rem', color: '#fff', lineHeight: 1.1 }}>Tutor IA<br/>Pro</h4>
                 </motion.div>
               </div>
             </div>
