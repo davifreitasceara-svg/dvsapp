@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Download, Share2, Sparkles, ChevronRight, ChevronLeft,
   Cpu, BookOpen, Briefcase, Heart, Leaf, Users, FlaskConical,
-  Globe, Search, AlertCircle
+  Globe, Search, AlertCircle, Play, X
 } from 'lucide-react';
 import { findTopic, TOPIC_EXAMPLES } from '../../data/knowledgeBase';
 
@@ -237,13 +237,54 @@ const SlideRenderer = ({ slide, accent }) => {
 
 // ─── MAIN MODULE ──────────────────────────────────────────────────────────────
 const SlidesModule = () => {
-  const [topic, setTopic] = useState('');
-  const [slides, setSlides] = useState(null);
+  const [topic, setTopic] = useState(() => localStorage.getItem('dvs_slide_topic') || '');
+  const [slides, setSlides] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('dvs_slide_data')) || null; } catch { return null; }
+  });
   const [generating, setGenerating] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [notFound, setNotFound] = useState(false);
-  const [activeTheme, setActiveTheme] = useState(null);
+  const [activeTheme, setActiveTheme] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('dvs_slide_theme')) || null; } catch { return null; }
+  });
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const slideRef = useRef(null);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement || !!document.webkitFullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
+      if (!slides) return;
+      
+      const key = e.key.toLowerCase();
+      if (key === 'arrowleft' || key === 'a') {
+        setCurrentSlide(prev => Math.max(0, prev - 1));
+      } else if (key === 'arrowright' || key === 'd') {
+        setCurrentSlide(prev => {
+          if (prev < slides.length - 1) return prev + 1;
+          if (document.fullscreenElement || document.webkitFullscreenElement) {
+            if (document.exitFullscreen) document.exitFullscreen();
+            else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+          }
+          return prev;
+        });
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [slides]);
 
   const handleGenerate = (customTopic) => {
     const t = (customTopic || topic).trim();
@@ -255,70 +296,57 @@ const SlidesModule = () => {
     setTimeout(() => {
       const data = findTopic(t);
       if (!data) { setNotFound(true); setGenerating(false); return; }
-      setActiveTheme(getTheme(data.category));
-      setSlides([
+      const theme = getTheme(data.category);
+      const newSlides = [
         { type: 'intro',      ...data.slides[0] },
         { type: 'bullets',    ...data.slides[1] },
-        { type: 'conclusion', ...data.slides[2] },
-      ]);
+        { type: 'conclusion', ...data.slides[2] }
+      ];
+      setActiveTheme(theme);
+      setSlides(newSlides);
+      
+      localStorage.setItem('dvs_slide_topic', t);
+      localStorage.setItem('dvs_slide_theme', JSON.stringify(theme));
+      localStorage.setItem('dvs_slide_data', JSON.stringify(newSlides));
+      
       setGenerating(false);
     }, 1600);
   };
 
-  const handleExport = async () => {
-    if (!slides || !slideRef.current) return;
-    try {
-      const el = slideRef.current;
-      
-      // Limpa rastros do Framer Motion que bugam o html2canvas no mobile
-      const animatedNodes = el.querySelectorAll('*');
-      animatedNodes.forEach(n => {
-        if (n.style.filter) n.style.filter = 'none';
-      });
-
-      // Captura o chassi em tamanho exato para não cortar pela metade
-      const rect = el.getBoundingClientRect();
-
-      const canvas = await html2canvas(el, { 
-        scale: 2, 
-        useCORS: true, 
-        backgroundColor: activeTheme?.gradient.split(',')[1] || '#111', 
-        onclone: (doc) => {
-          const clone = doc.getElementById('slide-capture-node');
-          if (clone) {
-            clone.style.width = '1280px';
-            clone.style.height = '720px';
-            clone.style.flex = 'none';
-            clone.style.transform = 'none';
-            clone.style.position = 'relative';
-            // Set the solid background explicitly to guarantee it renders
-            clone.style.background = activeTheme?.gradient || '#1e293b';
-            
-            // Remove framer motion blurs
-            const allNodes = clone.querySelectorAll('*');
-            allNodes.forEach(n => {
-              n.style.filter = 'none';
-              n.style.animation = 'none';
-              if (n.style.transform && n.style.transform.includes('translateY')) {
-                n.style.transform = 'none';
-              }
-            });
-          }
-        }
-      });
-      
-      const imgData = canvas.toDataURL("image/png");
-      const link = document.createElement("a");
-      link.href = imgData;
-      link.download = `Slide_${(activeTheme?.topic || 'Aula').replace(/\s+/g, '_')}_Pag${currentSlide + 1}.png`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (e) {
-      console.error(e);
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      if (slideRef.current?.requestFullscreen) {
+        slideRef.current.requestFullscreen();
+      } else if (slideRef.current?.webkitRequestFullscreen) {
+        slideRef.current.webkitRequestFullscreen();
+      }
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+      }
     }
   };
 
+  const handleSlideClick = (e) => {
+    if (!document.fullscreenElement && !document.webkitFullscreenElement) return;
+    const rect = slideRef.current.getBoundingClientRect();
+    const isLeft = e.clientX < rect.left + rect.width / 3;
+    if (isLeft) {
+      setCurrentSlide(Math.max(0, currentSlide - 1));
+    } else {
+      if (currentSlide < slides.length - 1) {
+        setCurrentSlide(currentSlide + 1);
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+          document.webkitExitFullscreen();
+        }
+      }
+    }
+  };
 
   const current = slides?.[currentSlide];
 
@@ -411,7 +439,7 @@ const SlidesModule = () => {
                 </div>
               );
             })}
-            <button onClick={() => { setSlides(null); setTopic(''); setNotFound(false); }}
+            <button onClick={() => { setSlides(null); setTopic(''); setNotFound(false); localStorage.removeItem('dvs_slide_data'); }}
               style={{ background: 'none', border: '1px dashed #e2e8f0', color: '#94a3b8', borderRadius: '10px', padding: '8px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '700', marginTop: '4px', textAlign: 'center' }}>
               + Novo tema
             </button>
@@ -419,7 +447,7 @@ const SlidesModule = () => {
 
           {/* Canvas */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', minHeight: 0 }}>
-            <div id="slide-capture-node" ref={slideRef} style={{ flex: 1, borderRadius: '22px', position: 'relative', overflow: 'hidden', boxShadow: `0 25px 70px -10px rgba(0,0,0,0.6), 0 0 0 1px ${activeTheme.accent}20`, minHeight: 0 }}>
+            <div onClick={handleSlideClick} id="slide-capture-node" ref={slideRef} style={{ flex: 1, borderRadius: '22px', position: 'relative', overflow: 'hidden', boxShadow: `0 25px 70px -10px rgba(0,0,0,0.6), 0 0 0 1px ${activeTheme.accent}20`, minHeight: 0, cursor: 'pointer' }}>
 
               {/* ── ANIMATED BACKGROUND ── */}
               <AnimatePresence mode="wait">
@@ -453,6 +481,24 @@ const SlidesModule = () => {
               <div style={{ position: 'absolute', top: '18px', right: '18px', zIndex: 10, padding: '5px 14px', background: `${activeTheme.accent}25`, backdropFilter: 'blur(12px)', borderRadius: '100px', color: activeTheme.accent, fontSize: '0.7rem', fontWeight: '800', border: `1px solid ${activeTheme.accent}40`, textTransform: 'uppercase', letterSpacing: '1px' }}>
                 {['Intro', 'Pontos', 'Conclusão'][currentSlide]}
               </div>
+
+              {/* Sair Fullscreen Button */}
+              {isFullscreen && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation(); // Evitar passar slide
+                    if (document.exitFullscreen) document.exitFullscreen();
+                    else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+                  }}
+                  style={{
+                    position: 'absolute', top: '18px', left: '20px', zIndex: 20,
+                    background: 'rgba(0,0,0,0.5)', padding: '8px 16px', borderRadius: '100px', border: '1px solid rgba(255,255,255,0.2)',
+                    color: 'white', fontWeight: '700', fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', backdropFilter: 'blur(10px)'
+                  }}
+                >
+                  <X size={15} /> Sair
+                </button>
+              )}
             </div>
 
             {/* Toolbar */}
@@ -473,8 +519,8 @@ const SlidesModule = () => {
                   <ChevronRight size={18} />
                 </button>
               </div>
-              <button onClick={handleExport} style={{ background: '#1e293b', color: 'white', border: 'none', padding: '9px 20px', borderRadius: '12px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem' }}>
-                <Download size={15} /> Baixar Imagem
+              <button onClick={toggleFullscreen} style={{ background: '#1e293b', color: 'white', border: 'none', padding: '9px 20px', borderRadius: '12px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem' }}>
+                <Play size={15} /> Apresentar
               </button>
             </div>
           </div>
