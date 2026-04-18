@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import html2canvas from 'html2canvas';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Download, Share2, Sparkles, ChevronRight, ChevronLeft,
@@ -242,6 +243,7 @@ const SlidesModule = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [notFound, setNotFound] = useState(false);
   const [activeTheme, setActiveTheme] = useState(null);
+  const slideRef = useRef(null);
 
   const handleGenerate = (customTopic) => {
     const t = (customTopic || topic).trim();
@@ -263,17 +265,21 @@ const SlidesModule = () => {
     }, 1600);
   };
 
-  const handleExport = () => {
-    if (!slides) return;
-    const text = slides.map((s, idx) => `[SLIDE ${idx+1}]: ${s.title}\n[SUBTITLE]: ${s.subtitle}\n\n${s.intro || ''}\n${s.bullets ? s.bullets.map(b => `- ${b}`).join('\n') : ''}\n${s.conclusion || ''}`).join('\n\n==========\n\n');
-    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `Slides_${(activeTheme?.topic || 'Aula').replace(/\s+/g, '_')}.txt`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleExport = async () => {
+    if (!slides || !slideRef.current) return;
+    try {
+      // Temporarily stash shadows and rounded corners which may glitch in some renderers, but mostly fine.
+      const canvas = await html2canvas(slideRef.current, { scale: 2, useCORS: true, backgroundColor: null });
+      const imgData = canvas.toDataURL("image/png");
+      const link = document.createElement("a");
+      link.href = imgData;
+      link.download = `Slide_${(activeTheme?.topic || 'Aula').replace(/\s+/g, '_')}_Pag${currentSlide + 1}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
 
@@ -376,7 +382,7 @@ const SlidesModule = () => {
 
           {/* Canvas */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', minHeight: 0 }}>
-            <div style={{ flex: 1, borderRadius: '22px', position: 'relative', overflow: 'hidden', boxShadow: `0 25px 70px -10px rgba(0,0,0,0.6), 0 0 0 1px ${activeTheme.accent}20`, minHeight: 0 }}>
+            <div ref={slideRef} style={{ flex: 1, borderRadius: '22px', position: 'relative', overflow: 'hidden', boxShadow: `0 25px 70px -10px rgba(0,0,0,0.6), 0 0 0 1px ${activeTheme.accent}20`, minHeight: 0 }}>
 
               {/* ── ANIMATED BACKGROUND ── */}
               <AnimatePresence mode="wait">
@@ -431,7 +437,7 @@ const SlidesModule = () => {
                 </button>
               </div>
               <button onClick={handleExport} style={{ background: '#1e293b', color: 'white', border: 'none', padding: '9px 20px', borderRadius: '12px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem' }}>
-                <Download size={15} /> Salvar Aula
+                <Download size={15} /> Baixar Imagem
               </button>
             </div>
           </div>

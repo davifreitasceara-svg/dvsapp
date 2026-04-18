@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
+import html2canvas from 'html2canvas';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Layers, Sparkles, Download, ZoomIn, ZoomOut, RefreshCw, Search, AlertCircle, Globe } from 'lucide-react';
 import { findTopic, TOPIC_EXAMPLES } from '../../data/knowledgeBase';
@@ -146,6 +147,7 @@ const MindMapModule = () => {
   const [zoom, setZoom] = useState(1);
   const [notFound, setNotFound] = useState(false);
   const [activeTheme, setActiveTheme] = useState(null);
+  const mapRef = useRef(null);
 
   const handleGenerate = (customTopic) => {
     const t = (customTopic || topic).trim();
@@ -173,17 +175,20 @@ const MindMapModule = () => {
     }, 1500);
   };
 
-  const handleExport = () => {
-    if (!mapData) return;
-    const text = `MAPA MENTAL: ${mapData.topic}\n\n` + mapData.branches.map(b => `[+] ${b.label}:\n${b.children.map(c => `    - ${c}`).join('\n')}`).join('\n\n');
-    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `MapaMental_${mapData.topic.replace(/\s+/g, '_')}.txt`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleExport = async () => {
+    if (!mapData || !mapRef.current) return;
+    try {
+      const canvas = await html2canvas(mapRef.current, { scale: 2, useCORS: true, backgroundColor: activeTheme?.bg || '#ffffff' });
+      const imgData = canvas.toDataURL("image/png");
+      const link = document.createElement("a");
+      link.href = imgData;
+      link.download = `MapaMental_${mapData.topic.replace(/\s+/g, '_')}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   return (
@@ -281,12 +286,12 @@ const MindMapModule = () => {
                   <RefreshCw size={13} /> Refazer
                 </button>
                 <button onClick={handleExport} style={{ padding: '6px 12px', border: 'none', background: '#1e293b', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.78rem', fontWeight: '700', color: 'white' }}>
-                  <Download size={13} /> Salvar TXT
+                  <Download size={13} /> Baixar Imagem
                 </button>
               </div>
             </div>
             {/* Canvas */}
-            <div style={{ flex: 1, background: activeTheme.bg, position: 'relative', overflow: 'hidden', minHeight: '380px' }}>
+            <div ref={mapRef} style={{ flex: 1, background: activeTheme.bg, position: 'relative', overflow: 'hidden', minHeight: '380px' }}>
               <MindMapCanvas mapData={mapData} theme={activeTheme} zoom={zoom} />
             </div>
           </div>
