@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Download, Share2, Sparkles, ChevronRight, ChevronLeft,
   Cpu, BookOpen, Briefcase, Heart, Leaf, Users, FlaskConical,
-  Globe, Search, AlertCircle, Play, X
+  Globe, Search, AlertCircle, Play, X, Trash2
 } from 'lucide-react';
 import { findTopic, TOPIC_EXAMPLES } from '../../data/knowledgeBase';
 
@@ -247,6 +247,9 @@ const SlidesModule = () => {
   const [activeTheme, setActiveTheme] = useState(() => {
     try { return JSON.parse(localStorage.getItem('dvs_slide_theme')) || null; } catch { return null; }
   });
+  const [history, setHistory] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('dvs_slides_history')) || []; } catch { return []; }
+  });
   const [isFullscreen, setIsFullscreen] = useState(false);
   const slideRef = useRef(null);
 
@@ -305,12 +308,33 @@ const SlidesModule = () => {
       setActiveTheme(theme);
       setSlides(newSlides);
       
+      const newHistoryItem = { id: Date.now(), topic: t, slides: newSlides, theme: theme };
+      const updatedHistory = [newHistoryItem, ...history.filter(h => h.topic.toLowerCase() !== t.toLowerCase())];
+      setHistory(updatedHistory);
+      localStorage.setItem('dvs_slides_history', JSON.stringify(updatedHistory));
+
       localStorage.setItem('dvs_slide_topic', t);
       localStorage.setItem('dvs_slide_theme', JSON.stringify(theme));
       localStorage.setItem('dvs_slide_data', JSON.stringify(newSlides));
       
       setGenerating(false);
     }, 1600);
+  };
+
+  const loadHistoryItem = (item) => {
+    setTopic(item.topic);
+    setSlides(item.slides);
+    setActiveTheme(item.theme);
+    setCurrentSlide(0);
+    localStorage.setItem('dvs_slide_topic', item.topic);
+    localStorage.setItem('dvs_slide_theme', JSON.stringify(item.theme));
+    localStorage.setItem('dvs_slide_data', JSON.stringify(item.slides));
+  };
+
+  const deleteHistoryItem = (id) => {
+    const updatedHistory = history.filter(h => h.id !== id);
+    setHistory(updatedHistory);
+    localStorage.setItem('dvs_slides_history', JSON.stringify(updatedHistory));
   };
 
   const toggleFullscreen = () => {
@@ -387,6 +411,37 @@ const SlidesModule = () => {
                 </button>
               ))}
             </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Histórico Local */}
+      {!generating && !slides && history.length > 0 && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ marginTop: '10px' }}>
+          <h3 style={{ fontSize: '0.95rem', fontWeight: '800', color: '#1e293b', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Briefcase size={16} color="#94a3b8" /> Apresentações Salvas
+          </h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '14px' }}>
+            {history.map(item => (
+              <div key={item.id} onClick={() => loadHistoryItem(item)}
+                style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}
+                onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: item.theme?.gradient || '#ccc', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
+                    <Sparkles size={20} />
+                  </div>
+                  <div>
+                    <h4 style={{ fontWeight: '800', fontSize: '0.9rem', color: '#1e293b', margin: 0 }}>{item.topic}</h4>
+                    <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: '600' }}>3 Slides Prontos</span>
+                  </div>
+                </div>
+                <button onClick={(e) => { e.stopPropagation(); deleteHistoryItem(item.id); }}
+                  style={{ background: '#fee2e2', color: '#ef4444', border: 'none', padding: '8px', borderRadius: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            ))}
           </div>
         </motion.div>
       )}
