@@ -354,13 +354,28 @@ const MainLayout = () => {
   const [currentView, setCurrentView] = useState('dashboard');
 
   // Reset to dashboard when switching modes
-  const prevMode = React.useRef(mode);
   React.useEffect(() => {
     if (prevMode.current !== mode) {
       setCurrentView('dashboard');
       prevMode.current = mode;
     }
   }, [mode]);
+
+  // Sync body background to prevent "dark blue" void if components crash
+  React.useEffect(() => {
+    if (mode === 'student') {
+      document.body.style.background = currentView === 'dashboard' ? '#fff' : '#f8f9fa';
+      document.body.style.color = '#111';
+    } else {
+      document.body.style.background = '#f2f2f2';
+      document.body.style.color = '#111';
+    }
+    // Clean up or ensure it stays synced
+    return () => {
+      document.body.style.background = '';
+      document.body.style.color = '';
+    };
+  }, [mode, currentView]);
 
   // Student view renderer
   const renderStudentView = () => {

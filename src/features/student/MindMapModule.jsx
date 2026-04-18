@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import html2canvas from 'html2canvas';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Layers, Sparkles, Download, ZoomIn, ZoomOut, RefreshCw, Search, AlertCircle, Globe, Briefcase, Trash2, Play, X } from 'lucide-react';
@@ -346,7 +346,7 @@ const MindMapModule = () => {
                     <Layers size={20} />
                   </div>
                   <div>
-                    <h4 style={{ fontWeight: '800', fontSize: '0.9rem', color: '#1e293b', margin: 0 }}>{item.topic}</h4>
+                    <h4 style={{ fontWeight: '800', fontSize: '0.9rem', color: '#1e293b', margin: 0 }}>{item.topic || 'Sem Tema'}</h4>
                     <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: '600' }}>Mapa Mental IA</span>
                   </div>
                 </div>
@@ -447,6 +447,7 @@ const MindMapModule = () => {
               )}
             </div>
           </div>
+          )}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <button onClick={() => { setMapData(null); setTopic(''); setNotFound(false); localStorage.removeItem('dvs_mindmap_data'); }}
               style={{ background: 'none', border: '1px dashed #e2e8f0', color: '#94a3b8', borderRadius: '10px', padding: '7px 18px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '700' }}>
