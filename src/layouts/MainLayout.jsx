@@ -99,13 +99,6 @@ const CreatorDashboard = ({ onNavigate }) => {
       <div className="creator-hero-scroll">
         <div className="creator-card-large" onClick={() => onNavigate('viral')}>
           <img src="/src/assets/creator-viral.png" alt="Viral Studio" />
-          <div className="creator-card-badge">
-            <span className="creator-badge-tag">Viral Studio</span>
-            <span className="creator-badge-tag">AI Powered</span>
-          </div>
-          <div className="creator-card-like">
-            <Heart size={20} color="#000" />
-          </div>
           <div className="creator-card-overlay">
             <p className="creator-card-title">Crie Vídeos Virais</p>
             <p className="creator-card-subtitle">Studio de Cinema IA</p>
@@ -114,12 +107,6 @@ const CreatorDashboard = ({ onNavigate }) => {
 
         <div className="creator-card-large" onClick={() => onNavigate('templates')}>
           <img src="/src/assets/creator-templates.png" alt="Templates" />
-          <div className="creator-card-badge">
-            <span className="creator-badge-tag">Templates</span>
-          </div>
-          <div className="creator-card-like">
-            <Heart size={20} color="#000" />
-          </div>
           <div className="creator-card-overlay">
             <p className="creator-card-title">Templates Premium</p>
             <p className="creator-card-subtitle">Designs Prontos</p>
@@ -186,19 +173,32 @@ const CreatorDashboard = ({ onNavigate }) => {
 
 // ─────────────── CREATOR TOPBAR ───────────────
 const CreatorTopBar = ({ currentView }) => {
-  const titles = {
-    dashboard: 'Home do Criador',
-    viral: 'Viral Studio PRO',
-  };
-
+  const isDashboard = currentView === 'dashboard';
+  
   return (
-    <header style={{ background: '#fff', borderBottom: '1px solid #e8e8e8', padding: '0 24px', height: '56px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <span style={{ fontWeight: '800', fontSize: '1.05rem', color: '#111' }}>{titles[currentView] || 'Módulo'}</span>
+    <header style={{ 
+      background: '#fff', 
+      borderBottom: '1px solid #f0f0f0', 
+      padding: '0 24px', 
+      height: '70px', 
+      display: 'flex', 
+      alignItems: 'center', 
+      justifyContent: 'space-between', 
+      flexShrink: 0,
+      position: 'sticky',
+      top: 0,
+      zIndex: 100
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ width: '32px', height: '32px', background: 'linear-gradient(135deg, #10b981, #059669)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Sparkles size={18} color="#fff" />
+        </div>
+        <span style={{ fontWeight: '900', fontSize: '1.2rem', color: '#000', letterSpacing: '-0.5px' }}>DVS Creator</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
         <ModeToggle />
-        <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'linear-gradient(135deg, #a8edea, #00c6ff)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem' }}>👤</div>
+        <Bell size={22} color="#000" style={{ cursor: 'pointer' }} />
+        <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'linear-gradient(135deg, #a8edea, #00c6ff)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', border: '1px solid #eee' }}>👤</div>
       </div>
     </header>
   );
@@ -344,7 +344,7 @@ const CreatorLayout = ({ currentView, setCurrentView }) => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: '#f2f2f2' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: '#fff' }}>
       <CreatorTopBar currentView={currentView} />
 
       <main className="cc-main-content" style={{
