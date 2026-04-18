@@ -17,7 +17,7 @@ import {
   Plus, ChevronRight, Settings, Calendar, Disc, Play,
   MapPin, ArrowRight, Heart, Bell, Trash2
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useSpring, useTransform } from 'framer-motion';
 
 const STORAGE_KEY = 'dvs-creator-projects';
 const loadProjects = () => {
@@ -70,8 +70,27 @@ const deleteProject = (id) => {
 };
 
 // ─── Creator Dashboard ───
-const CreatorDashboard = ({ onNavigate }) => {
+const CreatorDashboard = ({ onNavigate, showSettings, onToggleSettings }) => {
   const [projects, setProjects] = useState(loadProjects());
+  const [settings, setSettings] = useState({
+    blur: 24,
+    noise: 0.05,
+    blobs: 0.15,
+    speed: 20,
+    theme: 'default'
+  });
+
+  // Mouse tracking for reactive shards
+  const mouseX = useSpring(0, { stiffness: 50, damping: 20 });
+  const mouseY = useSpring(0, { stiffness: 50, damping: 20 });
+  
+  const handleMouseMove = (e) => {
+    const { clientX, clientY } = e;
+    const moveX = (clientX - window.innerWidth / 2) / 25;
+    const moveY = (clientY - window.innerHeight / 2) / 25;
+    mouseX.set(moveX);
+    mouseY.set(moveY);
+  };
 
   // Listen for storage changes to refresh projects
   React.useEffect(() => {
@@ -89,9 +108,77 @@ const CreatorDashboard = ({ onNavigate }) => {
   return (
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+      onMouseMove={handleMouseMove}
       className="creator-vibrant-ambient"
-      style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', position: 'relative' }}
+      style={{ 
+        display: 'flex', flexDirection: 'column', minHeight: '100vh', position: 'relative',
+        '--creator-blur': `${settings.blur}px`,
+        '--creator-noise': settings.noise,
+        '--creator-blob-op': settings.blobs,
+        '--creator-speed': `${settings.speed}s`,
+      }}
     >
+      {/* Visual Customizer Overlay */}
+      <AnimatePresence>
+        {showSettings && (
+          <motion.div 
+            initial={{ opacity: 0, x: 100 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 100 }}
+            className="glass-panel-creator"
+            style={{ 
+              position: 'fixed', top: '90px', right: '24px', width: '280px', 
+              zIndex: 1000, padding: '24px', borderRadius: '24px',
+              border: '1px solid rgba(255,255,255,0.4)',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.1)'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h4 style={{ margin: 0, fontWeight: '900', color: '#111' }}>Visual Effects</h4>
+              <X size={18} style={{ cursor: 'pointer' }} onClick={() => setShowSettings(false)} />
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={{ fontSize: '0.75rem', fontWeight: '800', opacity: 0.6 }}>BLUR INTENSITY</label>
+                <input 
+                  type="range" min="0" max="64" value={settings.blur} 
+                  onChange={(e) => setSettings({...settings, blur: e.target.value})}
+                  style={{ width: '100%', marginTop: '8px', accentColor: '#7c3aed' }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.75rem', fontWeight: '800', opacity: 0.6 }}>NOISE GRAIN</label>
+                <input 
+                  type="range" min="0" max="0.2" step="0.01" value={settings.noise} 
+                  onChange={(e) => setSettings({...settings, noise: e.target.value})}
+                  style={{ width: '100%', marginTop: '8px', accentColor: '#7c3aed' }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.75rem', fontWeight: '800', opacity: 0.6 }}>BLOBS OPACITY</label>
+                <input 
+                  type="range" min="0" max="0.5" step="0.01" value={settings.blobs} 
+                  onChange={(e) => setSettings({...settings, blobs: e.target.value})}
+                  style={{ width: '100%', marginTop: '8px', accentColor: '#7c3aed' }}
+                />
+              </div>
+              <button 
+                onClick={() => setSettings({ blur: 24, noise: 0.05, blobs: 0.15, speed: 20, theme: 'default' })}
+                style={{ background: '#f4f4f5', border: 'none', padding: '10px', borderRadius: '12px', fontWeight: '800', fontSize: '0.8rem', cursor: 'pointer', marginTop: '10px' }}
+              >
+                Reset Default
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Reactive Background Shards */}
+      <motion.div className="glass-shard" style={{ top: '20%', left: '10%', x: mouseX, y: mouseY, opacity: 0.3 }} />
+      <motion.div className="glass-shard" style={{ top: '60%', right: '15%', x: mouseX, y: mouseY, opacity: 0.2, rotate: -30, scale: 0.7 }} />
+      <motion.div className="glass-shard" style={{ bottom: '10%', left: '30%', x: mouseX, y: mouseY, opacity: 0.1, rotate: 15, scale: 0.5 }} />
+
       {/* Background Ambient Blobs */}
       <motion.div 
         animate={{ 
@@ -269,7 +356,7 @@ const CreatorDashboard = ({ onNavigate }) => {
 };
 
 // ─────────────── CREATOR TOPBAR ───────────────
-const CreatorTopBar = ({ currentView }) => {
+const CreatorTopBar = ({ currentView, onToggleSettings }) => {
   const isDashboard = currentView === 'dashboard';
   
   return (
@@ -297,6 +384,7 @@ const CreatorTopBar = ({ currentView }) => {
         <span className="shimmer-text" style={{ fontSize: '1.4rem', fontWeight: '900', letterSpacing: '-1px' }}>DVS Creator</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+        {isDashboard && <Sliders size={22} color="#7c3aed" style={{ cursor: 'pointer' }} onClick={onToggleSettings} />}
         <ModeToggle />
         <Bell size={22} color="#7c3aed" style={{ cursor: 'pointer' }} />
         <div style={{ width: '38px', height: '38px', borderRadius: '50%', background: 'linear-gradient(135deg, #7c3aed, #2563eb)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', color: '#fff' }}>👤</div>
@@ -433,20 +521,22 @@ const CreatorBottomNav = ({ currentView, setCurrentView }) => {
 
 // ─────────────── CREATOR LAYOUT ───────────────
 const CreatorLayout = ({ currentView, setCurrentView }) => {
+  const [showSettings, setShowSettings] = useState(false);
+
   const renderCreatorView = () => {
     switch (currentView) {
       case 'dashboard':
-        return <CreatorDashboard onNavigate={setCurrentView} />;
+        return <CreatorDashboard onNavigate={setCurrentView} onToggleSettings={() => setShowSettings(!showSettings)} showSettings={showSettings} />;
       case 'viral':
         return <ViralStudio />;
       default:
-        return <CreatorDashboard onNavigate={setCurrentView} />;
+        return <CreatorDashboard onNavigate={setCurrentView} onToggleSettings={() => setShowSettings(!showSettings)} showSettings={showSettings} />;
     }
   };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: '#fff', position: 'relative' }}>
-      <CreatorTopBar currentView={currentView} />
+      <CreatorTopBar currentView={currentView} onToggleSettings={() => setShowSettings(!showSettings)} />
 
       <main className="cc-main-content" style={{
         flex: 1,
