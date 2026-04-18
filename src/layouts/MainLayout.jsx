@@ -10,7 +10,7 @@ import ViralStudio from '../features/creator/ViralStudio';
 import {
   Clock, FileText, Home, Layers, Layout, Mic,
   Share2, Target, Video, Menu, X, MoreHorizontal,
-  Scissors, TrendingUp, Image, Globe, Camera,
+  Scissors, TrendingUp, Image, Globe, Camera, Search,
   ShoppingBag, Wand2, Sliders, Monitor,
   Eraser, ArrowUpCircle, Sparkles,
   Film, MessageSquare, PenTool,
@@ -233,10 +233,12 @@ const StudentTopBar = ({ currentView }) => {
   return (
     <header 
       style={{ 
-        background: isDashboard ? '#020617' : '#fff', 
+        background: isDashboard ? 'transparent' : '#fff', 
         borderBottom: isDashboard ? 'none' : '1px solid #ebebeb', 
         padding: '0 24px', height: '72px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0,
-        transition: 'background 0.3s' 
+        transition: 'background 0.3s',
+        position: isDashboard ? 'absolute' : 'relative',
+        top: 0, left: 0, right: 0, zIndex: 100
       }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: isDashboard ? '#fff' : '#111' }}>
         {isDashboard && <Wand2 size={24} />}
@@ -244,7 +246,7 @@ const StudentTopBar = ({ currentView }) => {
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
         <ModeToggle />
-        <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: isDashboard ? 'rgba(255,255,255,0.15)' : 'linear-gradient(135deg, #a8edea, #00c6ff)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem' }}>👤</div>
+        <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: isDashboard ? 'rgba(255,255,255,0.2)' : 'linear-gradient(135deg, #a8edea, #00c6ff)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', color: isDashboard ? '#fff' : '#111', border: isDashboard ? '1px solid rgba(255,255,255,0.3)' : 'none' }}>👤</div>
       </div>
     </header>
   );
@@ -384,111 +386,88 @@ const MainLayout = () => {
     switch (currentView) {
       case 'dashboard':
         return (
-          <motion.div key="dashboard" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+          <motion.div key="dashboard" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ display: 'flex', flexDirection: 'column', width: '100%', background: '#fff' }}>
             
-            {/* Header Dark Mode Section */}
-            <div className="premium-gradient" style={{ padding: '16px 24px 56px', display: 'flex', justifyContent: 'center', gap: '40px', color: '#fff' }}>
+            {/* Hero Section V2 (Estilo Klarna) */}
+            <div className="hero-v2" style={{ backgroundImage: `url('/src/assets/hero-v2.png')` }}>
+              <div className="hero-v2-overlay" />
               
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', flex: 1 }} onClick={() => setCurrentView('summaries')}>
-                <motion.div whileHover={{ scale: 1.08, boxShadow: '0 10px 30px rgba(56,189,248,0.4)' }} style={{ width: '72px', height: '72px', borderRadius: '50%', background: 'linear-gradient(135deg, #38bdf8, #2563eb)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '14px', boxShadow: '0 4px 15px rgba(37,99,235,0.2)', transition: 'all 0.2s' }}>
-                  <FileText size={32} color="#fff" />
-                </motion.div>
-                <span style={{ fontSize: '0.95rem', fontWeight: '800', letterSpacing: '0.5px' }}>Resumos</span>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', flex: 1 }} onClick={() => setCurrentView('mindmaps')}>
-                <motion.div whileHover={{ scale: 1.08, boxShadow: '0 10px 30px rgba(167,139,250,0.4)' }} style={{ width: '72px', height: '72px', borderRadius: '50%', background: 'linear-gradient(135deg, #a855f7, #6366f1)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '14px', boxShadow: '0 4px 15px rgba(99,102,241,0.2)', transition: 'all 0.2s' }}>
-                  <Layers size={32} color="#fff" />
-                </motion.div>
-                <span style={{ fontSize: '0.95rem', fontWeight: '800', letterSpacing: '0.5px' }}>Mapas</span>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', flex: 1 }} onClick={() => setCurrentView('slides')}>
-                <motion.div whileHover={{ scale: 1.08, boxShadow: '0 10px 30px rgba(52,211,153,0.4)' }} style={{ width: '72px', height: '72px', borderRadius: '50%', background: 'linear-gradient(135deg, #34d399, #059669)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '14px', boxShadow: '0 4px 15px rgba(5,150,105,0.2)', transition: 'all 0.2s' }}>
-                  <Layout size={32} color="#fff" />
-                </motion.div>
-                <span style={{ fontSize: '0.95rem', fontWeight: '800', letterSpacing: '0.5px' }}>Slides</span>
-              </div>
-
-            </div>
-
-            {/* White Body Section */}
-            <div style={{ background: '#fff', flex: 1 }}>
-              
-              {/* Horizontal Scroll Cards Section */}
-              <div style={{ display: 'flex', gap: '16px', overflowX: 'auto', padding: '32px 24px 24px', msOverflowStyle: 'none', scrollbarWidth: 'none', marginTop: '-16px' }}>
-                <style>{`div::-webkit-scrollbar { display: none; }`}</style>
-
-                <motion.div whileHover={{ y: -8 }} style={{ minWidth: '170px', height: '160px', background: 'linear-gradient(135deg, #0f172a, #1e293b)', borderRadius: '24px', padding: '24px', display: 'flex', flexDirection: 'column', color: '#fff', border: '1px solid rgba(255,255,255,0.05)', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)', cursor: 'pointer' }}>
-                  <div style={{ width: '42px', height: '42px', borderRadius: '50%', background: 'linear-gradient(135deg, #38bdf8, #0ea5e9)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', marginBottom: 'auto', boxShadow: '0 4px 10px rgba(14,165,233,0.3)' }}>
-                    <Globe size={22} strokeWidth={2.5} />
+              <div style={{ position: 'relative', zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+                {/* Brand Circle Logo */}
+                <div className="hero-v2-logo">
+                  <div style={{ width: '48px', height: '48px', background: 'linear-gradient(135deg, #7c3aed, #2563eb)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+                    <Sparkles size={24} />
                   </div>
-                  <h4 style={{ fontWeight: '800', fontSize: '1.15rem', lineHeight: 1.2, letterSpacing: '-0.5px' }}>Explorar<br/>matérias</h4>
-                </motion.div>
+                </div>
 
-                <motion.div whileHover={{ y: -8 }} style={{ minWidth: '170px', height: '160px', background: 'linear-gradient(135deg, #0f172a, #1e293b)', borderRadius: '24px', padding: '24px', display: 'flex', flexDirection: 'column', color: '#fff', border: '1px solid rgba(255,255,255,0.05)', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)', cursor: 'pointer' }}>
-                  <div style={{ width: '42px', height: '42px', borderRadius: '50%', background: 'linear-gradient(135deg, #a855f7, #8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', marginBottom: 'auto', boxShadow: '0 4px 10px rgba(139,92,246,0.3)' }}>
-                    <Sparkles size={22} strokeWidth={2.5} />
-                  </div>
-                  <h4 style={{ fontWeight: '800', fontSize: '1.15rem', lineHeight: 1.2, letterSpacing: '-0.5px' }}>Busca<br/>inteligente</h4>
-                </motion.div>
+                <span style={{ fontSize: '0.85rem', fontWeight: '800', opacity: 0.9, letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '8px' }}>Evolua seu Estudo</span>
+                <h1 style={{ fontSize: '2.8rem', fontWeight: '900', marginBottom: '24px', lineHeight: 1.1, letterSpacing: '-1px', maxWidth: '300px' }}>Onde a IA Cria por Você</h1>
                 
-                <motion.div whileHover={{ y: -8 }} style={{ minWidth: '170px', height: '160px', background: 'linear-gradient(135deg, #0f172a, #1e293b)', borderRadius: '24px', padding: '24px', display: 'flex', flexDirection: 'column', color: '#fff', border: '1px solid rgba(255,255,255,0.05)', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)', cursor: 'pointer' }}>
-                  <div style={{ width: '42px', height: '42px', borderRadius: '50%', background: 'linear-gradient(135deg, #34d399, #10b981)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', marginBottom: 'auto', boxShadow: '0 4px 10px rgba(16,185,129,0.3)' }}>
-                    <Target size={22} strokeWidth={2.5} />
-                  </div>
-                  <h4 style={{ fontWeight: '800', fontSize: '1.15rem', lineHeight: 1.2, letterSpacing: '-0.5px' }}>Foco nas<br/>provas</h4>
-                </motion.div>
+                <button className="glass-pill" style={{ padding: '12px 32px', background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.3)', color: '#fff', fontSize: '1rem', fontWeight: '700', borderRadius: '100px', cursor: 'pointer' }}>
+                  Começar Agora
+                </button>
 
-              </div>
-
-              {/* Big Hero Visual Card */}
-              <div style={{ padding: '0 24px 40px' }}>
-                <div style={{ background: 'linear-gradient(135deg, #2563eb, #4f46e5)', borderRadius: '32px', padding: '48px 32px', color: '#fff', position: 'relative', overflow: 'hidden', minHeight: '400px', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 40px -10px rgba(37,99,235,0.4)' }}>
-                  
-                  {/* Decorative glass orbs */}
-                  <div style={{ position: 'absolute', top: '-50px', right: '-50px', width: '250px', height: '250px', background: 'radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%)', borderRadius: '50%', filter: 'blur(15px)' }} />
-                  <div style={{ position: 'absolute', bottom: '100px', left: '-80px', width: '200px', height: '200px', background: 'radial-gradient(circle, rgba(56,189,248,0.2) 0%, transparent 70%)', borderRadius: '50%', filter: 'blur(20px)' }} />
-
-                  <h2 style={{ fontSize: '2.8rem', fontWeight: '900', marginBottom: '16px', lineHeight: 1.1, letterSpacing: '-1.5px', maxWidth: '320px', position: 'relative', zIndex: 1 }}>
-                    Gerador <br/>infinito de aulas
-                  </h2>
-                  <p style={{ fontSize: '1.15rem', fontWeight: '500', opacity: 0.95, maxWidth: '280px', position: 'relative', zIndex: 1, lineHeight: 1.5 }}>
-                    Sua base ilimitada. Deixe a IA cuidar de todo o conteúdo da prova para você.
-                  </p>
-                  
-                  {/* Premium 3D iPhone Mockup */}
-                  <motion.div 
-                    initial={{ y: 0 }}
-                    whileHover={{ y: -15, scale: 1.02 }}
-                    transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                    style={{ position: 'absolute', bottom: '-120px', left: '50%', transform: 'translateX(-50%)', width: '320px', height: '280px', background: 'linear-gradient(180deg, #1e293b 0%, #020617 100%)', borderRadius: '48px', border: '2px solid rgba(255,255,255,0.05)', boxShadow: '0 40px 80px -10px rgba(0,0,0,0.8), inset 0 8px 16px rgba(255,255,255,0.2), inset 0 -4px 10px rgba(0,0,0,0.5), 0 0 0 10px #0f172a', display: 'flex', flexDirection: 'column', alignItems: 'center', overflow: 'hidden', cursor: 'grab' }}>
-                     
-                     {/* Glass Screen Glare */}
-                     <div style={{ position: 'absolute', top: 0, left: '-40%', width: '200%', height: '100%', background: 'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0) 45%)', zIndex: 1, pointerEvents: 'none' }} />
-                     
-                     {/* Dynamic Island */}
-                     <div style={{ marginTop: '20px', width: '110px', height: '32px', background: '#000', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 12px', boxShadow: 'inset 0 -2px 4px rgba(255,255,255,0.15), 0 10px 20px rgba(0,0,0,0.5)', zIndex: 2 }}>
-                       {/* FaceID Sensor */}
-                       <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'radial-gradient(circle, #334155 0%, #000 80%)' }} />
-                       {/* Camera Lens */}
-                       <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'radial-gradient(circle, #0ea5e9 0%, #0f172a 80%)', boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.4)' }} />
-                     </div>
-
-                     {/* Inner Screen UI Mockup */}
-                     <div style={{ marginTop: '36px', width: '85%', height: '200px', background: 'linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01))', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', gap: '14px', padding: '18px', zIndex: 2, boxShadow: '0 10px 30px rgba(0,0,0,0.3)' }}>
-                        <div style={{ width: '50%', height: '14px', background: 'rgba(255,255,255,0.1)', borderRadius: '7px' }} />
-                        <div style={{ width: '100%', height: '48px', background: 'rgba(56,189,248,0.15)', borderRadius: '14px', border: '1px solid rgba(56,189,248,0.3)' }} />
-                        <div style={{ display: 'flex', gap: '12px' }}>
-                           <div style={{ flex: 1, height: '48px', background: 'rgba(255,255,255,0.05)', borderRadius: '14px' }} />
-                           <div style={{ flex: 1, height: '48px', background: 'rgba(255,255,255,0.05)', borderRadius: '14px' }} />
-                        </div>
-                     </div>
-
-                  </motion.div>
+                {/* Pagination Dots */}
+                <div style={{ display: 'flex', gap: '6px', marginTop: '40px' }}>
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} style={{ width: i === 1 ? '12px' : '6px', height: '6px', borderRadius: '3px', background: i === 1 ? '#fff' : 'rgba(255,255,255,0.4)', transition: '0.3s' }} />
+                  ))}
                 </div>
               </div>
+            </div>
 
+            {/* Floating Search Bar */}
+            <div className="search-modern">
+              <Search size={22} color="#aaa" />
+              <input type="text" placeholder="O que você quer aprender hoje?" />
+              <Camera size={22} color="#aaa" style={{ cursor: 'pointer' }} />
+            </div>
+
+            {/* Featured Modules (Featured Stores Style) */}
+            <div style={{ padding: '8px 24px 12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: '900', color: '#111' }}>Destaques</h3>
+                <span style={{ fontSize: '0.85rem', fontWeight: '700', color: '#7c3aed', cursor: 'pointer' }}>Ver tudo</span>
+              </div>
+            </div>
+
+            <div className="featured-scroll-container">
+              <div className="featured-item" onClick={() => setCurrentView('summaries')}>
+                <div className="icon-circle" style={{ background: '#f0f9ff' }}>
+                  <FileText size={24} color="#38bdf8" />
+                </div>
+                <span className="label">Resumos</span>
+                <span className="badge">Auto-Geração</span>
+              </div>
+
+              <div className="featured-item" onClick={() => setCurrentView('mindmaps')}>
+                <div className="icon-circle" style={{ background: '#f5f3ff' }}>
+                  <Layers size={24} color="#a855f7" />
+                </div>
+                <span className="label">Mapas</span>
+                <span className="badge">Visual-AI</span>
+              </div>
+
+              <div className="featured-item" onClick={() => setCurrentView('slides')}>
+                <div className="icon-circle" style={{ background: '#ecfdf5' }}>
+                  <Layout size={24} color="#10b981" />
+                </div>
+                <span className="label">Slides</span>
+                <span className="badge">Prompt 2 Presentation</span>
+              </div>
+            </div>
+
+            {/* Explore Grid */}
+            <div style={{ padding: '16px 24px', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
+               <div style={{ padding: '20px', borderRadius: '24px', background: 'linear-gradient(135deg, #eff6ff, #dbeafe)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <Globe size={20} color="#3b82f6" />
+                  <span style={{ fontWeight: '800', fontSize: '0.9rem' }}>Explorar<br/>Matérias</span>
+               </div>
+               <div style={{ padding: '20px', borderRadius: '24px', background: 'linear-gradient(135deg, #fdf4ff, #fae8ff)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <Wand2 size={20} color="#d946ef" />
+                  <span style={{ fontWeight: '800', fontSize: '0.9rem' }}>Tutor IA<br/>Pro</span>
+               </div>
+            </div>
             </div>
           </motion.div>
         );
