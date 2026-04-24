@@ -1797,6 +1797,85 @@ function senhaForte(p) {
   return { score, ...data[score] };
 }
 
+/* ── Auth Sub-components ── */
+const Eye = ({ show, toggle, I, D }) => (
+  <button type="button" onClick={toggle} style={{ background: "none", border: "none", color: show ? D.blue2 : D.w3, cursor: "pointer", padding: 4, display: "flex", transition: "color .18s" }}>
+    {show ? I.eyeOff : I.eye}
+  </button>
+);
+
+const SocialBtn = ({ icon, label, onClick, D }) => (
+  <button onClick={onClick} style={{ flex: 1, padding: "12px 8px", borderRadius: 13, border: `1.5px solid ${D.b1}`, background: D.s0, color: D.w1, fontWeight: 700, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, transition: "all .18s", fontFamily: "Inter" }}
+    onMouseOver={e => { e.currentTarget.style.borderColor = D.b2; e.currentTarget.style.background = D.s2; }}
+    onMouseOut={e => { e.currentTarget.style.borderColor = D.b1; e.currentTarget.style.background = D.s0; }}>
+    {icon}{label}
+  </button>
+);
+
+const Inp = ({ label, icon, right, type, val, onChange, err, placeholder, autoComplete, hint, D, errors, setErrors, submit }) => {
+  const [focused, setFocused] = useState(false);
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+      {(label || hint) && (
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          {label && <label style={{ fontSize: 12, fontWeight: 700, color: D.w2, letterSpacing: .4, textTransform: "uppercase" }}>{label}</label>}
+          {hint && <span style={{ fontSize: 11, color: D.w3 }}>{hint}</span>}
+        </div>
+      )}
+      <div style={{ position: "relative" }}>
+        <div style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: focused ? D.blue2 : D.w3, transition: "color .18s", pointerEvents: "none", display: "flex" }}>
+          {icon}
+        </div>
+        <input
+          type={type || "text"} value={val}
+          onChange={e => { onChange(e.target.value); if (errors && errors[autoComplete]) setErrors(p => { const n={...p}; delete n[autoComplete]; return n; }); }}
+          onKeyDown={e => e.key === "Enter" && submit()}
+          placeholder={placeholder}
+          autoComplete={autoComplete || "off"}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          style={{
+            width: "100%", background: D.s0,
+            border: `1.5px solid ${err ? D.rose + "90" : focused ? D.blueM : D.b0}`,
+            borderRadius: 14, color: D.w1, fontSize: 15, lineHeight: 1,
+            padding: `15px 46px 15px ${icon ? "46px" : "16px"}`,
+            outline: "none", transition: "border .18s, box-shadow .18s",
+            fontFamily: "Inter",
+            boxShadow: focused ? `0 0 0 3px ${err ? D.roseLo : D.blueLo}` : "none",
+          }}
+        />
+        {right && <div style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", display: "flex", alignItems: "center" }}>{right}</div>}
+      </div>
+      {err && (
+        <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: D.rose, animation: "fadeIn .2s ease both" }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={D.rose} strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          {err}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const StepBar = ({ step, D, I }) => (
+  <div style={{ display: "flex", alignItems: "center", gap: 0, marginBottom: 22 }}>
+    {["Dados", "Senha", "Verificar"].map((l, i) => {
+      const s = i + 1;
+      const done = step > s, active = step === s;
+      return (
+        <div key={l} style={{ display: "flex", alignItems: "center", flex: i < 2 ? 1 : 0 }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+            <div style={{ width: 32, height: 32, borderRadius: "50%", background: done ? D.mint : active ? D.gBlue : D.s3, border: `2px solid ${done ? D.mint : active ? D.blue : D.b1}`, display: "flex", alignItems: "center", justifyContent: "center", transition: "all .3s", color: done || active ? "#fff" : D.w3, fontWeight: 800, fontSize: 12 }}>
+              {done ? I.check : s}
+            </div>
+            <span style={{ fontSize: 10, fontWeight: 700, color: active ? D.blue2 : done ? D.mint : D.w3, whiteSpace: "nowrap" }}>{l}</span>
+          </div>
+          {i < 2 && <div style={{ flex: 1, height: 2, background: step > s ? D.mint : D.b1, margin: "0 6px", marginBottom: 16, borderRadius: 99, transition: "background .3s" }} />}
+        </div>
+      );
+    })}
+  </div>
+);
+
 const AuthScreen = ({ onLogin }) => {
   /* ── state ── */
   const [page, setPage] = useState("login"); // login | register | forgot | reset | verify
@@ -2038,69 +2117,6 @@ const AuthScreen = ({ onLogin }) => {
     phone:   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18"/></svg>,
   };
 
-  /* ── Input component ── */
-  const Inp = ({ label, icon, right, type, val, onChange, err, placeholder, autoComplete, hint }) => {
-    const [focused, setFocused] = useState(false);
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-        {(label || hint) && (
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            {label && <label style={{ fontSize: 12, fontWeight: 700, color: D.w2, letterSpacing: .4, textTransform: "uppercase" }}>{label}</label>}
-            {hint && <span style={{ fontSize: 11, color: D.w3 }}>{hint}</span>}
-          </div>
-        )}
-        <div style={{ position: "relative" }}>
-          {/* left icon */}
-          <div style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: focused ? D.blue2 : D.w3, transition: "color .18s", pointerEvents: "none", display: "flex" }}>
-            {icon}
-          </div>
-          <input
-            type={type || "text"} value={val}
-            onChange={e => { onChange(e.target.value); if (errors[autoComplete]) setErrors(p => { const n={...p}; delete n[autoComplete]; return n; }); }}
-            onKeyDown={e => e.key === "Enter" && submit()}
-            placeholder={placeholder}
-            autoComplete={autoComplete || "off"}
-            onFocus={() => setFocused(true)}
-            onBlur={() => setFocused(false)}
-            style={{
-              width: "100%", background: D.s0,
-              border: `1.5px solid ${err ? D.rose + "90" : focused ? D.blueM : D.b0}`,
-              borderRadius: 14, color: D.w1, fontSize: 15, lineHeight: 1,
-              padding: `15px 46px 15px ${icon ? "46px" : "16px"}`,
-              outline: "none", transition: "border .18s, box-shadow .18s",
-              fontFamily: "Inter",
-              boxShadow: focused ? `0 0 0 3px ${err ? D.roseLo : D.blueLo}` : "none",
-            }}
-          />
-          {/* right slot */}
-          {right && <div style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", display: "flex", alignItems: "center" }}>{right}</div>}
-        </div>
-        {err && (
-          <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: D.rose, animation: "fadeIn .2s ease both" }}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={D.rose} strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            {err}
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  /* ── Eye button ── */
-  const Eye = ({ show, toggle }) => (
-    <button type="button" onClick={toggle} style={{ background: "none", border: "none", color: show ? D.blue2 : D.w3, cursor: "pointer", padding: 4, display: "flex", transition: "color .18s" }}>
-      {show ? I.eyeOff : I.eye}
-    </button>
-  );
-
-  /* ── Social btn ── */
-  const SocialBtn = ({ icon, label, onClick }) => (
-    <button onClick={onClick} style={{ flex: 1, padding: "12px 8px", borderRadius: 13, border: `1.5px solid ${D.b1}`, background: D.s0, color: D.w1, fontWeight: 700, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, transition: "all .18s", fontFamily: "Inter" }}
-      onMouseOver={e => { e.currentTarget.style.borderColor = D.b2; e.currentTarget.style.background = D.s2; }}
-      onMouseOut={e => { e.currentTarget.style.borderColor = D.b1; e.currentTarget.style.background = D.s0; }}>
-      {icon}{label}
-    </button>
-  );
-
   /* ── Config por page ── */
   const pageConfig = {
     login:    { title: "Bem-vindo de volta 👋", sub: "Entre na sua conta DVS" },
@@ -2198,7 +2214,7 @@ const AuthScreen = ({ onLogin }) => {
           </div>
 
           {/* step bar — register */}
-          {page === "register" && <StepBar />}
+          {page === "register" && <StepBar step={step} D={D} I={I} />}
 
           {/* ── IA TIP ── */}
           {(aiTip || aiLoad) && (
@@ -2227,9 +2243,9 @@ const AuthScreen = ({ onLogin }) => {
           {/* LOGIN */}
           {page === "login" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <Inp label="E-mail" icon={I.mail} type="email" val={email} onChange={setEmail} err={errors.email} placeholder="seu@email.com" autoComplete="email" />
-              <Inp label="Senha" icon={I.lock} type={showPass ? "text" : "password"} val={pass} onChange={setPass} err={errors.pass} placeholder="Sua senha" autoComplete="current-password"
-                right={<Eye show={showPass} toggle={() => setShowPass(v=>!v)} />} />
+              <Inp D={D} I={I} errors={errors} setErrors={setErrors} submit={submit} label="E-mail" icon={I.mail} type="email" val={email} onChange={setEmail} err={errors.email} placeholder="seu@email.com" autoComplete="email" />
+              <Inp D={D} I={I} errors={errors} setErrors={setErrors} submit={submit} label="Senha" icon={I.lock} type={showPass ? "text" : "password"} val={pass} onChange={setPass} err={errors.pass} placeholder="Sua senha" autoComplete="current-password"
+                right={<Eye I={I} D={D} show={showPass} toggle={() => setShowPass(v=>!v)} />} />
 
               {/* remember + forgot */}
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -2249,16 +2265,16 @@ const AuthScreen = ({ onLogin }) => {
           {/* REGISTER — step 1 */}
           {page === "register" && step === 1 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <Inp label="Nome completo" icon={I.user} val={name} onChange={setName} err={errors.name} placeholder="Seu nome completo" autoComplete="name" />
-              <Inp label="E-mail" icon={I.mail} type="email" val={email} onChange={setEmail} err={errors.email} placeholder="seu@email.com" autoComplete="email" />
+              <Inp D={D} I={I} errors={errors} setErrors={setErrors} submit={submit} label="Nome completo" icon={I.user} val={name} onChange={setName} err={errors.name} placeholder="Seu nome completo" autoComplete="name" />
+              <Inp D={D} I={I} errors={errors} setErrors={setErrors} submit={submit} label="E-mail" icon={I.mail} type="email" val={email} onChange={setEmail} err={errors.email} placeholder="seu@email.com" autoComplete="email" />
             </div>
           )}
 
           {/* REGISTER — step 2 */}
           {page === "register" && step === 2 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <Inp label="Senha" icon={I.lock} type={showPass ? "text" : "password"} val={pass} onChange={setPass} err={errors.pass} placeholder="Mínimo 6 caracteres" autoComplete="new-password"
-                right={<Eye show={showPass} toggle={() => setShowPass(v=>!v)} />} hint="Mín. 6 caracteres" />
+              <Inp D={D} I={I} errors={errors} setErrors={setErrors} submit={submit} label="Senha" icon={I.lock} type={showPass ? "text" : "password"} val={pass} onChange={setPass} err={errors.pass} placeholder="Mínimo 6 caracteres" autoComplete="new-password"
+                right={<Eye I={I} D={D} show={showPass} toggle={() => setShowPass(v=>!v)} />} hint="Mín. 6 caracteres" />
 
               {/* força da senha */}
               {pass.length > 0 && (
@@ -2278,8 +2294,8 @@ const AuthScreen = ({ onLogin }) => {
                 {I.wand} Sugerir senha forte automaticamente
               </button>
 
-              <Inp label="Confirmar senha" icon={I.lock} type={showPass2 ? "text" : "password"} val={pass2} onChange={setPass2} err={errors.pass2} placeholder="Repita a senha" autoComplete="new-password"
-                right={<Eye show={showPass2} toggle={() => setShowPass2(v=>!v)} />} />
+              <Inp D={D} I={I} errors={errors} setErrors={setErrors} submit={submit} label="Confirmar senha" icon={I.lock} type={showPass2 ? "text" : "password"} val={pass2} onChange={setPass2} err={errors.pass2} placeholder="Repita a senha" autoComplete="new-password"
+                right={<Eye I={I} D={D} show={showPass2} toggle={() => setShowPass2(v=>!v)} />} />
 
               {/* requisitos */}
               <div style={{ padding: "10px 13px", background: D.bg2, borderRadius: 11, border: `1px solid ${D.b0}` }}>
@@ -2349,7 +2365,7 @@ const AuthScreen = ({ onLogin }) => {
               <div style={{ padding: "12px 14px", background: D.s0, borderRadius: 12, fontSize: 13, color: D.w2, border: `1px solid ${D.b0}`, lineHeight: 1.6 }}>
                 Informe o e-mail da sua conta e enviaremos um código para redefinir sua senha com segurança.
               </div>
-              <Inp label="E-mail cadastrado" icon={I.mail} type="email" val={email} onChange={setEmail} err={errors.email} placeholder="seu@email.com" autoComplete="email" />
+              <Inp D={D} I={I} errors={errors} setErrors={setErrors} submit={submit} label="E-mail cadastrado" icon={I.mail} type="email" val={email} onChange={setEmail} err={errors.email} placeholder="seu@email.com" autoComplete="email" />
             </div>
           )}
 
@@ -2359,13 +2375,13 @@ const AuthScreen = ({ onLogin }) => {
               <div style={{ padding: "12px 14px", background: D.blueLo, borderRadius: 12, fontSize: 13, color: D.blue3, border: `1px solid ${D.blueM}`, lineHeight: 1.5 }}>
                 📧 Um código foi enviado para <strong>{email}</strong>
               </div>
-              <Inp label="Código de recuperação" icon={I.key} val={resetCode} onChange={setResetCode} err={errors.resetCode} placeholder="000000" autoComplete="one-time-code" />
+              <Inp D={D} I={I} errors={errors} setErrors={setErrors} submit={submit} label="Código de recuperação" icon={I.key} val={resetCode} onChange={setResetCode} err={errors.resetCode} placeholder="000000" autoComplete="one-time-code" />
               {/* demo helper */}
               <div style={{ fontSize: 12, color: D.amber, cursor: "pointer", textDecoration: "underline" }} onClick={() => setResetCode(generatedCode)}>
                 Preencher código de demo: {generatedCode}
               </div>
-              <Inp label="Nova senha" icon={I.lock} type={showNPass ? "text" : "password"} val={newPass} onChange={setNewPass} err={errors.newPass} placeholder="Mínimo 6 caracteres" autoComplete="new-password"
-                right={<Eye show={showNPass} toggle={() => setShowNPass(v=>!v)} />} />
+              <Inp D={D} I={I} errors={errors} setErrors={setErrors} submit={submit} label="Nova senha" icon={I.lock} type={showNPass ? "text" : "password"} val={newPass} onChange={setNewPass} err={errors.newPass} placeholder="Mínimo 6 caracteres" autoComplete="new-password"
+                right={<Eye I={I} D={D} show={showNPass} toggle={() => setShowNPass(v=>!v)} />} />
               {newPass.length > 0 && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 5, animation: "fadeIn .2s both" }}>
                   <div style={{ display: "flex", gap: 4 }}>
