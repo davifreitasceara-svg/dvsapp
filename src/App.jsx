@@ -1880,7 +1880,7 @@ const GoogleLoginBtn = ({ onLogin, setErrors, D }) => {
     if (!window.google) return;
     
     // Configura o ID do cliente do Google (idealmente do .env)
-    const client_id = import.meta.env.VITE_GOOGLE_CLIENT_ID || "SUA_CLIENT_ID_DO_GOOGLE";
+    const client_id = import.meta.env.VITE_GOOGLE_CLIENT_ID || "422628535108-fh5i5dudbqiajhr7uo6ocg12qit83qb1.apps.googleusercontent.com";
 
     window.google.accounts.id.initialize({
       client_id: client_id,
