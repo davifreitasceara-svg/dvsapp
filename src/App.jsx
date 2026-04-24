@@ -1797,14 +1797,15 @@ function senhaForte(p) {
   return { score, ...data[score] };
 }
 
+
 /* ── Auth Sub-components ── */
-const Eye = ({ show, toggle, I, D }) => (
+const Eye = ({ show, toggle, I }) => (
   <button type="button" onClick={toggle} style={{ background: "none", border: "none", color: show ? D.blue2 : D.w3, cursor: "pointer", padding: 4, display: "flex", transition: "color .18s" }}>
     {show ? I.eyeOff : I.eye}
   </button>
 );
 
-const SocialBtn = ({ icon, label, onClick, D }) => (
+const SocialBtn = ({ icon, label, onClick }) => (
   <button onClick={onClick} style={{ flex: 1, padding: "12px 8px", borderRadius: 13, border: `1.5px solid ${D.b1}`, background: D.s0, color: D.w1, fontWeight: 700, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, transition: "all .18s", fontFamily: "Inter" }}
     onMouseOver={e => { e.currentTarget.style.borderColor = D.b2; e.currentTarget.style.background = D.s2; }}
     onMouseOut={e => { e.currentTarget.style.borderColor = D.b1; e.currentTarget.style.background = D.s0; }}>
@@ -1812,7 +1813,7 @@ const SocialBtn = ({ icon, label, onClick, D }) => (
   </button>
 );
 
-const Inp = ({ label, icon, right, type, val, onChange, err, placeholder, autoComplete, hint, D, errors, setErrors, submit }) => {
+const Inp = ({ label, icon, right, type, val, onChange, err, placeholder, autoComplete, hint, errors, setErrors, submit, I }) => {
   const [focused, setFocused] = useState(false);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
@@ -1856,7 +1857,7 @@ const Inp = ({ label, icon, right, type, val, onChange, err, placeholder, autoCo
   );
 };
 
-const StepBar = ({ step, D, I }) => (
+const StepBar = ({ step, I }) => (
   <div style={{ display: "flex", alignItems: "center", gap: 0, marginBottom: 22 }}>
     {["Dados", "Senha", "Verificar"].map((l, i) => {
       const s = i + 1;
@@ -2214,7 +2215,7 @@ const AuthScreen = ({ onLogin }) => {
           </div>
 
           {/* step bar — register */}
-          {page === "register" && <StepBar step={step} D={D} I={I} />}
+          {page === "register" && <StepBar step={step}  I={I} />}
 
           {/* ── IA TIP ── */}
           {(aiTip || aiLoad) && (
@@ -2243,9 +2244,9 @@ const AuthScreen = ({ onLogin }) => {
           {/* LOGIN */}
           {page === "login" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <Inp D={D} I={I} errors={errors} setErrors={setErrors} submit={submit} label="E-mail" icon={I.mail} type="email" val={email} onChange={setEmail} err={errors.email} placeholder="seu@email.com" autoComplete="email" />
-              <Inp D={D} I={I} errors={errors} setErrors={setErrors} submit={submit} label="Senha" icon={I.lock} type={showPass ? "text" : "password"} val={pass} onChange={setPass} err={errors.pass} placeholder="Sua senha" autoComplete="current-password"
-                right={<Eye I={I} D={D} show={showPass} toggle={() => setShowPass(v=>!v)} />} />
+              <Inp  I={I} errors={errors} setErrors={setErrors} submit={submit} label="E-mail" icon={I.mail} type="email" val={email} onChange={setEmail} err={errors.email} placeholder="seu@email.com" autoComplete="email" />
+              <Inp  I={I} errors={errors} setErrors={setErrors} submit={submit} label="Senha" icon={I.lock} type={showPass ? "text" : "password"} val={pass} onChange={setPass} err={errors.pass} placeholder="Sua senha" autoComplete="current-password"
+                right={<Eye I={I}  show={showPass} toggle={() => setShowPass(v=>!v)} />} />
 
               {/* remember + forgot */}
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -2265,16 +2266,16 @@ const AuthScreen = ({ onLogin }) => {
           {/* REGISTER — step 1 */}
           {page === "register" && step === 1 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <Inp D={D} I={I} errors={errors} setErrors={setErrors} submit={submit} label="Nome completo" icon={I.user} val={name} onChange={setName} err={errors.name} placeholder="Seu nome completo" autoComplete="name" />
-              <Inp D={D} I={I} errors={errors} setErrors={setErrors} submit={submit} label="E-mail" icon={I.mail} type="email" val={email} onChange={setEmail} err={errors.email} placeholder="seu@email.com" autoComplete="email" />
+              <Inp  I={I} errors={errors} setErrors={setErrors} submit={submit} label="Nome completo" icon={I.user} val={name} onChange={setName} err={errors.name} placeholder="Seu nome completo" autoComplete="name" />
+              <Inp  I={I} errors={errors} setErrors={setErrors} submit={submit} label="E-mail" icon={I.mail} type="email" val={email} onChange={setEmail} err={errors.email} placeholder="seu@email.com" autoComplete="email" />
             </div>
           )}
 
           {/* REGISTER — step 2 */}
           {page === "register" && step === 2 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <Inp D={D} I={I} errors={errors} setErrors={setErrors} submit={submit} label="Senha" icon={I.lock} type={showPass ? "text" : "password"} val={pass} onChange={setPass} err={errors.pass} placeholder="Mínimo 6 caracteres" autoComplete="new-password"
-                right={<Eye I={I} D={D} show={showPass} toggle={() => setShowPass(v=>!v)} />} hint="Mín. 6 caracteres" />
+              <Inp  I={I} errors={errors} setErrors={setErrors} submit={submit} label="Senha" icon={I.lock} type={showPass ? "text" : "password"} val={pass} onChange={setPass} err={errors.pass} placeholder="Mínimo 6 caracteres" autoComplete="new-password"
+                right={<Eye I={I}  show={showPass} toggle={() => setShowPass(v=>!v)} />} hint="Mín. 6 caracteres" />
 
               {/* força da senha */}
               {pass.length > 0 && (
@@ -2294,8 +2295,8 @@ const AuthScreen = ({ onLogin }) => {
                 {I.wand} Sugerir senha forte automaticamente
               </button>
 
-              <Inp D={D} I={I} errors={errors} setErrors={setErrors} submit={submit} label="Confirmar senha" icon={I.lock} type={showPass2 ? "text" : "password"} val={pass2} onChange={setPass2} err={errors.pass2} placeholder="Repita a senha" autoComplete="new-password"
-                right={<Eye I={I} D={D} show={showPass2} toggle={() => setShowPass2(v=>!v)} />} />
+              <Inp  I={I} errors={errors} setErrors={setErrors} submit={submit} label="Confirmar senha" icon={I.lock} type={showPass2 ? "text" : "password"} val={pass2} onChange={setPass2} err={errors.pass2} placeholder="Repita a senha" autoComplete="new-password"
+                right={<Eye I={I}  show={showPass2} toggle={() => setShowPass2(v=>!v)} />} />
 
               {/* requisitos */}
               <div style={{ padding: "10px 13px", background: D.bg2, borderRadius: 11, border: `1px solid ${D.b0}` }}>
@@ -2365,7 +2366,7 @@ const AuthScreen = ({ onLogin }) => {
               <div style={{ padding: "12px 14px", background: D.s0, borderRadius: 12, fontSize: 13, color: D.w2, border: `1px solid ${D.b0}`, lineHeight: 1.6 }}>
                 Informe o e-mail da sua conta e enviaremos um código para redefinir sua senha com segurança.
               </div>
-              <Inp D={D} I={I} errors={errors} setErrors={setErrors} submit={submit} label="E-mail cadastrado" icon={I.mail} type="email" val={email} onChange={setEmail} err={errors.email} placeholder="seu@email.com" autoComplete="email" />
+              <Inp  I={I} errors={errors} setErrors={setErrors} submit={submit} label="E-mail cadastrado" icon={I.mail} type="email" val={email} onChange={setEmail} err={errors.email} placeholder="seu@email.com" autoComplete="email" />
             </div>
           )}
 
@@ -2375,13 +2376,13 @@ const AuthScreen = ({ onLogin }) => {
               <div style={{ padding: "12px 14px", background: D.blueLo, borderRadius: 12, fontSize: 13, color: D.blue3, border: `1px solid ${D.blueM}`, lineHeight: 1.5 }}>
                 📧 Um código foi enviado para <strong>{email}</strong>
               </div>
-              <Inp D={D} I={I} errors={errors} setErrors={setErrors} submit={submit} label="Código de recuperação" icon={I.key} val={resetCode} onChange={setResetCode} err={errors.resetCode} placeholder="000000" autoComplete="one-time-code" />
+              <Inp  I={I} errors={errors} setErrors={setErrors} submit={submit} label="Código de recuperação" icon={I.key} val={resetCode} onChange={setResetCode} err={errors.resetCode} placeholder="000000" autoComplete="one-time-code" />
               {/* demo helper */}
               <div style={{ fontSize: 12, color: D.amber, cursor: "pointer", textDecoration: "underline" }} onClick={() => setResetCode(generatedCode)}>
                 Preencher código de demo: {generatedCode}
               </div>
-              <Inp D={D} I={I} errors={errors} setErrors={setErrors} submit={submit} label="Nova senha" icon={I.lock} type={showNPass ? "text" : "password"} val={newPass} onChange={setNewPass} err={errors.newPass} placeholder="Mínimo 6 caracteres" autoComplete="new-password"
-                right={<Eye I={I} D={D} show={showNPass} toggle={() => setShowNPass(v=>!v)} />} />
+              <Inp  I={I} errors={errors} setErrors={setErrors} submit={submit} label="Nova senha" icon={I.lock} type={showNPass ? "text" : "password"} val={newPass} onChange={setNewPass} err={errors.newPass} placeholder="Mínimo 6 caracteres" autoComplete="new-password"
+                right={<Eye I={I}  show={showNPass} toggle={() => setShowNPass(v=>!v)} />} />
               {newPass.length > 0 && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 5, animation: "fadeIn .2s both" }}>
                   <div style={{ display: "flex", gap: 4 }}>
@@ -2822,10 +2823,18 @@ function App() {
               <div style={{ fontFamily:"'Sora',sans-serif", fontWeight:800, fontSize:16, letterSpacing:"-.2px", lineHeight:1.2 }}>DVS EduCreator</div>
               <div style={{ fontSize:10, color:D.w3 }}>Olá, {session.name.split(" ")[0]} 👋</div>
             </div>
-            <div style={{ marginLeft:"auto", display:"flex", alignItems:"center", gap:6 }}>
-              <div style={{ width:7, height:7, borderRadius:"50%", background:pCols[plan], animation:"pulse2 2s ease-in-out infinite" }}/>
-              <span style={{ fontSize:12, fontWeight:700, color:pCols[plan] }}>{pLbls[plan]}</span>
-            </div>
+            
+              <div style={{ marginLeft:"auto", display:"flex", alignItems:"center", gap:10 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <div style={{ width:7, height:7, borderRadius:"50%", background:pCols[plan], animation:"pulse2 2s ease-in-out infinite" }}/>
+                  <span style={{ fontSize:12, fontWeight:700, color:pCols[plan] }}>{pLbls[plan]}</span>
+                </div>
+                <button onClick={handleLogout} style={{ background: D.roseLo, border: `1.5px solid ${D.rose}30`, borderRadius: 10, padding: "6px 12px", color: D.rose, fontSize: 11, fontWeight: 800, cursor: "pointer", transition: "all .18s", fontFamily: "'Sora',sans-serif" }}
+                  onMouseOver={e => { e.currentTarget.style.background = D.rose; e.currentTarget.style.color = "#fff"; }}
+                  onMouseOut={e => { e.currentTarget.style.background = D.roseLo; e.currentTarget.style.color = D.rose; }}>
+                  SAIR
+                </button>
+              </div>
           </header>
 
           {/* CONTENT */}
