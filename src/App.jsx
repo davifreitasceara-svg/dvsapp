@@ -1877,6 +1877,70 @@ const StepBar = ({ step, I }) => (
   </div>
 );
 
+
+/* ── Real Google Login Integration ── */
+const GoogleLoginBtn = ({ onLogin, setErrors, D }) => {
+  const btnRef = useRef(null);
+
+  useEffect(() => {
+    if (!window.google) return;
+    
+    // Configura o ID do cliente do Google (idealmente do .env)
+    const client_id = import.meta.env.VITE_GOOGLE_CLIENT_ID || "SUA_CLIENT_ID_DO_GOOGLE";
+
+    window.google.accounts.id.initialize({
+      client_id: client_id,
+      callback: (response) => {
+        // O JWT retornado pelo Google
+        const token = response.credential;
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        
+        console.log("Google Login Success:", payload);
+        
+        const session = {
+          email: payload.email.toLowerCase(),
+          name: payload.name,
+          picture: payload.picture,
+          plan: "free",
+          token: token
+        };
+
+        // Salva usuário no banco local simulado
+        const users = getUsers();
+        if (!users[session.email]) {
+          users[session.email] = {
+            name: payload.name,
+            email: session.email,
+            passHash: "GOOGLE_AUTH",
+            plan: "free",
+            createdAt: new Date().toISOString(),
+            stats: { posts: 0, transcricoes: 0, mapas: 0, flashcards: 0, quiz: 0 }
+          };
+          saveUsers(users);
+        }
+        
+        saveSession(session);
+        onLogin(session);
+      }
+    });
+
+    window.google.accounts.id.renderButton(btnRef.current, {
+      theme: "filled_blue",
+      size: "large",
+      width: 400,
+      shape: "pill",
+      text: "continue_with",
+      logo_alignment: "left"
+    });
+  }, [onLogin]);
+
+  return (
+    <div style={{ width: "100%", display: "flex", justifyContent: "center", marginTop: 10 }}>
+       <div ref={btnRef} style={{ width: "100%", maxWidth: 400 }}></div>
+    </div>
+  );
+};
+
 const AuthScreen = ({ onLogin }) => {
   /* ── state ── */
   const [page, setPage] = useState("login"); // login | register | forgot | reset | verify
