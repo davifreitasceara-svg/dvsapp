@@ -224,7 +224,7 @@ let _tid = 0;
 
 async function callAI(user, sys = "") {
   try {
-    const r = await fetch("https://api.anthropic.com/v1/messages", {
+    const r = await fetch("/api/ai/v1/messages", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -1873,33 +1873,40 @@ const StepBar = ({ step, I }) => (
 
 
 /* ── Real Google Login Integration ── */
-const GoogleLoginBtn = ({ onLogin, setErrors, D }) => {
+const GoogleLoginBtn = ({ onLogin, setErrors }) => {
   const btnRef = useRef(null);
+  const [gReady, setGReady] = useState(!!window.google);
+
+  // Carrega o script do Google dinamicamente se ainda não estiver presente
+  useEffect(() => {
+    if (window.google) { setGReady(true); return; }
+    const existing = document.querySelector('script[src*="accounts.google.com/gsi"]');
+    if (existing) return;
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    script.onload = () => setGReady(true);
+    script.onerror = () => console.warn('[GoogleLoginBtn] Google GSI script failed to load.');
+    document.head.appendChild(script);
+  }, []);
 
   useEffect(() => {
-    if (!window.google) return;
-    
-    // Configura o ID do cliente do Google (idealmente do .env)
+    if (!gReady || !window.google || !btnRef.current) return;
+
     const client_id = import.meta.env.VITE_GOOGLE_CLIENT_ID || "422628535108-fh5i5dudbqiajhr7uo6ocg12qit83qb1.apps.googleusercontent.com";
 
-    window.google.accounts.id.initialize({
-      client_id: client_id,
-      callback: (response) => {
-        // O JWT retornado pelo Google
+    const handleCredential = (response) => {
+      try {
         const token = response.credential;
         const payload = JSON.parse(atob(token.split('.')[1]));
-        
-        console.log("Google Login Success:", payload);
-        
         const session = {
           email: payload.email.toLowerCase(),
           name: payload.name,
-          picture: payload.picture,
+          picture: payload.picture || null,
           plan: "free",
-          token: token
+          token,
         };
-
-        // Salva usuário no banco local simulado
         const users = getUsers();
         if (!users[session.email]) {
           users[session.email] = {
@@ -1908,29 +1915,44 @@ const GoogleLoginBtn = ({ onLogin, setErrors, D }) => {
             passHash: "GOOGLE_AUTH",
             plan: "free",
             createdAt: new Date().toISOString(),
-            stats: { posts: 0, transcricoes: 0, mapas: 0, flashcards: 0, quiz: 0 }
+            bio: "", phone: "", verified: true,
+            stats: { posts: 0, transcricoes: 0, mapas: 0, flashcards: 0, quiz: 0 },
           };
           saveUsers(users);
         }
-        
         saveSession(session);
         onLogin(session);
+      } catch (e) {
+        console.error('[GoogleLoginBtn] Token parse error:', e);
+        setErrors({ pass: 'Erro ao processar login com Google. Tente novamente.' });
       }
-    });
+    };
 
-    window.google.accounts.id.renderButton(btnRef.current, {
-      theme: "filled_blue",
-      size: "large",
-      width: 400,
-      shape: "pill",
-      text: "continue_with",
-      logo_alignment: "left"
-    });
-  }, [onLogin]);
+    try {
+      window.google.accounts.id.initialize({ client_id, callback: handleCredential });
+      window.google.accounts.id.renderButton(btnRef.current, {
+        theme: "filled_blue",
+        size: "large",
+        width: Math.min(btnRef.current.offsetWidth || 360, 400),
+        shape: "pill",
+        text: "continue_with",
+        logo_alignment: "left",
+      });
+    } catch (e) {
+      console.error('[GoogleLoginBtn] Init error:', e);
+    }
+  }, [gReady, onLogin]);
+
+  if (!gReady) return (
+    <div style={{ width: "100%", display: "flex", justifyContent: "center", alignItems: "center", height: 48, gap: 9, marginTop: 10 }}>
+      <Spin s={16} c={D.blue2} />
+      <span style={{ fontSize: 13, color: D.w2 }}>Carregando Google…</span>
+    </div>
+  );
 
   return (
     <div style={{ width: "100%", display: "flex", justifyContent: "center", marginTop: 10 }}>
-       <div ref={btnRef} style={{ width: "100%", maxWidth: 400 }}></div>
+      <div ref={btnRef} style={{ width: "100%", maxWidth: 400, minHeight: 44 }} />
     </div>
   );
 };
