@@ -668,7 +668,7 @@ const MindMap = ({ data }) => {
 /* ═══════════════════════════════════════════════
    PREVIEW MOCKUPS (IG / TIKTOK)
 ═══════════════════════════════════════════════ */
-const PreviewMockup = ({ platform, type, fileURL, isImg, fCSS, caption, onClose, onFinish }) => {
+const PreviewMockup = ({ platform, type, fileURL, isImg, fCSS, caption, music, onClose, onFinish }) => {
   const [loading, setLoading] = useState(false);
   
   const handlePublish = async () => {
