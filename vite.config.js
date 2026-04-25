@@ -11,12 +11,13 @@ export default defineConfig(({ mode }) => {
       port: 5173,
       proxy: {
         '/api/ai': {
-          target: 'https://api.anthropic.com',
+          target: 'https://generativelanguage.googleapis.com',
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/api\/ai/, ''),
           headers: {
-            'x-api-key': env.ANTHROPIC_API_KEY || '',
-            'anthropic-version': '2023-06-01',
+            'x-goog-api-key': env.GEMINI_API_KEY || '',
+            
+            
           },
         },
       },

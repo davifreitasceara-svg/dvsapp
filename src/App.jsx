@@ -224,19 +224,18 @@ let _tid = 0;
 
 async function callAI(user, sys = "") {
   try {
-    const r = await fetch("/api/ai/v1/messages", {
+    const r = await fetch("/api/ai/v1beta/models/gemini-2.5-flash:generateContent", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 1700,
-        system: sys || "Você é DVS EduCreator AI — assistente especialista em marketing digital e educação. Responda sempre em português brasileiro de forma direta, criativa e precisa.",
-        messages: [{ role: "user", content: user }],
+        systemInstruction: { parts: [{ text: sys || "Você é DVS EduCreator AI — assistente especialista em marketing digital e educação. Responda sempre em português brasileiro de forma direta, criativa e precisa." }] },
+        contents: [{ role: "user", parts: [{ text: user }] }]
       }),
     });
+    if (!r.ok) { const err = await r.json().catch(()=>({})); console.error("[callAI] Error:", r.status, err); return ""; }
     const d = await r.json();
-    return d.content?.map(c => c.text || "").join("") || "";
-  } catch { return ""; }
+    return d.candidates?.[0]?.content?.parts?.[0]?.text || "";
+  } catch(e) { console.error("[callAI]", e); return ""; }
 }
 
 function pj(raw) {
@@ -255,23 +254,21 @@ function fileToBase64(file) {
 
 async function callAIVision(b64, mediaType, prompt, sys) {
   try {
-    const r = await fetch("/api/ai/v1/messages", {
+    const r = await fetch("/api/ai/v1beta/models/gemini-2.5-flash:generateContent", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 1700,
-        system: sys || "Voc\u00ea \u00e9 DVS EduCreator AI \u2014 especialista em marketing viral brasileiro. Responda em portugu\u00eas.",
-        messages: [{ role: "user", content: [
-          { type: "image", source: { type: "base64", media_type: mediaType, data: b64 } },
-          { type: "text", text: prompt }
+        systemInstruction: { parts: [{ text: sys || "Você é DVS EduCreator AI — especialista em marketing viral brasileiro. Responda em português." }] },
+        contents: [{ role: "user", parts: [
+          { inlineData: { mimeType: mediaType, data: b64 } },
+          { text: prompt }
         ]}]
       })
     });
-    if (!r.ok) { console.error("[callAIVision]", r.status); return ""; }
+    if (!r.ok) { const err = await r.json().catch(()=>({})); console.error("[callAIVision] Error:", r.status, err); return ""; }
     const d = await r.json();
-    return d.content?.map(c => c.text || "").join("") || "";
-  } catch (e) { console.error("[callAIVision]", e); return ""; }
+    return d.candidates?.[0]?.content?.parts?.[0]?.text || "";
+  } catch (e) { console.error("[callAIVision] Exception:", e); return ""; }
 }
 
 /* ═══════════════════════════════════════════════
@@ -718,6 +715,16 @@ const PreviewMockup = ({ platform, type, fileURL, isImg, fCSS, caption, music, o
               </div>
             )}
             
+            {music && (
+              <div style={{ position: "absolute", top: 80, left: "50%", transform: "translateX(-50%)", background: "rgba(0,0,0,0.65)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", padding: "8px 14px", borderRadius: 14, display: "flex", alignItems: "center", gap: 10, color: "#fff", border: "1px solid rgba(255,255,255,0.15)", boxShadow: "0 4px 16px rgba(0,0,0,0.4)" }}>
+                <div style={{ width: 28, height: 28, borderRadius: 6, background: "linear-gradient(45deg, #f09433, #bc1888)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>🎵</div>
+                <div style={{ display: "flex", flexDirection: "column", maxWidth: 180 }}>
+                  <span style={{ fontSize: 13, fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{music.nome}</span>
+                  <span style={{ fontSize: 11, color: "rgba(255,255,255,0.8)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{music.artista}</span>
+                </div>
+              </div>
+            )}
+            
             {/* overlays */}
             <div style={{ position: "absolute", right: 12, bottom: 120, display: "flex", flexDirection: "column", gap: 20, alignItems: "center" }}>
                <div style={{ textAlign: "center" }}><span style={{ fontSize: 28 }}>❤️</span><div style={{ fontSize: 11, fontWeight: 700 }}>1.2M</div></div>
@@ -1002,7 +1009,7 @@ const Criador = ({ toast }) => {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
           <div>
             <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 20 }}>Revisão Final ✨</div>
-            <button className="btn ghost xs" onClick={() => { setStage("home"); setResult(null); setFile(null); setFileURL(null); setTopic(""); setFiltName(null); setFilters(FPRESET.original); }} style={{marginTop: 4}}>+ Novo</button>
+            <button className="btn ghost xs" onClick={() => { setStage("home"); setResult(null); setFile(null); setFileURL(null); setTopic(""); setFiltName(null); setFilters(FPRESET.Original); }} style={{marginTop: 4}}>+ Novo</button>
           </div>
         </div>
 
@@ -1043,8 +1050,8 @@ const Criador = ({ toast }) => {
           {[["brightness","Brilho",50,160],["contrast","Contraste",50,160],["saturate","Satura\u00e7\u00e3o",0,200]].map(([k,lb,mn,mx]) => (
             <div key={k} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 7 }}>
               <div style={{ width: 68, fontSize: 11, color: D.w2 }}>{lb}</div>
-              <input type="range" min={mn} max={mx} value={filters[k]??100} onChange={e => setFilters(p => ({ ...p, [k]: +e.target.value }))} style={{ flex: 1, accentColor: D.blue2 }} />
-              <div style={{ width: 32, fontSize: 11, color: D.w3, textAlign: "right" }}>{filters[k]??100}%</div>
+              <input type="range" min={mn} max={mx} value={filters?.[k]??100} onChange={e => setFilters(p => ({ ...p, [k]: +e.target.value }))} style={{ flex: 1, accentColor: D.blue2 }} />
+              <div style={{ width: 32, fontSize: 11, color: D.w3, textAlign: "right" }}>{filters?.[k]??100}%</div>
             </div>
           ))}
         </div>
