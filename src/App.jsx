@@ -708,6 +708,16 @@ const PreviewMockup = ({ platform, type, fileURL, isImg, fCSS, caption, music, o
                {isImg ? <img src={fileURL} style={{ width: "100%", filter: fCSS }} /> : <video src={fileURL} autoPlay muted loop style={{ width: "100%" }} />}
             </div>
             
+            {music && (
+              <div style={{ position: "absolute", top: 80, left: "50%", transform: "translateX(-50%)", background: "rgba(0,0,0,0.65)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", padding: "8px 14px", borderRadius: 14, display: "flex", alignItems: "center", gap: 10, color: "#fff", border: "1px solid rgba(255,255,255,0.15)", boxShadow: "0 4px 16px rgba(0,0,0,0.4)" }}>
+                <div style={{ width: 28, height: 28, borderRadius: 6, background: "linear-gradient(45deg, #f09433, #bc1888)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>🎵</div>
+                <div style={{ display: "flex", flexDirection: "column", maxWidth: 180 }}>
+                  <span style={{ fontSize: 13, fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{music.nome}</span>
+                  <span style={{ fontSize: 11, color: "rgba(255,255,255,0.8)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{music.artista}</span>
+                </div>
+              </div>
+            )}
+            
             {/* overlays */}
             <div style={{ position: "absolute", right: 12, bottom: 120, display: "flex", flexDirection: "column", gap: 20, alignItems: "center" }}>
                <div style={{ textAlign: "center" }}><span style={{ fontSize: 28 }}>❤️</span><div style={{ fontSize: 11, fontWeight: 700 }}>1.2M</div></div>
@@ -725,7 +735,7 @@ const PreviewMockup = ({ platform, type, fileURL, isImg, fCSS, caption, music, o
                 {caption}
               </div>
               <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
-                🎵 <span>Áudio original de DVS</span>
+                🎵 <span>{music ? `${music.nome} • ${music.artista}` : "Áudio original de DVS"}</span>
               </div>
             </div>
           </div>
@@ -734,7 +744,10 @@ const PreviewMockup = ({ platform, type, fileURL, isImg, fCSS, caption, music, o
           <div style={{ background: "#000", height: "100%" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px" }}>
               <div style={{ width: 32, height: 32, borderRadius: "50%", background: "linear-gradient(45deg, #f09433, #e6683c)" }} />
-              <div style={{ fontSize: 14, fontWeight: 700 }}>DVS_EduCreator</div>
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                <span style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>DVS_EduCreator</span>
+                {music && <span style={{ fontSize: 11, fontWeight: 500, color: "#aaa" }}>{music.nome}</span>}
+              </div>
             </div>
             <div style={{ width: "100%", background: "#111", minHeight: 300, display: "flex", alignItems: "center" }}>
                {isImg ? <img src={fileURL} style={{ width: "100%", filter: fCSS }} /> : <video src={fileURL} autoPlay muted loop style={{ width: "100%" }} />}
@@ -867,11 +880,20 @@ const Criador = ({ toast }) => {
       );
     }
     setPct(100); await sleep(200);
-    const fallbackMusicas = [
+    const ALL_MUSIC = [
       { tipo: "Viral", nome: "Mtg Quero Te Encontrar", artista: "DJ Luan Gomes", vibe: "Animada" },
       { tipo: "Em Alta", nome: "Diz Aí Qual é o Plano", artista: "Mc IG", vibe: "Urbana" },
-      { tipo: "Recomendada", nome: "Casca de Bala", artista: "Thullio Milionário", vibe: "Sertanejo" }
+      { tipo: "Recomendada", nome: "Casca de Bala", artista: "Thullio Milionário", vibe: "Sertanejo" },
+      { tipo: "Viral", nome: "Perna Bamba", artista: "Parangolé", vibe: "Dança" },
+      { tipo: "Em Alta", nome: "Macetando", artista: "Ivete Sangalo", vibe: "Festa" },
+      { tipo: "Recomendada", nome: "Let's Go 4", artista: "Mc IG", vibe: "Trap" },
+      { tipo: "Viral", nome: "Voando pro Pará", artista: "Joelma", vibe: "Clássico" },
+      { tipo: "Em Alta", nome: "Lapada Dela", artista: "Menos é Mais", vibe: "Pagode" },
+      { tipo: "Recomendada", nome: "Chico", artista: "Luísa Sonza", vibe: "Romântica" },
+      { tipo: "Viral", nome: "Toca o Trompete", artista: "Felipe Amorim", vibe: "Eletrônica" }
     ];
+    // Randomize
+    const fallbackMusicas = ALL_MUSIC.sort(() => 0.5 - Math.random()).slice(0, 3);
     const p = pj(raw) || { hook: "Viral!", caption: "Legenda!", hashtags: ["viral","brasil"], filtro: "Clarendon", musicas: fallbackMusicas, score: 80, scoreMotivo: "Ok", melhorias: [], plataforma: "Insta", horario: "19h", cta: "Comenta!" };
     if (!p.musicas || !Array.isArray(p.musicas) || p.musicas.length === 0) p.musicas = fallbackMusicas;
 
