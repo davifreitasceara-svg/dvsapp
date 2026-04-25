@@ -244,6 +244,36 @@ function pj(raw) {
   catch { return null; }
 }
 
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function callAIVision(b64, mediaType, prompt, sys) {
+  try {
+    const r = await fetch("/api/ai/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1700,
+        system: sys || "Voc\u00ea \u00e9 DVS EduCreator AI \u2014 especialista em marketing viral brasileiro. Responda em portugu\u00eas.",
+        messages: [{ role: "user", content: [
+          { type: "image", source: { type: "base64", media_type: mediaType, data: b64 } },
+          { type: "text", text: prompt }
+        ]}]
+      })
+    });
+    if (!r.ok) { console.error("[callAIVision]", r.status); return ""; }
+    const d = await r.json();
+    return d.content?.map(c => c.text || "").join("") || "";
+  } catch (e) { console.error("[callAIVision]", e); return ""; }
+}
+
 /* ═══════════════════════════════════════════════
    PRIMITIVES
 ═══════════════════════════════════════════════ */
@@ -763,12 +793,22 @@ const Criador = ({ toast }) => {
     { id: "humor", l: "😂 Humor" }, { id: "edu", l: "📚 Educativo" },
   ];
   const FPRESET = {
-    original:     { brightness: 100, contrast: 100, saturate: 100 },
-    profissional: { brightness: 103, contrast: 112, saturate: 88 },
-    aesthetic:    { brightness: 108, contrast: 95, saturate: 120 },
-    vintage:      { brightness: 93, contrast: 115, saturate: 68 },
-    hdr:          { brightness: 106, contrast: 125, saturate: 118 },
-    vívido:       { brightness: 104, contrast: 108, saturate: 148 },
+    "Original":  { brightness: 100, contrast: 100, saturate: 100, sepia: 0,  hue: 0   },
+    "Clarendon": { brightness: 112, contrast: 128, saturate: 135, sepia: 0,  hue: 0   },
+    "Gingham":   { brightness: 105, contrast: 88,  saturate: 82,  sepia: 8,  hue: -5  },
+    "Moon":      { brightness: 113, contrast: 118, saturate: 0,   sepia: 10, hue: 0   },
+    "Lark":      { brightness: 118, contrast: 82,  saturate: 92,  sepia: 0,  hue: 0   },
+    "Reyes":     { brightness: 112, contrast: 86,  saturate: 72,  sepia: 28, hue: 0   },
+    "Juno":      { brightness: 108, contrast: 118, saturate: 155, sepia: 0,  hue: 5   },
+    "Slumber":   { brightness: 104, contrast: 93,  saturate: 125, sepia: 12, hue: 0   },
+    "Crema":     { brightness: 110, contrast: 88,  saturate: 78,  sepia: 22, hue: 6   },
+    "Ludwig":    { brightness: 106, contrast: 110, saturate: 92,  sepia: 9,  hue: 0   },
+    "Aden":      { brightness: 112, contrast: 86,  saturate: 72,  sepia: 18, hue: -12 },
+    "Valencia":  { brightness: 110, contrast: 108, saturate: 90,  sepia: 24, hue: 5   },
+    "Hudson":    { brightness: 118, contrast: 92,  saturate: 98,  sepia: 14, hue: -12 },
+    "Nashville": { brightness: 112, contrast: 106, saturate: 118, sepia: 14, hue: 6   },
+    "HDR":       { brightness: 106, contrast: 132, saturate: 122, sepia: 0,  hue: 0   },
+    "V\u00edvido":    { brightness: 104, contrast: 108, saturate: 152, sepia: 0,  hue: 0   },
   };
 
   const handleFileChange = useCallback(e => {
@@ -786,38 +826,54 @@ const Criador = ({ toast }) => {
   };
 
   const startCreate = async () => {
-    if (!file && !topic.trim()) { toast("Envie uma mídia ou escreva um tema!", "warn"); return; }
+    if (!file && !topic.trim()) { toast("Envie uma m\u00eddia ou escreva um tema!", "warn"); return; }
     setStage("proc"); setPct(0); setCur(0);
     const steps = isImg ? SI : SV;
     for (let i = 0; i < steps.length; i++) { setCur(i); await sleep(480 + Math.random() * 380); setPct(Math.round(((i + 1) / steps.length) * 88)); }
-    const raw = await callAI(
-      `Você é especialista em marketing viral para redes sociais brasileiras. Crie conteúdo de alto impacto.
-Tipo de mídia: ${isImg ? "imagem" : "vídeo"} | Tema: "${topic || "conteúdo geral"}" | Estilo: ${estilo}
-Retorne APENAS este JSON exato (sem markdown, sem texto fora do JSON):
-{
-  "hook": "frase de impacto máx 10 palavras com emoji",
-  "caption": "legenda completa",
-  "hashtags": ["8 hashtags"],
-  "filtro": "profissional",
+
+    const jsonTpl = `{
+  "hook": "frase de impacto m\u00e1x 10 palavras com emoji BASEADA no conte\u00fado visual",
+  "caption": "legenda completa e relevante ao que aparece na imagem/v\u00eddeo",
+  "hashtags": ["8 hashtags relacionados ao conte\u00fado"],
+  "filtro": "Clarendon",
   "musicas": [{"tipo":"Viral","nome":"musica","artista":"artista","vibe":"vibe"}],
   "score": 90,
-  "scoreMotivo": "motivo",
-  "melhorias": ["dica"],
+  "scoreMotivo": "motivo baseado no conte\u00fado",
+  "melhorias": ["dica espec\u00edfica para este conte\u00fado"],
   "plataforma": "Insta",
   "horario": "19h",
-  "cta": "cta"
-}`,
-      "APENAS JSON."
-    );
+  "cta": "chamada para a\u00e7\u00e3o"
+}`;
+
+    let raw = "";
+    if (file && isImg) {
+      try {
+        const b64 = await fileToBase64(file);
+        const mt = file.type?.startsWith("image") ? file.type : "image/jpeg";
+        raw = await callAIVision(b64, mt,
+          `Analise DETALHADAMENTE esta imagem e crie conte\u00fado viral para redes sociais brasileiras.\nDescreva o que voc\u00ea v\u00ea: pessoas, produto, ambiente, cores, emo\u00e7\u00e3o \u2014 e baseie TUDO nisso.\nTema extra do usu\u00e1rio: "${topic || "nenhum"}" | Estilo: ${estilo}\nA legenda e o hook DEVEM ser sobre o que est\u00e1 NA IMAGEM.\nRetorne APENAS este JSON (sem markdown):\n${jsonTpl}`,
+          "Retorne APENAS JSON v\u00e1lido. Zero texto fora do JSON."
+        );
+      } catch (e) { console.error("Vision fallback:", e); }
+    }
+    if (!raw) {
+      raw = await callAI(
+        `Crie conte\u00fado viral para redes sociais brasileiras.\nTipo: ${isImg ? "imagem" : "v\u00eddeo"} | Tema: "${topic || "conte\u00fado geral"}" | Estilo: ${estilo}\nRetorne APENAS este JSON (sem markdown):\n${jsonTpl}`,
+        "APENAS JSON."
+      );
+    }
     setPct(100); await sleep(200);
-    const p = pj(raw) || { hook: "Viral!", caption: "Legenda", hashtags: ["viral"], filtro: "profissional", musicas: [], score: 80, scoreMotivo: "Ok", melhorias: [], plataforma: "Insta", horario: "19h", cta: "Cta" };
+    const p = pj(raw) || { hook: "Viral!", caption: "Legenda!", hashtags: ["viral","brasil"], filtro: "Clarendon", musicas: [], score: 80, scoreMotivo: "Ok", melhorias: [], plataforma: "Insta", horario: "19h", cta: "Comenta!" };
     setCaption(`${p.hook}\n\n${p.caption}\n\n${p.hashtags.map(h => "#" + h).join(" ")}`);
-    setResult(p); 
+    setResult(p);
     if (p.filtro) applyFilt(p.filtro);
     setStage("result");
   };
 
-  const applyFilt = name => { setFiltName(name); setFilters(FPRESET[name] || FPRESET.original); };
+  const applyFilt = name => {
+    const key = Object.keys(FPRESET).find(k => k.toLowerCase() === (name || "").toLowerCase()) || "Original";
+    setFiltName(key); setFilters(FPRESET[key] || FPRESET["Original"]);
+  };
   
   const [pPct, setPPct] = useState(0);
 
@@ -890,7 +946,7 @@ Retorne APENAS este JSON exato (sem markdown, sem texto fora do JSON):
     setVLoad(false);
   };
   const copiar = () => { navigator.clipboard.writeText(caption); toast("Copiado!", "ok"); };
-  const fCSS = `brightness(${filters.brightness}%) contrast(${filters.contrast}%) saturate(${filters.saturate}%)`;
+  const fCSS = `brightness(${filters.brightness}%) contrast(${filters.contrast}%) saturate(${filters.saturate}%) sepia(${filters.sepia || 0}%) hue-rotate(${filters.hue || 0}deg)`;
 
   if (stage === "proc") return <div style={{ padding: "24px 16px" }}><LoadScreen steps={isImg ? SI : SV} cur={cur} pct={pct} title="Processando..." /></div>;
 
@@ -933,11 +989,29 @@ Retorne APENAS este JSON exato (sem markdown, sem texto fora do JSON):
         </div>
 
         <div className="card" style={{ padding: 15 }}>
-          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>🎨 Ajustes da IA (${filtName})</div>
-          {[["brightness", "Brilho"], ["contrast", "Contraste"]].map(([k, lb]) => (
-            <div key={k} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-              <div style={{ width: 60, fontSize: 11, color: D.w2 }}>{lb}</div>
-              <input type="range" min={70} max={140} value={filters[k]} onChange={e => setFilters(p => ({ ...p, [k]: +e.target.value }))} style={{ flex: 1, accentColor: D.blue2 }} />
+          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>\ud83c\udfa8 Filtros Instagram \u00b7 <span style={{ color: D.blue2 }}>{filtName || "Original"}</span></div>
+          <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 6, scrollbarWidth: "none", marginBottom: 14 }}>
+            {Object.keys(FPRESET).map(name => {
+              const f = FPRESET[name];
+              const css = `brightness(${f.brightness}%) contrast(${f.contrast}%) saturate(${f.saturate}%) sepia(${f.sepia||0}%) hue-rotate(${f.hue||0}deg)`;
+              const active = filtName === name;
+              return (
+                <div key={name} onClick={() => applyFilt(name)} style={{ flexShrink: 0, cursor: "pointer", textAlign: "center", width: 66 }}>
+                  <div style={{ width: 66, height: 66, borderRadius: 12, overflow: "hidden", border: `2.5px solid ${active ? D.blue2 : D.b0}`, transition: "border .15s", marginBottom: 4, background: D.bg2 }}>
+                    {fileURL && isImg
+                      ? <img src={fileURL} alt={name} style={{ width: "100%", height: "100%", objectFit: "cover", filter: css }} />
+                      : <div style={{ width: "100%", height: "100%", background: `linear-gradient(135deg,#1d4ed8,#06b6d4)`, filter: css }} />}
+                  </div>
+                  <div style={{ fontSize: 10, fontWeight: active ? 800 : 500, color: active ? D.blue2 : D.w3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</div>
+                </div>
+              );
+            })}
+          </div>
+          {[["brightness","Brilho",50,160],["contrast","Contraste",50,160],["saturate","Satura\u00e7\u00e3o",0,200]].map(([k,lb,mn,mx]) => (
+            <div key={k} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 7 }}>
+              <div style={{ width: 68, fontSize: 11, color: D.w2 }}>{lb}</div>
+              <input type="range" min={mn} max={mx} value={filters[k]??100} onChange={e => setFilters(p => ({ ...p, [k]: +e.target.value }))} style={{ flex: 1, accentColor: D.blue2 }} />
+              <div style={{ width: 32, fontSize: 11, color: D.w3, textAlign: "right" }}>{filters[k]??100}%</div>
             </div>
           ))}
         </div>
