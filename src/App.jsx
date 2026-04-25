@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
+import html2canvas from "html2canvas";
 const SI = ["Analisando imagem", "Melhorando qualidade", "Calibrando cores", "Gerando conteúdo IA", "Calculando viral score"];
 const SV = ["Analisando vídeo", "Identificando momentos", "Aplicando efeitos", "Gerando conteúdo IA", "Calculando viral score"];
 const STEPS3 = {
@@ -709,21 +710,13 @@ const PreviewMockup = ({ platform, type, fileURL, isImg, fCSS, caption, music, o
               <div style={{ position: "absolute", top: 80, left: "50%", transform: "translateX(-50%)", background: "rgba(0,0,0,0.65)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", padding: "8px 14px", borderRadius: 14, display: "flex", alignItems: "center", gap: 10, color: "#fff", border: "1px solid rgba(255,255,255,0.15)", boxShadow: "0 4px 16px rgba(0,0,0,0.4)" }}>
                 <div style={{ width: 28, height: 28, borderRadius: 6, background: "linear-gradient(45deg, #f09433, #bc1888)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>🎵</div>
                 <div style={{ display: "flex", flexDirection: "column", maxWidth: 180 }}>
-                  <span style={{ fontSize: 13, fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{music.nome}</span>
+                  <span style={{ fontSize: 13, fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{music.titulo || music.nome}</span>
                   <span style={{ fontSize: 11, color: "rgba(255,255,255,0.8)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{music.artista}</span>
                 </div>
               </div>
             )}
             
-            {music && (
-              <div style={{ position: "absolute", top: 80, left: "50%", transform: "translateX(-50%)", background: "rgba(0,0,0,0.65)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", padding: "8px 14px", borderRadius: 14, display: "flex", alignItems: "center", gap: 10, color: "#fff", border: "1px solid rgba(255,255,255,0.15)", boxShadow: "0 4px 16px rgba(0,0,0,0.4)" }}>
-                <div style={{ width: 28, height: 28, borderRadius: 6, background: "linear-gradient(45deg, #f09433, #bc1888)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>🎵</div>
-                <div style={{ display: "flex", flexDirection: "column", maxWidth: 180 }}>
-                  <span style={{ fontSize: 13, fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{music.nome}</span>
-                  <span style={{ fontSize: 11, color: "rgba(255,255,255,0.8)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{music.artista}</span>
-                </div>
-              </div>
-            )}
+
             
             {/* overlays */}
             <div style={{ position: "absolute", right: 12, bottom: 120, display: "flex", flexDirection: "column", gap: 20, alignItems: "center" }}>
@@ -925,72 +918,70 @@ const Criador = ({ toast }) => {
     
     try {
       // 1. Copiar a legenda automaticamente para o usuário só precisar "Colar"
-      await navigator.clipboard.writeText(caption);
-      
-      // 2. Tentar o compartilhamento direto do sistema (Abre o App direto com a mídia)
-      const canShare = file && navigator.canShare && navigator.canShare({ files: [file] });
-      
-      if (canShare && navigator.share) {
-        await navigator.share({
-          files: [file],
-          title: 'DVS Content',
-          text: caption
-        });
-        toast(`🚀 Abrindo o ${platform.toUpperCase()} agora...`, "ok");
-      } else {
-        // 3. Fallback: Forçar o download da mídia para o topo da galeria e abrir o app
-        const link = document.createElement('a');
-        link.href = fileURL;
-        link.download = isImg ? 'dvs-post.jpg' : 'dvs-post.mp4';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
 
-        // 4. Abrir o App na tela de postagem
-        let deepLink = "";
-        if (platform === 'insta') {
-          if (type === 'stories') deepLink = "instagram://story-camera";
-          else if (type === 'reels') deepLink = "instagram://reels_share";
-          else deepLink = "instagram://library";
-        } else {
-          deepLink = "snssdk1128://feed";
-        }
-        
-        setTimeout(() => {
-          window.location.href = deepLink;
-        }, 800);
-        
-        toast(`✅ Mídia salva e legenda copiada! O ${platform.toUpperCase()} está abrindo...`, "ok");
+  
+  const compartilharDireto = async () => {
+    if (!isImg) {
+      // Fallback para vídeo (não tem como processar filtro no browser fácil)
+      if (navigator.share) {
+        try {
+          await navigator.share({ title: 'DVS EduCreator', text: caption, url: fileURL });
+          return;
+        } catch(e) {}
       }
-    } catch (e) {
-      console.error("Erro no envio:", e);
-      toast(`✅ Tudo pronto! Agora é só colar no ${platform}.`, "ok");
+      toast("Compartilhamento nativo não disponível. Use os botões abaixo.");
+      return;
     }
-    
-    setMock(null);
-  };
 
-
-
-  const regen = async () => {
-    setRLoad(true);
-    await sleep(800);
-    toast("Nova legenda!", "ok");
-    setRLoad(false);
+    toast("✨ Preparando mídia editada...");
+    try {
+      const el = document.getElementById('preview-to-export');
+      if (!el) return;
+      const canvas = await html2canvas(el, { useCORS: true, scale: 2, backgroundColor: D.bg2 });
+      
+      canvas.toBlob(async (blob) => {
+        const fileToShare = new File([blob], 'dvs-viral.png', { type: 'image/png' });
+        
+        if (navigator.canShare && navigator.canShare({ files: [fileToShare] })) {
+          try {
+            await navigator.share({
+              files: [fileToShare],
+              title: 'DVS EduCreator',
+              text: caption
+            });
+            toast("✅ Enviado com sucesso!");
+          } catch (err) {
+            if (err.name !== 'AbortError') toast("Erro ao compartilhar: " + err.message);
+          }
+        } else {
+          // Fallback: Download
+          const link = document.createElement('a');
+          link.download = 'dvs-viral.png';
+          link.href = canvas.toDataURL('image/png');
+          link.click();
+          toast("📱 Seu navegador não suporta envio direto. Imagem salva!");
+        }
+      }, 'image/png');
+    } catch (e) {
+      toast("Erro ao gerar arte: " + e.message);
+    }
   };
-  const viral = async () => {
-    setVLoad(true);
-    await sleep(1500);
-    setResult({ ...result, score: 99 });
-    toast(`🚀 Viralizado!`, "ok");
-    setVLoad(false);
-  };
-  const copiar = () => { navigator.clipboard.writeText(caption); toast("Copiado!", "ok"); };
   const fCSS = `brightness(${filters.brightness}%) contrast(${filters.contrast}%) saturate(${filters.saturate}%) sepia(${filters.sepia || 0}%) hue-rotate(${filters.hue || 0}deg)`;
 
-  if (stage === "proc") return <div style={{ padding: "24px 16px" }}><LoadScreen steps={isImg ? SI : SV} cur={cur} pct={pct} title="Processando..." /></div>;
+  const copiar = () => { navigator.clipboard.writeText(caption); toast("Copiado!"); };
 
-  if (stage === "result" && result) return (
+  const viral = async () => {
+    setVLoad(true);
+    try {
+      const prompt = `Melhore esta legenda para torná-la viral no Instagram/TikTok. Use ganchos (hooks) poderosos, emojis estratégicos e hashtags de alta performance.\n\nLegenda original: ${caption}`;
+      const res = await callAI(prompt);
+      if (res) setCaption(res.replace(/^"|"$/g, ''));
+      toast("🚀 Legenda turbinada com sucesso!");
+    } catch (e) { toast("Erro ao turbinar."); }
+    setVLoad(false);
+  };
+
+  return (
     <>
       {mock && (
         <PreviewMockup 
@@ -1000,8 +991,9 @@ const Criador = ({ toast }) => {
           isImg={isImg} 
           fCSS={fCSS} 
           caption={caption} 
+          music={result.musicas?.[0]}
           onClose={() => setMock(null)}
-          onFinish={realPublicar}
+          onFinish={() => { toast("Publicado com sucesso!"); setMock(null); }}
         />
       )}
       
@@ -1014,7 +1006,7 @@ const Criador = ({ toast }) => {
         </div>
 
         <div className="card" style={{ padding: 0, overflow: "hidden", position: "relative", minHeight: 300, background: D.bg2, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div key="stable-preview-container" style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div id="preview-to-export" style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
             {fileURL ? (
               <div style={{width: "100%", position: "relative"}}>
                 {isImg ? (
@@ -1022,6 +1014,31 @@ const Criador = ({ toast }) => {
                 ) : (
                   <video src={fileURL} autoPlay muted loop playsInline style={{ width: "100%", height: "auto", display: "block" }} />
                 )}
+                
+                {/* Música Overlay Editável */}
+                {result.musicas?.[0] && (
+                  <div style={{
+                    position: "absolute",
+                    bottom: "20%",
+                    left: "10%",
+                    background: "rgba(255,255,255,0.92)",
+                    padding: "8px 12px",
+                    borderRadius: 12,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    boxShadow: "0 8px 25px rgba(0,0,0,0.3)",
+                    maxWidth: "80%",
+                    zIndex: 10
+                  }}>
+                    <div style={{ width: 34, height: 34, borderRadius: 8, background: 'linear-gradient(45deg, #f09433, #bc1888)', display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 18 }}>🎵</div>
+                    <div style={{ overflow: "hidden" }}>
+                      <div style={{ fontSize: 11, fontWeight: 900, color: "#000", whiteSpace: "nowrap" }}>{result.musicas[0].titulo}</div>
+                      <div style={{ fontSize: 9, color: "#666" }}>{result.musicas[0].artista}</div>
+                    </div>
+                  </div>
+                )}
+
                 <div style={{ position: "absolute", top: 12, right: 12 }}><ScoreRing score={result.score} /></div>
               </div>
             ) : <div style={{ color: D.w3 }}>Sem prévia</div>}
@@ -1029,7 +1046,7 @@ const Criador = ({ toast }) => {
         </div>
 
         <div className="card" style={{ padding: 15 }}>
-          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>\ud83c\udfa8 Filtros Instagram \u00b7 <span style={{ color: D.blue2 }}>{filtName || "Original"}</span></div>
+          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>🎨 Filtros Instagram · <span style={{ color: D.blue2 }}>{filtName || "Original"}</span></div>
           <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 6, scrollbarWidth: "none", marginBottom: 14 }}>
             {Object.keys(FPRESET).map(name => {
               const f = FPRESET[name];
@@ -1069,37 +1086,25 @@ const Criador = ({ toast }) => {
         <button className="btn rose lg" style={{ width: "100%" }} onClick={viral} disabled={vLoad}>
           {vLoad ? <Spin s={18} /> : "🚀 TURBINAR PARA VIRALIZAR"}
         </button>
-
-        <div style={{ marginTop: 8, background: D.s0, borderRadius: 16, padding: 16, border: `1px solid ${D.b0}` }}>
-          <div style={{ fontSize: 11, fontWeight: 800, color: D.w3, textAlign: "center", marginBottom: 15, letterSpacing: 1.5 }}>PUBLICAR AGORA</div>
+                <div style={{ marginTop: 12, background: D.s0, borderRadius: 24, padding: 24, border: '2px solid ' + D.blue, boxShadow: "0 15px 45px rgba(0,0,0,0.4)" }}>
+          <div style={{ fontSize: 11, fontWeight: 900, color: D.blue2, textAlign: "center", marginBottom: 20, letterSpacing: 2 }}>LANÇAR NAS REDES</div>
           
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            {/* INSTAGRAM */}
-            <div style={{ background: "linear-gradient(45deg, #f09433, #bc1888)", borderRadius: 14, padding: "12px 10px" }}>
-              <div style={{ color: "#fff", fontWeight: 900, fontSize: 13, marginBottom: 10, textAlign: "center" }}>INSTAGRAM</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-                {['Feed', 'Reels', 'Stories'].map(type => (
-                  <button key={type} className="btn" style={{ background: "rgba(255,255,255,0.2)", border: "1px solid rgba(255,255,255,0.4)", color: "#fff", fontSize: 11, fontWeight: 800 }} onClick={() => setMock({ platform: 'insta', type: type.toLowerCase() })}>
-                    {type}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* TIKTOK */}
-            <div style={{ background: "#000", borderRadius: 14, padding: "12px 10px", border: "2.5px solid #00f2ea" }}>
-              <div style={{ color: "#fff", fontWeight: 900, fontSize: 13, marginBottom: 10, textAlign: "center" }}>TIKTOK</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                {['Feed', 'Stories'].map(type => (
-                  <button key={type} className="btn" style={{ background: "rgba(255,255,255,0.1)", border: "1px solid #ff0050", color: "#fff", fontSize: 11, fontWeight: 800 }} onClick={() => setMock({ platform: 'tiktok', type: type.toLowerCase() })}>
-                    {type}
-                  </button>
-                ))}
-              </div>
-            </div>
+          <button className="btn" style={{ width: "100%", height: 60, background: D.gBlue, color: "#fff", borderRadius: 16, fontSize: 16, fontWeight: 900, marginBottom: 16, boxShadow: "0 8px 20px rgba(37,99,235,0.3)" }} onClick={compartilharDireto}>
+             🚀 COMPARTILHAR AGORA
+          </button>
+          
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+            <button className="btn outline sm" style={{ fontSize: 10 }} onClick={() => setMock({ platform: 'insta', type: 'reels' })}>PREVIEW</button>
+            <button className="btn outline sm" style={{ fontSize: 10 }} onClick={() => { navigator.clipboard.writeText(caption); toast("Copiado!"); }}>COPIAR</button>
+            <button className="btn outline sm" style={{ fontSize: 10 }} onClick={async () => {
+               const el = document.getElementById('preview-to-export');
+               if(el) {
+                 const c = await html2canvas(el, {useCORS:true, scale:2});
+                 const l = document.createElement('a'); l.download='dvs.png'; l.href=c.toDataURL(); l.click();
+               }
+            }}>BAIXAR</button>
           </div>
         </div>
-        
         <div style={{ textAlign: "center", fontSize: 10, color: D.w3, marginTop: 4 }}>
           DVS simulará o app original para você conferir o resultado final.
         </div>
