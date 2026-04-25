@@ -836,7 +836,11 @@ const Criador = ({ toast }) => {
   "caption": "legenda completa e relevante ao que aparece na imagem/v\u00eddeo",
   "hashtags": ["8 hashtags relacionados ao conte\u00fado"],
   "filtro": "Clarendon",
-  "musicas": [{"tipo":"Viral","nome":"musica","artista":"artista","vibe":"vibe"}],
+  "musicas": [
+    {"tipo":"Em Alta","nome":"Nome Real da Musica","artista":"Nome do Artista","vibe":"vibe da musica"},
+    {"tipo":"Viral","nome":"Outra Musica Real","artista":"Artista 2","vibe":"outra vibe"},
+    {"tipo":"Recomendada","nome":"Terceira Musica","artista":"Artista 3","vibe":"vibe 3"}
+  ],
   "score": 90,
   "scoreMotivo": "motivo baseado no conte\u00fado",
   "melhorias": ["dica espec\u00edfica para este conte\u00fado"],
@@ -851,19 +855,26 @@ const Criador = ({ toast }) => {
         const b64 = await fileToBase64(file);
         const mt = file.type?.startsWith("image") ? file.type : "image/jpeg";
         raw = await callAIVision(b64, mt,
-          `Analise DETALHADAMENTE esta imagem e crie conte\u00fado viral para redes sociais brasileiras.\nDescreva o que voc\u00ea v\u00ea: pessoas, produto, ambiente, cores, emo\u00e7\u00e3o \u2014 e baseie TUDO nisso.\nTema extra do usu\u00e1rio: "${topic || "nenhum"}" | Estilo: ${estilo}\nA legenda e o hook DEVEM ser sobre o que est\u00e1 NA IMAGEM.\nRetorne APENAS este JSON (sem markdown):\n${jsonTpl}`,
+          `Analise DETALHADAMENTE esta imagem e crie conte\u00fado viral para redes sociais brasileiras.\nDescreva o que voc\u00ea v\u00ea: pessoas, produto, ambiente, cores, emo\u00e7\u00e3o \u2014 e baseie TUDO nisso.\nTema extra do usu\u00e1rio: "${topic || "nenhum"}" | Estilo: ${estilo}\nA legenda e o hook DEVEM ser sobre o que est\u00e1 NA IMAGEM.\nObrigat\u00f3rio: indique 3 m\u00fasicas REAIS (nome e artista de verdade, conhecidos no TikTok/Reels Brasil) que combinem com a vibe da imagem.\nRetorne APENAS este JSON (sem markdown):\n${jsonTpl}`,
           "Retorne APENAS JSON v\u00e1lido. Zero texto fora do JSON."
         );
       } catch (e) { console.error("Vision fallback:", e); }
     }
     if (!raw) {
       raw = await callAI(
-        `Crie conte\u00fado viral para redes sociais brasileiras.\nTipo: ${isImg ? "imagem" : "v\u00eddeo"} | Tema: "${topic || "conte\u00fado geral"}" | Estilo: ${estilo}\nRetorne APENAS este JSON (sem markdown):\n${jsonTpl}`,
+        `Crie conte\u00fado viral para redes sociais brasileiras.\nTipo: ${isImg ? "imagem" : "v\u00eddeo"} | Tema: "${topic || "conte\u00fado geral"}" | Estilo: ${estilo}\nObrigat\u00f3rio: indique 3 m\u00fasicas REAIS (nome e artista de verdade, conhecidos no TikTok/Reels Brasil) que combinem com o tema.\nRetorne APENAS este JSON (sem markdown):\n${jsonTpl}`,
         "APENAS JSON."
       );
     }
     setPct(100); await sleep(200);
-    const p = pj(raw) || { hook: "Viral!", caption: "Legenda!", hashtags: ["viral","brasil"], filtro: "Clarendon", musicas: [], score: 80, scoreMotivo: "Ok", melhorias: [], plataforma: "Insta", horario: "19h", cta: "Comenta!" };
+    const fallbackMusicas = [
+      { tipo: "Viral", nome: "Mtg Quero Te Encontrar", artista: "DJ Luan Gomes", vibe: "Animada" },
+      { tipo: "Em Alta", nome: "Diz Aí Qual é o Plano", artista: "Mc IG", vibe: "Urbana" },
+      { tipo: "Recomendada", nome: "Casca de Bala", artista: "Thullio Milionário", vibe: "Sertanejo" }
+    ];
+    const p = pj(raw) || { hook: "Viral!", caption: "Legenda!", hashtags: ["viral","brasil"], filtro: "Clarendon", musicas: fallbackMusicas, score: 80, scoreMotivo: "Ok", melhorias: [], plataforma: "Insta", horario: "19h", cta: "Comenta!" };
+    if (!p.musicas || !Array.isArray(p.musicas) || p.musicas.length === 0) p.musicas = fallbackMusicas;
+
     setCaption(`${p.hook}\n\n${p.caption}\n\n${p.hashtags.map(h => "#" + h).join(" ")}`);
     setResult(p);
     if (p.filtro) applyFilt(p.filtro);
