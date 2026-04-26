@@ -1,57 +1,52 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { supabase } from "./services/supabase";
+import { generateVideo } from "./services/ffmpegService";
 import html2canvas from "html2canvas";
 const SI = ["Analisando imagem", "Melhorando qualidade", "Calibrando cores", "Gerando conteúdo IA", "Calculando viral score"];
-const SV = ["Analisando vídeo", "Identificando momentos", "Aplicando efeitos", "Gerando conteúdo IA", "Calculando viral score"];
+const SV = ["Analisando v deo", "Identificando momentos", "Aplicando efeitos", "Gerando conteúdo IA", "Calculando viral score"];
 const STEPS3 = {
-  resumo: ["Lendo texto", "Extraindo tópicos", "Criando resumo", "Organizando pontos"],
+  resumo: ["Lendo texto", "Extraindo t picos", "Criando resumo", "Organizando pontos"],
   mapa:   ["Processando", "Mapeando conceitos", "Estruturando ramos", "Gerando mapa"],
-  slides: ["Analisando", "Dividindo seções", "Criando slides", "Design finalizado"],
+  slides: ["Analisando", "Dividindo sees", "Criando slides", "Design finalizado"],
   cards:  ["Lendo material", "Criando perguntas", "Elaborando respostas", "Formatando"],
-  quiz:   ["Analisando texto", "Criando questões", "Alternativas", "Finalizando"],
+  quiz:   ["Analisando texto", "Criando quest es", "Alternativas", "Finalizando"],
 };
 
 
 const D = {
-  // backgrounds
-  bg:    "#050709",
-  bg2:   "#090c12",
-  bg3:   "#0d1018",
-  // surfaces
-  s0:    "#0f1420",
-  s1:    "#131928",
-  s2:    "#182030",
-  s3:    "#1e2838",
-  // borders
-  b0:    "#1a2236",
-  b1:    "#243049",
-  b2:    "#2e3d5e",
-  // blues (primary)
-  blue:  "#2563eb",
-  blue2: "#3b82f6",
-  blue3: "#60a5fa",
-  blueLo:"rgba(37,99,235,.12)",
-  blueM: "rgba(37,99,235,.28)",
-  // accents
-  cyan:  "#06b6d4",
-  cyanLo:"rgba(6,182,212,.1)",
-  mint:  "#10b981",
-  mintLo:"rgba(16,185,129,.1)",
-  rose:  "#f43f5e",
-  roseLo:"rgba(244,63,94,.1)",
-  amber: "#f59e0b",
-  amberLo:"rgba(245,158,11,.1)",
-  // text
-  w1:    "#f8faff",
-  w2:    "#94a3b8",
-  w3:    "#3d4f6e",
-  // gradients
-  gBlue: "linear-gradient(135deg,#1d4ed8 0%,#2563eb 50%,#3b82f6 100%)",
-  gCyan: "linear-gradient(135deg,#0891b2 0%,#06b6d4 100%)",
-  gMint: "linear-gradient(135deg,#059669 0%,#10b981 100%)",
-  gRose: "linear-gradient(135deg,#e11d48 0%,#f43f5e 100%)",
-  gAmber:"linear-gradient(135deg,#d97706 0%,#f59e0b 100%)",
-  gDark: "linear-gradient(135deg,#0f1420 0%,#182030 100%)",
+  // Deep Navy Branding (Matches Logo)
+  bg:    "#020B1A",
+  bg2:   "#04132B",
+  bg3:   "#072146",
+  s0:    "#0A2E61",
+  s1:    "#0E3C7D",
+  s2:    "#134B9A",
+  s3:    "#185BB7",
+  b0:    "#0F2A52",
+  b1:    "#1A3D73",
+  b2:    "#255094",
+  // Primary (Silver/Cyan accent)
+  blue:  "#38BDF8",
+  blue2: "#7DD3FC",
+  blue3: "#BAE6FD",
+  blueLo:"rgba(56,189,248,.12)",
+  blueM: "rgba(56,189,248,.28)",
+  // Accents
+  cyan:  "#22D3EE", cyanLo:"rgba(34,211,238,.1)",
+  mint:  "#34D399", mintLo:"rgba(52,211,153,.1)",
+  rose:  "#FB7185", roseLo:"rgba(251,113,133,.1)",
+  amber: "#FBBF24", amberLo:"rgba(251,191,36,.1)",
+  // Text
+  w1:    "#F8FAFC",
+  w2:    "#CBD5E1",
+  w3:    "#64748B",
+  // Gradients
+  gBlue: "linear-gradient(135deg,#0E3C7D 0%,#185BB7 100%)",
+  gCyan: "linear-gradient(135deg,#0284C7 0%,#06B6D4 100%)",
+  gMint: "linear-gradient(135deg,#059669 0%,#10B981 100%)",
+  gRose: "linear-gradient(135deg,#E11D48 0%,#F43F5E 100%)",
+  gAmber:"linear-gradient(135deg,#D97706 0%,#F59E0B 100%)",
+  gDark: "linear-gradient(135deg,#04132B 0%,#020B1A 100%)",
 };
 
 
@@ -77,16 +72,16 @@ class ErrorBoundary extends React.Component {
 
 
 
-/* ═══════════════════════════════════════════════
-   DESIGN SYSTEM — Navy / Black / White (Play Store)
-═══════════════════════════════════════════════ */
+/* 
+   DESIGN SYSTEM  Navy / Black / White (Play Store)
+ */
 
 
-/* ═══════════════════════════════════════════════
+/* 
    GLOBAL CSS
-═══════════════════════════════════════════════ */
+ */
 const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Sora:wght@700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Cinzel:wght@700;800&family=Sora:wght@700;800&display=swap');
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { height: 100%; -webkit-text-size-adjust: 100%; touch-action: manipulation; }
@@ -104,7 +99,7 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 ::-webkit-scrollbar { width: 2px; height: 2px; }
 ::-webkit-scrollbar-thumb { background: ${D.blue}; border-radius: 99px; }
 
-/* ── ANIMATIONS ── */
+/*  ANIMATIONS  */
 @keyframes fadeUp   { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
 @keyframes fadeIn   { from { opacity:0; } to { opacity:1; } }
 @keyframes spinA    { to { transform: rotate(360deg); } }
@@ -137,7 +132,7 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .d4  { animation-delay:.24s; }
 .d5  { animation-delay:.30s; }
 
-/* ── BUTTONS ── */
+/*  BUTTONS  */
 .btn {
   display: inline-flex; align-items: center; justify-content: center;
   gap: 7px; border: none; font-weight: 700; font-size: 14px;
@@ -170,12 +165,12 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .btn.danger    { background: rgba(244,63,94,.16); color: ${D.rose}; border: 1px solid rgba(244,63,94,.3); }
 .btn.danger:hover:not(:disabled)    { background: rgba(244,63,94,.28); }
 
-/* ── CARDS ── */
+/*  CARDS  */
 .card  { background: ${D.s1}; border: 1px solid ${D.b0}; border-radius: 18px; overflow: hidden; }
 .cardH { transition: border-color .2s, box-shadow .2s; }
 .cardH:hover { border-color: ${D.blueM}; box-shadow: 0 6px 28px rgba(0,0,0,.38); }
 
-/* ── INPUTS ── */
+/*  INPUTS  */
 .inp {
   background: ${D.bg2}; border: 1.5px solid ${D.b0};
   border-radius: 12px; color: ${D.w1}; font-size: 14px;
@@ -186,7 +181,7 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .inp:focus  { border-color: ${D.blueM}; box-shadow: 0 0 0 3px ${D.blueLo}; }
 .inp::placeholder { color: ${D.w3}; }
 
-/* ── TAGS ── */
+/*  TAGS  */
 .tag   { display:inline-flex; align-items:center; gap:4px; border-radius:99px; padding:3px 9px; font-size:11px; font-weight:700; letter-spacing:.3px; }
 .tblue { background:${D.blueLo}; color:${D.blue2}; border:1px solid ${D.blueM}; }
 .tgrn  { background:${D.mintLo}; color:${D.mint}; border:1px solid rgba(16,185,129,.28); }
@@ -194,13 +189,13 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .tamb  { background:${D.amberLo}; color:${D.amber}; border:1px solid rgba(245,158,11,.28); }
 .tcyan { background:${D.cyanLo}; color:${D.cyan}; border:1px solid rgba(6,182,212,.28); }
 
-/* ── SECTION LABEL ── */
+/*  SECTION LABEL  */
 .sec-label {
   font-size: 11px; font-weight: 700; letter-spacing: 1.2px;
   color: ${D.w3}; text-transform: uppercase; margin-bottom: 10px;
 }
 
-/* ── FULLSCREEN PRES ── */
+/*  FULLSCREEN PRES  */
 .pres {
   position: fixed; inset: 0; z-index: 9900;
   background: #000;
@@ -208,7 +203,7 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
   animation: presA .28s ease both;
 }
 
-/* ── NAV ITEM ── */
+/*  NAV ITEM  */
 .nav-item {
   flex: 1; display: flex; flex-direction: column;
   align-items: center; gap: 3px;
@@ -218,9 +213,9 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 }
 `;
 
-/* ═══════════════════════════════════════════════
+/* 
    HELPERS
-═══════════════════════════════════════════════ */
+ */
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 let _tid = 0;
 
@@ -230,7 +225,7 @@ async function callAI(user, sys = "") {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        systemInstruction: { parts: [{ text: sys || "Você é DVS EduCreator AI — assistente especialista em marketing digital e educação. Responda sempre em português brasileiro de forma direta, criativa e precisa." }] },
+        systemInstruction: { parts: [{ text: sys || "Voc    DVSCREATOR AI  assistente especialista em marketing digital e educao. Responda sempre em portugu s brasileiro de forma direta, criativa e precisa." }] },
         contents: [{ role: "user", parts: [{ text: user }] }]
       }),
     });
@@ -271,7 +266,7 @@ async function callAIVision(b64, mediaType, prompt, sys) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        systemInstruction: { parts: [{ text: sys || "Você é DVS EduCreator AI — especialista em marketing viral brasileiro. Responda em português." }] },
+        systemInstruction: { parts: [{ text: sys || "Voc    DVSCREATOR AI  especialista em marketing viral brasileiro. Responda em portugu s." }] },
         contents: [{ role: "user", parts: [
           { inlineData: { mimeType: mediaType, data: b64 } },
           { text: prompt }
@@ -284,9 +279,9 @@ async function callAIVision(b64, mediaType, prompt, sys) {
   } catch (e) { console.error("[callAIVision] Exception:", e); return ""; }
 }
 
-/* ═══════════════════════════════════════════════
+/* 
    PRIMITIVES
-═══════════════════════════════════════════════ */
+ */
 const Spin = ({ s = 20, c = D.blue2 }) => (
   <div style={{ width: s, height: s, border: `2.5px solid ${D.b1}`, borderTopColor: c, borderRadius: "50%", animation: "spinA .6s linear infinite", flexShrink: 0 }} />
 );
@@ -312,9 +307,9 @@ const Toasts = ({ items, del }) => (
   <div style={{ position: "fixed", top: 20, right: 16, zIndex: 10000, display: "flex", flexDirection: "column", gap: 8, maxWidth: 310, pointerEvents: "none" }}>
     {items.map(t => (
       <div key={t.id} style={{ background: D.s2, border: `1px solid ${t.tp === "err" ? D.rose + "55" : t.tp === "ok" ? D.mint + "55" : D.blue + "55"}`, borderRadius: 14, padding: "11px 14px", display: "flex", alignItems: "center", gap: 9, pointerEvents: "all", animation: "toastA .28s ease both", boxShadow: "0 8px 28px rgba(0,0,0,.55)" }}>
-        <span style={{ fontSize: 16 }}>{t.tp === "err" ? "❌" : t.tp === "ok" ? "✅" : t.tp === "warn" ? "⚠️" : "ℹ️"}</span>
+        <span style={{ fontSize: 16 }}>{t.tp === "err" ? "" : t.tp === "ok" ? "" : t.tp === "warn" ? "" : ""}</span>
         <span style={{ fontSize: 13, flex: 1, lineHeight: 1.4, color: D.w1 }}>{t.msg}</span>
-        <button onClick={() => del(t.id)} style={{ background: "none", border: "none", color: D.w3, fontSize: 18, lineHeight: 1, padding: 2 }}>×</button>
+        <button onClick={() => del(t.id)} style={{ background: "none", border: "none", color: D.w3, fontSize: 18, lineHeight: 1, padding: 2 }}> </button>
       </div>
     ))}
   </div>
@@ -331,7 +326,7 @@ const LoadScreen = ({ steps = [], cur = 0, pct = 0, title = "Processando..." }) 
       <div style={{ padding: "36px 20px", display: "flex", flexDirection: "column", gap: 22, alignItems: "center" }}>
         <div style={{ width: 76, height: 76, borderRadius: "50%", background: (D?.blueLo || "rgba(37,99,235,0.1)"), border: `2px solid ${D?.blueM || "rgba(37,99,235,0.3)"}`, display: "flex", alignItems: "center", justifyContent: "center", animation: "glowA 2s ease-in-out infinite", position: "relative" }}>
           <Spin s={44} />
-          <span style={{ position: "absolute", fontSize: 22, pointerEvents: "none" }}>⚙️</span>
+          <span style={{ position: "absolute", fontSize: 22, pointerEvents: "none" }}></span>
         </div>
         <div style={{ textAlign: "center" }}>
           <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 20, marginBottom: 7 }}>{safeTitle}</div>
@@ -343,11 +338,11 @@ const LoadScreen = ({ steps = [], cur = 0, pct = 0, title = "Processando..." }) 
             <div key={`ls-${i}`} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: i < safeCur ? (D?.mint || "#10b981") : i === safeCur ? (D?.blue2 || "#3b82f6") : (D?.w3 || "#3d4f6e"), transition: "color .3s", minWidth: 100 }}>
               <div style={{ width: 16, height: 16, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 {i < safeCur ? (
-                  <span style={{ color: (D?.mint || "#10b981"), fontWeight: 800 }}>✔</span>
+                  <span style={{ color: (D?.mint || "#10b981"), fontWeight: 800 }}></span>
                 ) : i === safeCur ? (
                   <Spin s={11} c={(D?.blue2 || "#3b82f6")} />
                 ) : (
-                  <span style={{ opacity: .35 }}>◦</span>
+                  <span style={{ opacity: .35 }}></span>
                 )}
               </div>
               <span style={{ whiteSpace: "nowrap" }}>{s}</span>
@@ -373,28 +368,28 @@ const ScoreRing = ({ score }) => {
         <text x={66} y={61} textAnchor="middle" fill={col} fontSize={24} fontWeight={900} fontFamily="Inter">{score}%</text>
         <text x={66} y={77} textAnchor="middle" fill={D.w3} fontSize={9} fontFamily="Inter" letterSpacing={1.5}>VIRAL SCORE</text>
       </svg>
-      <span className="tag tgrn" style={{ fontSize: 11 }}>{score >= 80 ? "🔥 Viral!" : score >= 60 ? "📈 Bom" : "💡 Melhorar"}</span>
+      <span className="tag tgrn" style={{ fontSize: 11 }}>{score >= 80 ? " Viral!" : score >= 60 ? " Bom" : " Melhorar"}</span>
     </div>
   );
 };
 
-/* ═══════════════════════════════════════════════
-   SLIDE THEMES — 8 premium dark themes
-═══════════════════════════════════════════════ */
+/* 
+   SLIDE THEMES  8 premium dark themes
+ */
 const THEMES = [
-  { id:"navy",   icon:"🌐", name:"Navy",    bg:"linear-gradient(150deg,#020818 0%,#051230 55%,#010510 100%)", acc:"#3b82f6", acc2:"#1d4ed8", txt:"#f0f7ff", txt2:"rgba(224,240,255,.55)", nb:"rgba(59,130,246,.18)", nbr:"rgba(59,130,246,.4)",  d1:"rgba(29,78,216,.22)", d2:"rgba(59,130,246,.08)" },
-  { id:"ocean",  icon:"🌊", name:"Oceano",  bg:"linear-gradient(150deg,#010e1c 0%,#012040 55%,#01090f 100%)", acc:"#06b6d4", acc2:"#0891b2", txt:"#ecfeff", txt2:"rgba(207,250,254,.55)", nb:"rgba(6,182,212,.18)",  nbr:"rgba(6,182,212,.4)",   d1:"rgba(8,145,178,.22)", d2:"rgba(6,182,212,.07)" },
-  { id:"cosmos", icon:"🌌", name:"Cosmos",  bg:"linear-gradient(150deg,#07021c 0%,#140840 55%,#05010f 100%)", acc:"#a78bfa", acc2:"#7c3aed", txt:"#faf5ff", txt2:"rgba(245,240,255,.55)", nb:"rgba(167,139,250,.18)",nbr:"rgba(167,139,250,.4)", d1:"rgba(124,58,237,.22)",d2:"rgba(167,139,250,.07)" },
-  { id:"forest", icon:"🌿", name:"Floresta",bg:"linear-gradient(150deg,#020e08 0%,#052818 55%,#010a04 100%)", acc:"#10b981", acc2:"#059669", txt:"#ecfdf5", txt2:"rgba(209,250,229,.55)", nb:"rgba(16,185,129,.18)", nbr:"rgba(16,185,129,.4)",  d1:"rgba(5,150,105,.22)", d2:"rgba(16,185,129,.07)" },
-  { id:"sunset", icon:"🌅", name:"Sunset",  bg:"linear-gradient(150deg,#140600 0%,#301000 55%,#0e0200 100%)", acc:"#fb923c", acc2:"#c2410c", txt:"#fff7ed", txt2:"rgba(254,237,213,.55)", nb:"rgba(251,146,60,.18)", nbr:"rgba(251,146,60,.4)",  d1:"rgba(194,65,12,.22)", d2:"rgba(251,146,60,.07)" },
-  { id:"royal",  icon:"👑", name:"Royal",   bg:"linear-gradient(150deg,#0a0118 0%,#1a0438 55%,#060010 100%)", acc:"#e879f9", acc2:"#a21caf", txt:"#fdf4ff", txt2:"rgba(250,232,255,.55)", nb:"rgba(232,121,249,.18)",nbr:"rgba(232,121,249,.4)", d1:"rgba(162,28,175,.22)",d2:"rgba(232,121,249,.07)" },
-  { id:"gold",   icon:"⭐", name:"Ouro",    bg:"linear-gradient(150deg,#100900 0%,#281800 55%,#080500 100%)", acc:"#fbbf24", acc2:"#b45309", txt:"#fffbeb", txt2:"rgba(254,243,199,.55)", nb:"rgba(251,191,36,.18)", nbr:"rgba(251,191,36,.4)",  d1:"rgba(180,83,9,.22)",  d2:"rgba(251,191,36,.07)" },
-  { id:"arctic", icon:"❄️", name:"Ártico",  bg:"linear-gradient(150deg,#010c18 0%,#021e38 55%,#010810 100%)", acc:"#67e8f9", acc2:"#0e7490", txt:"#ecfeff", txt2:"rgba(207,250,254,.55)", nb:"rgba(103,232,249,.18)",nbr:"rgba(103,232,249,.4)", d1:"rgba(14,116,144,.22)",d2:"rgba(103,232,249,.07)" },
+  { id:"navy",   icon:"", name:"Navy",    bg:"linear-gradient(150deg,#020818 0%,#051230 55%,#010510 100%)", acc:"#3b82f6", acc2:"#1d4ed8", txt:"#f0f7ff", txt2:"rgba(224,240,255,.55)", nb:"rgba(59,130,246,.18)", nbr:"rgba(59,130,246,.4)",  d1:"rgba(29,78,216,.22)", d2:"rgba(59,130,246,.08)" },
+  { id:"ocean",  icon:"", name:"Oceano",  bg:"linear-gradient(150deg,#010e1c 0%,#012040 55%,#01090f 100%)", acc:"#06b6d4", acc2:"#0891b2", txt:"#ecfeff", txt2:"rgba(207,250,254,.55)", nb:"rgba(6,182,212,.18)",  nbr:"rgba(6,182,212,.4)",   d1:"rgba(8,145,178,.22)", d2:"rgba(6,182,212,.07)" },
+  { id:"cosmos", icon:"", name:"Cosmos",  bg:"linear-gradient(150deg,#07021c 0%,#140840 55%,#05010f 100%)", acc:"#a78bfa", acc2:"#7c3aed", txt:"#faf5ff", txt2:"rgba(245,240,255,.55)", nb:"rgba(167,139,250,.18)",nbr:"rgba(167,139,250,.4)", d1:"rgba(124,58,237,.22)",d2:"rgba(167,139,250,.07)" },
+  { id:"forest", icon:"", name:"Floresta",bg:"linear-gradient(150deg,#020e08 0%,#052818 55%,#010a04 100%)", acc:"#10b981", acc2:"#059669", txt:"#ecfdf5", txt2:"rgba(209,250,229,.55)", nb:"rgba(16,185,129,.18)", nbr:"rgba(16,185,129,.4)",  d1:"rgba(5,150,105,.22)", d2:"rgba(16,185,129,.07)" },
+  { id:"sunset", icon:"", name:"Sunset",  bg:"linear-gradient(150deg,#140600 0%,#301000 55%,#0e0200 100%)", acc:"#fb923c", acc2:"#c2410c", txt:"#fff7ed", txt2:"rgba(254,237,213,.55)", nb:"rgba(251,146,60,.18)", nbr:"rgba(251,146,60,.4)",  d1:"rgba(194,65,12,.22)", d2:"rgba(251,146,60,.07)" },
+  { id:"royal",  icon:"", name:"Royal",   bg:"linear-gradient(150deg,#0a0118 0%,#1a0438 55%,#060010 100%)", acc:"#e879f9", acc2:"#a21caf", txt:"#fdf4ff", txt2:"rgba(250,232,255,.55)", nb:"rgba(232,121,249,.18)",nbr:"rgba(232,121,249,.4)", d1:"rgba(162,28,175,.22)",d2:"rgba(232,121,249,.07)" },
+  { id:"gold",   icon:"", name:"Ouro",    bg:"linear-gradient(150deg,#100900 0%,#281800 55%,#080500 100%)", acc:"#fbbf24", acc2:"#b45309", txt:"#fffbeb", txt2:"rgba(254,243,199,.55)", nb:"rgba(251,191,36,.18)", nbr:"rgba(251,191,36,.4)",  d1:"rgba(180,83,9,.22)",  d2:"rgba(251,191,36,.07)" },
+  { id:"arctic", icon:"", name:" rtico",  bg:"linear-gradient(150deg,#010c18 0%,#021e38 55%,#010810 100%)", acc:"#67e8f9", acc2:"#0e7490", txt:"#ecfeff", txt2:"rgba(207,250,254,.55)", nb:"rgba(103,232,249,.18)",nbr:"rgba(103,232,249,.4)", d1:"rgba(14,116,144,.22)",d2:"rgba(103,232,249,.07)" },
 ];
 
-/* ═══════════════════════════════════════════════
+/* 
    SLIDE RENDERER
-═══════════════════════════════════════════════ */
+ */
 const Slide = ({ sl, th, total, dir = "right", fs = false }) => (
   <div style={{
     width: "100%", height: "100%",
@@ -443,7 +438,7 @@ const Slide = ({ sl, th, total, dir = "right", fs = false }) => (
       </div>
 
       {/* note */}
-      {sl.nota && <div style={{ padding: fs ? "8px 13px" : "4px 7px", background: "rgba(0,0,0,.32)", borderRadius: fs ? 9 : 5, fontSize: fs ? 12 : 6.5, color: th.txt2, borderLeft: `${fs ? 3 : 1.5}px solid ${th.acc}`, lineHeight: 1.4, flexShrink: 0 }}>📝 {sl.nota}</div>}
+      {sl.nota && <div style={{ padding: fs ? "8px 13px" : "4px 7px", background: "rgba(0,0,0,.32)", borderRadius: fs ? 9 : 5, fontSize: fs ? 12 : 6.5, color: th.txt2, borderLeft: `${fs ? 3 : 1.5}px solid ${th.acc}`, lineHeight: 1.4, flexShrink: 0 }}> {sl.nota}</div>}
     </div>
 
     {/* progress bar */}
@@ -453,9 +448,9 @@ const Slide = ({ sl, th, total, dir = "right", fs = false }) => (
   </div>
 );
 
-/* ═══════════════════════════════════════════════
+/* 
    SLIDES COMPONENT
-═══════════════════════════════════════════════ */
+ */
 const SlidesComp = ({ data }) => {
   const [cur, setCur] = useState(0);
   const [dir, setDir] = useState("right");
@@ -486,8 +481,8 @@ const SlidesComp = ({ data }) => {
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         {/* header */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-          <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 16 }}>📊 {data.titulo}</div>
-          <button className="btn primary sm" onClick={() => setPres(true)}>▶ Apresentar</button>
+          <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 16 }}> {data.titulo}</div>
+          <button className="btn primary sm" onClick={() => setPres(true)}> Apresentar</button>
         </div>
 
         {/* theme picker */}
@@ -500,7 +495,7 @@ const SlidesComp = ({ data }) => {
           ))}
         </div>
 
-        {/* slide — 16:9 via padding-bottom trick */}
+        {/* slide  16:9 via padding-bottom trick */}
         <div style={{ width: "100%", position: "relative", paddingBottom: "56.25%", borderRadius: 14, overflow: "hidden", boxShadow: "0 12px 38px rgba(0,0,0,.65)" }}>
           <div style={{ position: "absolute", inset: 0 }}>
             <Slide key={key} sl={sl} th={th} total={slides.length} dir={dir} fs={false} />
@@ -509,9 +504,9 @@ const SlidesComp = ({ data }) => {
 
         {/* nav */}
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <button className="btn ghost sm" style={{ flex: 1 }} onClick={() => go(cur - 1, "left")} disabled={cur === 0}>← Anterior</button>
+          <button className="btn ghost sm" style={{ flex: 1 }} onClick={() => go(cur - 1, "left")} disabled={cur === 0}> Anterior</button>
           <span style={{ fontSize: 13, color: D.w2, fontWeight: 700, whiteSpace: "nowrap" }}>{cur + 1} / {slides.length}</span>
-          <button className="btn primary sm" style={{ flex: 1 }} onClick={() => go(cur + 1)} disabled={cur === slides.length - 1}>Próximo →</button>
+          <button className="btn primary sm" style={{ flex: 1 }} onClick={() => go(cur + 1)} disabled={cur === slides.length - 1}>Pr ximo </button>
         </div>
 
         {/* dots */}
@@ -542,24 +537,24 @@ const SlidesComp = ({ data }) => {
           {/* slide area */}
           <div style={{ flex: 1, position: "relative", minHeight: 0 }}>
             <Slide key={`f${key}`} sl={sl} th={th} total={slides.length} dir={dir} fs />
-            <button className="btn dark" style={{ position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)", width: 48, height: 48, borderRadius: "50%", padding: 0, fontSize: 22 }} onClick={() => go(cur - 1, "left")} disabled={cur === 0}>‹</button>
-            <button className="btn dark" style={{ position: "absolute", right: 16, top: "50%", transform: "translateY(-50%)", width: 48, height: 48, borderRadius: "50%", padding: 0, fontSize: 22 }} onClick={() => go(cur + 1)} disabled={cur === slides.length - 1}>›</button>
+            <button className="btn dark" style={{ position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)", width: 48, height: 48, borderRadius: "50%", padding: 0, fontSize: 22 }} onClick={() => go(cur - 1, "left")} disabled={cur === 0}></button>
+            <button className="btn dark" style={{ position: "absolute", right: 16, top: "50%", transform: "translateY(-50%)", width: 48, height: 48, borderRadius: "50%", padding: 0, fontSize: 22 }} onClick={() => go(cur + 1)} disabled={cur === slides.length - 1}></button>
             <div style={{ position: "absolute", top: 14, right: 16, fontSize: 11, color: "rgba(255,255,255,.28)", letterSpacing: 1 }}>ESC para sair</div>
           </div>
 
           {/* toolbar */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 18px", gap: 8, background: "rgba(0,0,0,.85)", backdropFilter: "blur(16px)", borderTop: "1px solid rgba(255,255,255,.07)", flexWrap: "wrap" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <button className="btn dark sm" onClick={() => go(cur - 1, "left")} disabled={cur === 0}>← Ant.</button>
+              <button className="btn dark sm" onClick={() => go(cur - 1, "left")} disabled={cur === 0}> Ant.</button>
               <span style={{ fontSize: 13, color: "rgba(255,255,255,.4)", fontWeight: 700 }}>{cur + 1}/{slides.length}</span>
-              <button className="btn dark sm" onClick={() => go(cur + 1)} disabled={cur === slides.length - 1}>Próx. →</button>
+              <button className="btn dark sm" onClick={() => go(cur + 1)} disabled={cur === slides.length - 1}>Pr x. </button>
             </div>
             <div style={{ display: "flex", gap: 5 }}>
               {slides.map((_, i) => <button key={i} onClick={() => go(i, i > cur ? "right" : "left")} style={{ width: i === cur ? 20 : 7, height: 7, borderRadius: 99, border: "none", background: i === cur ? th.acc : "rgba(255,255,255,.2)", cursor: "pointer", transition: "all .2s" }} />)}
             </div>
             <div style={{ display: "flex", gap: 7, alignItems: "center" }}>
               <button className="btn dark xs" onClick={() => setThIdx(t => (t + 1) % THEMES.length)}>{th.icon} Tema</button>
-              <button className="btn danger sm" onClick={() => setPres(false)} style={{ fontWeight: 800 }}>✕ Sair</button>
+              <button className="btn danger sm" onClick={() => setPres(false)} style={{ fontWeight: 800 }}> Sair</button>
             </div>
           </div>
         </div>
@@ -568,9 +563,9 @@ const SlidesComp = ({ data }) => {
   );
 };
 
-/* ═══════════════════════════════════════════════
+/* 
    MIND MAP
-═══════════════════════════════════════════════ */
+ */
 const MindMap = ({ data }) => {
   const [pres, setPres] = useState(false);
   const COLS = [D.blue2, D.mint, D.rose, D.amber, D.cyan, "#a855f7", "#ec4899", "#14b8a6"];
@@ -619,7 +614,7 @@ const MindMap = ({ data }) => {
               <circle cx={s.x} cy={s.y} r={20} fill={`${b.col}18`} />
               <circle cx={s.x} cy={s.y} r={17} fill={b.col + "cc"} />
               <text x={s.x} y={s.y + 4} textAnchor="middle" fill="#fff" fontSize={7} fontWeight={700} fontFamily="Inter">
-                {(s.label || "").length > 11 ? s.label.slice(0, 11) + "…" : s.label}
+                {(s.label || "").length > 11 ? s.label.slice(0, 11) + "" : s.label}
               </text>
             </g>
           ))}
@@ -632,8 +627,8 @@ const MindMap = ({ data }) => {
     <>
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-          <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 17 }}>🗺️ {data.topico}</div>
-          <button className="btn mint sm" onClick={() => setPres(true)}>▶ Apresentar</button>
+          <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 17 }}> {data.topico}</div>
+          <button className="btn mint sm" onClick={() => setPres(true)}> Apresentar</button>
         </div>
         {data.descricao && <div style={{ fontSize: 13, color: D.w2 }}>{data.descricao}</div>}
         <div style={{ width: "100%", overflowX: "auto", background: `linear-gradient(135deg,${D.bg2},${D.bg3})`, borderRadius: 18, padding: "12px 8px", border: `1px solid ${D.b0}` }}>
@@ -643,7 +638,7 @@ const MindMap = ({ data }) => {
           {branches.map((b, i) => (
             <div key={i} className="card" style={{ padding: "10px 13px", display: "flex", gap: 9, alignItems: "flex-start" }}>
               <div style={{ width: 9, height: 9, borderRadius: "50%", background: b.col, flexShrink: 0, marginTop: 4 }} />
-              <div><div style={{ fontWeight: 700, fontSize: 12, color: b.col }}>{b.titulo}</div><div style={{ fontSize: 11, color: D.w3, marginTop: 3, lineHeight: 1.4 }}>{b.subs.map(s => s.label).join(" · ")}</div></div>
+              <div><div style={{ fontWeight: 700, fontSize: 12, color: b.col }}>{b.titulo}</div><div style={{ fontSize: 11, color: D.w3, marginTop: 3, lineHeight: 1.4 }}>{b.subs.map(s => s.label).join("   ")}</div></div>
             </div>
           ))}
         </div>
@@ -659,10 +654,10 @@ const MindMap = ({ data }) => {
             <div style={{ width: "100%", maxWidth: 860 }}><MapSVG /></div>
           </div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 20px", background: "rgba(0,0,0,.85)", backdropFilter: "blur(16px)", borderTop: "1px solid rgba(255,255,255,.07)", gap: 10, flexWrap: "wrap" }}>
-            <div style={{ fontWeight: 700, fontSize: 14, color: "rgba(255,255,255,.45)" }}>🗺️ {data.topico}</div>
+            <div style={{ fontWeight: 700, fontSize: 14, color: "rgba(255,255,255,.45)" }}> {data.topico}</div>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <span style={{ fontSize: 11, color: "rgba(255,255,255,.28)" }}>ESC para sair</span>
-              <button className="btn danger sm" onClick={() => setPres(false)} style={{ fontWeight: 800 }}>✕ Sair</button>
+              <button className="btn danger sm" onClick={() => setPres(false)} style={{ fontWeight: 800 }}> Sair</button>
             </div>
           </div>
         </div>
@@ -671,13 +666,13 @@ const MindMap = ({ data }) => {
   );
 };
 
-/* ═══════════════════════════════════════════════
+/* 
    MODO CRIADOR
-═══════════════════════════════════════════════ */
+ */
 
-/* ═══════════════════════════════════════════════
+/* 
    PREVIEW MOCKUPS (IG / TIKTOK)
-═══════════════════════════════════════════════ */
+ */
 const PreviewMockup = ({ platform, type, fileURL, isImg, fCSS, caption, music, onClose, onFinish }) => {
   const [loading, setLoading] = useState(false);
   
@@ -694,13 +689,13 @@ const PreviewMockup = ({ platform, type, fileURL, isImg, fCSS, caption, music, o
       {/* status bar simulation */}
       <div style={{ height: 44, display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0 20px", fontSize: 13, fontWeight: 700, color: "#fff" }}>
         <span>9:41</span>
-        <div style={{ display: "flex", gap: 5 }}>📶 🔋</div>
+        <div style={{ display: "flex", gap: 5 }}> </div>
       </div>
 
       {/* header */}
       <div style={{ padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: isVertical ? "none" : "1px solid #262626" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <button onClick={onClose} style={{ background: "none", border: "none", color: "#fff", fontSize: 24 }}>✕</button>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: "#fff", fontSize: 24 }}></button>
           <span style={{ fontWeight: 800, fontSize: 16 }}>{platform === 'insta' ? 'Instagram' : 'TikTok'}</span>
         </div>
         <button className="btn primary sm" onClick={handlePublish} disabled={loading} style={{ borderRadius: 8, padding: "6px 16px" }}>
@@ -720,7 +715,7 @@ const PreviewMockup = ({ platform, type, fileURL, isImg, fCSS, caption, music, o
             
             {music && (
               <div style={{ position: "absolute", top: 80, left: "50%", transform: "translateX(-50%)", background: "rgba(0,0,0,0.65)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", padding: "8px 14px", borderRadius: 14, display: "flex", alignItems: "center", gap: 10, color: "#fff", border: "1px solid rgba(255,255,255,0.15)", boxShadow: "0 4px 16px rgba(0,0,0,0.4)" }}>
-                <div style={{ width: 28, height: 28, borderRadius: 6, background: "linear-gradient(45deg, #f09433, #bc1888)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>🎵</div>
+                <div style={{ width: 28, height: 28, borderRadius: 6, background: "linear-gradient(45deg, #f09433, #bc1888)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}></div>
                 <div style={{ display: "flex", flexDirection: "column", maxWidth: 180 }}>
                   <span style={{ fontSize: 13, fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{music.titulo || music.nome}</span>
                   <span style={{ fontSize: 11, color: "rgba(255,255,255,0.8)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{music.artista}</span>
@@ -732,9 +727,9 @@ const PreviewMockup = ({ platform, type, fileURL, isImg, fCSS, caption, music, o
             
             {/* overlays */}
             <div style={{ position: "absolute", right: 12, bottom: 120, display: "flex", flexDirection: "column", gap: 20, alignItems: "center" }}>
-               <div style={{ textAlign: "center" }}><span style={{ fontSize: 28 }}>❤️</span><div style={{ fontSize: 11, fontWeight: 700 }}>1.2M</div></div>
-               <div style={{ textAlign: "center" }}><span style={{ fontSize: 28 }}>💬</span><div style={{ fontSize: 11, fontWeight: 700 }}>14k</div></div>
-               <div style={{ textAlign: "center" }}><span style={{ fontSize: 28 }}>✈️</span></div>
+               <div style={{ textAlign: "center" }}><span style={{ fontSize: 28 }}></span><div style={{ fontSize: 11, fontWeight: 700 }}>1.2M</div></div>
+               <div style={{ textAlign: "center" }}><span style={{ fontSize: 28 }}></span><div style={{ fontSize: 11, fontWeight: 700 }}>14k</div></div>
+               <div style={{ textAlign: "center" }}><span style={{ fontSize: 28 }}></span></div>
                <div style={{ textAlign: "center" }}><span style={{ fontSize: 28 }}>...</span></div>
             </div>
 
@@ -747,7 +742,7 @@ const PreviewMockup = ({ platform, type, fileURL, isImg, fCSS, caption, music, o
                 {caption}
               </div>
               <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
-                🎵 <span>{music ? `${music.nome} • ${music.artista}` : "Áudio original de DVS"}</span>
+                 <span>{music ? `${music.nome}  ${music.artista}` : " udio original de DVS"}</span>
               </div>
             </div>
           </div>
@@ -766,15 +761,15 @@ const PreviewMockup = ({ platform, type, fileURL, isImg, fCSS, caption, music, o
             </div>
             <div style={{ padding: "12px 16px" }}>
               <div style={{ display: "flex", gap: 16, fontSize: 24, marginBottom: 10 }}>
-                <span>❤️</span> <span>💬</span> <span>✈️</span> <span style={{ marginLeft: "auto" }}>🔖</span>
+                <span></span> <span></span> <span></span> <span style={{ marginLeft: "auto" }}></span>
               </div>
               <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 6 }}>12,458 curtidas</div>
               <div style={{ fontSize: 14, lineHeight: 1.5 }}>
                 <span style={{ fontWeight: 800, marginRight: 6 }}>DVS_EduCreator</span>
                 {caption}
               </div>
-              <div style={{ fontSize: 12, color: "#8e8e8e", marginTop: 8 }}>Ver todos os 342 comentários</div>
-              <div style={{ fontSize: 10, color: "#8e8e8e", marginTop: 4, textTransform: "uppercase" }}>Há 2 minutos</div>
+              <div style={{ fontSize: 12, color: "#8e8e8e", marginTop: 8 }}>Ver todos os 342 coment rios</div>
+              <div style={{ fontSize: 10, color: "#8e8e8e", marginTop: 4, textTransform: "uppercase" }}>H  2 minutos</div>
             </div>
           </div>
         )}
@@ -782,10 +777,10 @@ const PreviewMockup = ({ platform, type, fileURL, isImg, fCSS, caption, music, o
 
       {/* footer bar */}
       <div style={{ height: 60, display: "flex", justifyContent: "space-around", alignItems: "center", background: "#000", borderTop: "1px solid #262626" }}>
-        <span style={{ fontSize: 24 }}>🏠</span>
-        <span style={{ fontSize: 24 }}>🔍</span>
-        <span style={{ fontSize: 24 }}>➕</span>
-        <span style={{ fontSize: 24 }}>🎞️</span>
+        <span style={{ fontSize: 24 }}></span>
+        <span style={{ fontSize: 24 }}></span>
+        <span style={{ fontSize: 24 }}></span>
+        <span style={{ fontSize: 24 }}></span>
         <div style={{ width: 24, height: 24, borderRadius: "50%", background: "#fff" }} />
       </div>
     </div>
@@ -806,16 +801,18 @@ const Criador = ({ toast, session, plan }) => {
   const [selMusic, setSelMusic] = useState(null);
   const [filters, setFilters] = useState({ brightness: 100, contrast: 100, saturate: 100 });
   const [filtName, setFiltName] = useState(null);
-  const [vLoad, setVLoad] = useState(false); const SI = ["Lendo imagem...", "Extraindo cores...", "Analisando vibe...", "Buscando tendências...", "Gerando conteúdo..."]; const SV = ["Processando vídeo...", "Mapeando frames...", "Captando clima...", "Buscando áudio viral...", "Gerando estratégia..."]; const [rLoad, setRLoad] = useState(false);
+  const [vLoad, setVLoad] = useState(false); const SI = ["Lendo imagem...", "Extraindo cores...", "Analisando vibe...", "Buscando tend ncias...", "Gerando conteúdo..."]; const SV = ["Processando v deo...", "Mapeando frames...", "Captando clima...", "Buscando  udio viral...", "Gerando estrat gia..."]; const [rLoad, setRLoad] = useState(false);
   const fileId = "dvs-file-input";
 
   // MOCKUP STATE
   const [mock, setMock] = useState(null); // { platform, type }
+  const [songsChanged, setSongsChanged] = useState(0);
+  const [postId, setPostId] = useState(null);
 
   const ESTILOS = [
-    { id: "viral", l: "🔥 Viral" }, { id: "pro", l: "💼 Profissional" },
-    { id: "aesthetic", l: "🌸 Aesthetic" }, { id: "vendas", l: "💰 Vendas" },
-    { id: "humor", l: "😂 Humor" }, { id: "edu", l: "📚 Educativo" },
+    { id: "viral", l: " Viral" }, { id: "pro", l: " Profissional" },
+    { id: "aesthetic", l: " Aesthetic" }, { id: "vendas", l: " Vendas" },
+    { id: "humor", l: " Humor" }, { id: "edu", l: " Educativo" },
   ];
   const FPRESET = {
     "Original":  { brightness: 100, contrast: 100, saturate: 100, sepia: 0,  hue: 0   },
@@ -842,7 +839,7 @@ const Criador = ({ toast, session, plan }) => {
     setFile(f);
     setFileURL(URL.createObjectURL(f));
     setIsImg(f.type.startsWith("image"));
-    toast(`✅ "${f.name.slice(0, 24)}" carregado!`, "ok");
+    toast(` "${f.name.slice(0, 24)}" carregado!`, "ok");
   }, [toast]);
 
   const openPicker = () => {
@@ -851,7 +848,7 @@ const Criador = ({ toast, session, plan }) => {
   };
 
   const startCreate = async () => {
-    if (!file) { toast("Envie uma foto ou vídeo primeiro! 📸", "warn"); return; }
+    if (!file) { toast("Envie uma foto ou v deo primeiro! ", "warn"); return; }
 
     // Database usage check
     let currentUsage = 0;
@@ -869,10 +866,10 @@ const Criador = ({ toast, session, plan }) => {
         } else {
            currentUsage = profile.posts_used;
         }
-      }
+            }
 
       if (currentUsage >= limit) {
-        toast(`Limite diário de ${limit} posts atingido. Faça upgrade para o plano superior! 💎`, "error");
+        toast(`Limite di rio de ${limit} posts atingido. Fa a upgrade para o plano superior! `, "error");
         return;
       }
     }
@@ -881,7 +878,7 @@ const Criador = ({ toast, session, plan }) => {
     const steps = isImg ? SI : SV;
     for (let i = 0; i < steps.length; i++) { setCur(i); await sleep(480 + Math.random() * 380); setPct(Math.round(((i + 1) / steps.length) * 88)); }
 
-            const jsonTpl = `{
+    const jsonTpl = `{
   "analiseVisual": "descrição detalhada do que aparece: pessoas, objetos, cenário, cores, clima, expressões",
   "vibeImagem": "sentimento transmitido (alegria, paz, agitação, romance, adrenalina, elegância, etc.)",
   "hook": "frase de impacto máx 10 palavras com emoji BASEADA EXATAMENTE no que está na foto/vídeo",
@@ -920,9 +917,10 @@ PASSO 2 — BASEADO APENAS NO QUE VIU NA IMAGEM:
 - Escolha músicas que COMBINAM com a vibe visual desta foto (não genéricas)
 - Sugira hashtags específicas para o que aparece na imagem
 
-Estilo desejado: ${estilo}
+Tema adicional do usuário: "${topic || 'nenhum'}"
+Estilo desejado: "${estilo}"
 
-IMPORTANTE: A legenda e músicas devem ser 100% baseadas EXCLUSIVAMENTE no que você VÊ nesta imagem. NÃO use temas genéricos.
+IMPORTANTE: A legenda e músicas devem ser 100% baseadas no que você VÊ nesta imagem.
 Se for uma praia → música de verão/reggae. Se for academia → música de treino/rap. Se for comida → música animada/brasileira. Etc.
 
 Retorne APENAS este JSON sem markdown:
@@ -936,6 +934,7 @@ ${jsonTpl}`,
         `Você é especialista em marketing viral brasileiro. Crie conteúdo de alto impacto para Instagram/TikTok.
 
 Tipo de mídia: ${isImg ? "foto" : "vídeo"}
+Tema/contexto do criador: "${topic || "conteúdo geral"}"
 Estilo desejado: ${estilo}
 
 INSTRUÇÕES PARA AS MÚSICAS:
@@ -958,19 +957,19 @@ ${jsonTpl}`,
     setPct(100); await sleep(200);
     const ALL_MUSIC = [
       { tipo: "Viral", nome: "Mtg Quero Te Encontrar", artista: "DJ Luan Gomes", vibe: "Animada" },
-      { tipo: "Em Alta", nome: "Diz Aí Qual é o Plano", artista: "Mc IG", vibe: "Urbana" },
-      { tipo: "Recomendada", nome: "Casca de Bala", artista: "Thullio Milionário", vibe: "Sertanejo" },
-      { tipo: "Viral", nome: "Perna Bamba", artista: "Parangolé", vibe: "Dança" },
+      { tipo: "Em Alta", nome: "Diz A  Qual   o Plano", artista: "Mc IG", vibe: "Urbana" },
+      { tipo: "Recomendada", nome: "Casca de Bala", artista: "Thullio Milion rio", vibe: "Sertanejo" },
+      { tipo: "Viral", nome: "Perna Bamba", artista: "Parangol ", vibe: "Dan a" },
       { tipo: "Em Alta", nome: "Macetando", artista: "Ivete Sangalo", vibe: "Festa" },
       { tipo: "Recomendada", nome: "Let's Go 4", artista: "Mc IG", vibe: "Trap" },
-      { tipo: "Viral", nome: "Voando pro Pará", artista: "Joelma", vibe: "Clássico" },
-      { tipo: "Em Alta", nome: "Lapada Dela", artista: "Menos é Mais", vibe: "Pagode" },
-      { tipo: "Recomendada", nome: "Chico", artista: "Luísa Sonza", vibe: "Romântica" },
-      { tipo: "Viral", nome: "Toca o Trompete", artista: "Felipe Amorim", vibe: "Eletrônica" }
+      { tipo: "Viral", nome: "Voando pro Par ", artista: "Joelma", vibe: "Cl ssico" },
+      { tipo: "Em Alta", nome: "Lapada Dela", artista: "Menos   Mais", vibe: "Pagode" },
+      { tipo: "Recomendada", nome: "Chico", artista: "Lu sa Sonza", vibe: "Rom ntica" },
+      { tipo: "Viral", nome: "Toca o Trompete", artista: "Felipe Amorim", vibe: "Eletr nica" }
     ];
     // Randomize
     const fallbackMusicas = ALL_MUSIC.sort(() => 0.5 - Math.random()).slice(0, 3);
-    const p = pj(raw) || { hook: "🔥 Uau!", caption: "Confira esse conteúdo incrível que preparamos para você!", hashtags: ["viral","brasil"], filtro: "Clarendon", musicas: fallbackMusicas, score: 80, scoreMotivo: "Ok", melhorias: [], plataforma: "Insta", horario: "19h", cta: "Comenta!" };
+    const p = pj(raw) || { hook: " Uau!", caption: "Confira esse conteúdo incr vel que preparamos para você!", hashtags: ["viral","brasil"], filtro: "Clarendon", musicas: fallbackMusicas, score: 80, scoreMotivo: "Ok", melhorias: [], plataforma: "Insta", horario: "19h", cta: "Comenta!" };
     if (!p.musicas || !Array.isArray(p.musicas) || p.musicas.length === 0) p.musicas = fallbackMusicas;
 
     setCaption(`${p.hook}\n\n${p.caption}\n\n${p.hashtags.map(h => "#" + h).join(" ")}`);
@@ -979,7 +978,8 @@ ${jsonTpl}`,
     setStage("result");
     
     // Save to Supabase
-    await supabase.from('posts').insert([{ user_id: session.id, content: p }]);
+    const { data: postData } = await supabase.from('posts').insert([{ user_id: session.id, content: p }]).select();
+    if (postData?.[0]) setPostId(postData[0].id);
     if (plan !== "full") {
       await supabase.from('profiles').update({ posts_used: currentUsage + 1 }).eq('id', session.id);
     }
@@ -994,20 +994,126 @@ ${jsonTpl}`,
 
   
   
+    const compartilharRede = async (rede) => {
+    if (postId) {
+      try { await supabase.from("posts").update({ content: { ...result, caption, filters, music: selMusic } }).eq("id", postId); } catch(e) {}
+    }
+
+    toast("Preparando conteúdo...", "info");
+    const text = caption;
+    try { await navigator.clipboard.writeText(text); } catch(e) {}
+
+    let blob = null;
+    let dataUrl = null;
+    if (isImg) {
+      try {
+        const el = document.getElementById("preview-to-export");
+        if (el) {
+          const canvas = await html2canvas(el, { useCORS: true, scale: 2, backgroundColor: D.bg2 });
+          dataUrl = canvas.toDataURL("image/png");
+          blob = await new Promise(res => canvas.toBlob(res, "image/png"));
+        }
+      } catch(e) {}
+    }
+
+    let fileToShare = blob ? new File([blob], "dvs-post.png", { type: "image/png" }) : null;
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+    // Se houver música selecionada, gerar vídeo
+    const activeMusic = selMusic || result?.musicas?.[0];
+    if (blob && activeMusic && activeMusic.previewUrl) {
+      toast("Gerando vídeo com música... (Isso pode demorar alguns segundos)", "info");
+      try {
+        const videoBlob = await generateVideo(blob, activeMusic.previewUrl, (prog) => {
+          // Progress could be handled here if we want to update state, but for now a toast is enough
+        });
+        fileToShare = new File([videoBlob], "dvs-video.mp4", { type: "video/mp4" });
+        toast("Vídeo gerado!", "ok");
+      } catch (err) {
+        console.error("Video gen failed", err);
+        toast("Falha ao gerar vídeo com música. Compartilhando imagem...", "err");
+      }
+    }
+
+    let shareAttempted = false;
+    let sharedSuccessfully = false;
+
+    if (fileToShare && navigator.canShare && navigator.canShare({ files: [fileToShare] })) {
+      shareAttempted = true;
+      try {
+        toast("Selecione o " + rede + " no menu que vai abrir!", "ok");
+        await navigator.share({ files: [fileToShare], title: "DVSCREATOR", text });
+        sharedSuccessfully = true;
+      } catch(err) {
+        // Usuário cancelou ou o navegador bloqueou
+        console.warn("Share cancelled or failed", err);
+        return; // Aborta o processo, não tenta abrir a rede social forçadamente
+      }
+    }
+
+    if (!shareAttempted) {
+      // Fallback para computadores ou navegadores que não suportam Web Share de arquivos
+      if (fileToShare) {
+        const url = URL.createObjectURL(fileToShare);
+        const link = document.createElement("a");
+        link.download = fileToShare.name;
+        link.href = url;
+        link.click();
+        URL.revokeObjectURL(url);
+        toast("Arquivo salvo! Cole a legenda no " + rede + ".", "ok");
+      }
+
+      setTimeout(() => {
+        const isMobileDevice = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        
+        const safeDeepLink = (schema, fallback) => {
+          if (!isMobileDevice) {
+            window.open(fallback, "_blank");
+            return;
+          }
+          const start = Date.now();
+          setTimeout(() => {
+            if (Date.now() - start < 1500) {
+              window.open(fallback, "_blank");
+            }
+          }, 1000);
+          
+          if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
+            window.location.href = schema;
+          } else {
+            const iframe = document.createElement("iframe");
+            iframe.style.display = "none";
+            iframe.src = schema;
+            document.body.appendChild(iframe);
+            setTimeout(() => document.body.removeChild(iframe), 1500);
+          }
+        };
+
+        if (rede === 'instagram') safeDeepLink("instagram://camera", "https://www.instagram.com/");
+        else if (rede === 'tiktok') safeDeepLink("snssdk1233://", "https://www.tiktok.com/upload");
+        else if (rede === 'facebook') window.open("https://www.facebook.com/", "_blank");
+        else if (rede === 'telegram') window.open("https://t.me/share/url?url=" + encodeURIComponent(window.location.href) + "&text=" + encodeURIComponent(text), "_blank");
+      }, 1500);
+    }
+  };
+
   const compartilharDireto = async () => {
+    if (postId) {
+      try { await supabase.from('posts').update({ content: { ...result, caption, filters } }).eq('id', postId); } catch(e) {}
+    }
     if (!isImg) {
-      // Fallback para vídeo (não tem como processar filtro no browser fácil)
+      // Fallback para v deo (n o tem como processar filtro no browser f cil)
       if (navigator.share) {
         try {
-          await navigator.share({ title: 'DVS EduCreator', text: caption, url: fileURL });
+          await navigator.share({ title: 'DVSCREATOR', text: caption, url: fileURL });
           return;
         } catch(e) {}
       }
-      toast("Compartilhamento nativo não disponível. Use os botões abaixo.");
+      toast("Compartilhamento nativo n o disponível. Use os bot es abaixo.");
       return;
     }
 
-    toast("✨ Preparando mídia editada...");
+    toast(" Preparando m dia editada...");
     try {
       const el = document.getElementById('preview-to-export');
       if (!el) return;
@@ -1020,10 +1126,10 @@ ${jsonTpl}`,
           try {
             await navigator.share({
               files: [fileToShare],
-              title: 'DVS EduCreator',
+              title: 'DVSCREATOR',
               text: caption
             });
-            toast("✅ Enviado com sucesso!");
+            toast(" Enviado com sucesso!");
           } catch (err) {
             if (err.name !== 'AbortError') toast("Erro ao compartilhar: " + err.message);
           }
@@ -1033,7 +1139,7 @@ ${jsonTpl}`,
           link.download = 'dvs-viral.png';
           link.href = canvas.toDataURL('image/png');
           link.click();
-          toast("📱 Seu navegador não suporta envio direto. Imagem salva!");
+          toast(" Seu navegador n o suporta envio direto. Imagem salva!");
         }
       }, 'image/png');
     } catch (e) {
@@ -1047,10 +1153,10 @@ ${jsonTpl}`,
   const viral = async () => {
     setVLoad(true);
     try {
-      const prompt = `Melhore esta legenda para torná-la viral no Instagram/TikTok. Use ganchos (hooks) poderosos, emojis estratégicos e hashtags de alta performance.\n\nLegenda original: ${caption}`;
+      const prompt = `Melhore esta legenda para torn -la viral no Instagram/TikTok. Use ganchos (hooks) poderosos, emojis estrat gicos e hashtags de alta performance.\n\nLegenda original: ${caption}`;
       const res = await callAI(prompt);
       if (res) setCaption(res.replace(/^"|"$/g, ''));
-      toast("🚀 Legenda turbinada com sucesso!");
+      toast(" Legenda turbinada com sucesso!");
     } catch (e) { toast("Erro ao turbinar."); }
     setVLoad(false);
   };
@@ -1061,7 +1167,9 @@ ${jsonTpl}`,
         <div style={{ position: "relative", width: 120, height: 120 }}>
            <div style={{ position: "absolute", inset: 0, borderRadius: "50%", border: "4px solid " + D.blueLo, borderTopColor: D.blue2, animation: "spinA 1s linear infinite" }} />
            <div style={{ position: "absolute", inset: 15, borderRadius: "50%", border: "4px solid " + D.roseLo, borderBottomColor: D.rose, animation: "spinA 2s linear reverse infinite" }} />
-           <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32 }}>✨</div>
+           <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", padding: 30 }}>
+               <img src="/src/assets/logo.png" style={{ width: "100%", height: "100%", objectFit: "contain" }} alt="Logo" />
+           </div>
         </div>
         <div style={{ textAlign: "center" }}>
           <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 20, color: "#fff", marginBottom: 8 }}>{(isImg ? SI : SV)[cur] || "Analisando..."}</div>
@@ -1075,139 +1183,195 @@ ${jsonTpl}`,
   }
 
   if (stage === "result" && result) {
-  return (
-    <>
-      {mock && (
-        <PreviewMockup 
-          platform={mock.platform} 
-          type={mock.type} 
-          fileURL={fileURL} 
-          isImg={isImg} 
-          fCSS={fCSS} 
-          caption={caption} 
-          music={result?.musicas?.[0]}
-          onClose={() => setMock(null)}
-          onFinish={() => { toast("Publicado com sucesso!"); setMock(null); }}
-        />
-      )}
-      
-      <div style={{ padding: "18px 16px", display: "flex", flexDirection: "column", gap: 16 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-          <div>
-            <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 20 }}>Revisão Final ✨</div>
-            <button className="btn ghost xs" onClick={() => { setStage("home"); setResult(null); setFile(null); setFileURL(null); setTopic(""); setFiltName(null); setFilters(FPRESET.Original); }} style={{marginTop: 4}}>+ Novo</button>
-          </div>
-        </div>
-
-        <div className="card" style={{ padding: 0, overflow: "hidden", position: "relative", minHeight: 300, background: D.bg2, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div id="preview-to-export" style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
-            {fileURL ? (
-              <div style={{width: "100%", position: "relative"}}>
-                {isImg ? (
-                  <img src={fileURL} alt="" style={{ width: "100%", height: "auto", display: "block", filter: fCSS }} />
-                ) : (
-                  <video src={fileURL} autoPlay muted loop playsInline style={{ width: "100%", height: "auto", display: "block" }} />
-                )}
-                
-
-                <div style={{ position: "absolute", top: 12, right: 12 }}><ScoreRing score={result?.score} /></div>
+    const REDES = [
+      { id: "instagram", label: "Instagram",  grad: "linear-gradient(135deg,#833ab4,#fd1d1d,#fcb045)", color: "#fd1d1d", icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg> },
+      { id: "tiktok",    label: "TikTok",      grad: "linear-gradient(135deg,#010101,#69C9D0)",        color: "#69C9D0", icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.17-2.89-.6-4.13-1.46-.71-.49-1.32-1.12-1.78-1.87V15.5c-.01 1.1-.31 2.22-.89 3.17-.6 1-1.49 1.84-2.52 2.4-1.04.57-2.22.86-3.41.87-1.19-.01-2.37-.3-3.41-.88-1.03-.57-1.92-1.41-2.52-2.4-.58-.95-.88-2.07-.89-3.17.01-1.1.31-2.22.89-3.17.6-1 1.49-1.84 2.52-2.4 1.04-.57 2.22-.86 3.41-.87 1.19.01 2.37.3 3.41.88.52.29.98.66 1.37 1.1V.02z"/></svg> },
+      { id: "facebook",  label: "Facebook",    grad: "linear-gradient(135deg,#1877F2,#42a5f5)",        color: "#1877F2", icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg> },
+      { id: "telegram",  label: "Telegram",    grad: "linear-gradient(135deg,#0088cc,#2CA5E0)",        color: "#2CA5E0", icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0C5.353 0 0 5.353 0 11.944c0 6.59 5.353 11.944 11.944 11.944 6.59 0 11.944-5.353 11.944-11.944C23.888 5.353 18.535 0 11.944 0zm5.666 8.314c-.167 1.76-1.042 7.037-1.481 9.404-.186.993-.556 1.325-.91 1.358-.778.073-1.368-.511-2.122-1.006-1.18-.778-1.844-1.261-2.986-2.012-1.32-.871-.464-1.35.288-2.13.197-.204 3.614-3.313 3.681-3.593.008-.035.016-.167-.061-.235s-.19-.044-.273-.026c-.116.026-1.966 1.25-5.545 3.666-.523.36-.997.536-1.423.527-.47-.01-1.374-.265-2.046-.484-.824-.27-1.481-.413-1.423-.872.03-.238.358-.481.986-.73 3.864-1.68 6.438-2.783 7.725-3.308 3.67-1.493 4.433-1.752 4.93-1.762.109-.002.352.025.508.152s.207.311.228.435c.022.125.026.362.013.473z"/></svg> },
+    ];
+    return (
+      <>
+        {mock && (
+          <PreviewMockup
+            platform={mock.platform}
+            type={mock.type}
+            fileURL={fileURL}
+            isImg={isImg}
+            fCSS={fCSS}
+            caption={caption}
+            music={selMusic || result?.musicas?.[0]}
+            onClose={() => setMock(null)}
+            onFinish={() => { toast("Publicado com sucesso!"); setMock(null); }}
+          />
+        )}
+        <div style={{ padding: "18px 16px", display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* Header */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+            <div>
+              <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 20 }}>Revisão Final</div>
+              <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                <button className="btn sm" onClick={async () => {
+                  if (postId) {
+                    await supabase.from("posts").update({ content: { ...result, caption, filters, music: selMusic } }).eq("id", postId);
+                    toast("Salvo!", "ok");
+                  }
+                }} style={{ background: D.gMint, color: "#fff", border: "none", borderRadius: 10, padding: "8px 12px", fontSize: 12, fontWeight: 700 }}>Salvar</button>
+                <button className="btn sm" onClick={() => {
+                  setCaption(result.hook + "\n\n" + result.caption + "\n\n" + result.hashtags.map(function(h) { return "#" + h; }).join(" "));
+                  setFilters(FPRESET.Original);
+                  setFiltName("Original");
+                  setSelMusic(null);
+                  toast("Edições removidas!", "info");
+                }} style={{ background: D.s3, color: D.w2, border: "1.5px solid " + D.b1, borderRadius: 10, padding: "8px 12px", fontSize: 12, fontWeight: 700 }}>Resetar</button>
               </div>
-            ) : <div style={{ color: D.w3 }}>Sem prévia</div>}
+            </div>
+            <button className="btn ghost xs" onClick={() => {
+              setStage("home"); setResult(null); setFile(null); setFileURL(null);
+              setTopic(""); setFiltName(null); setFilters(FPRESET.Original);
+              setSongsChanged(0); setPostId(null); setSelMusic(null);
+            }}>+ Novo</button>
           </div>
-        </div>
 
-        <div className="card" style={{ padding: 15 }}>
-          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>🎨 Filtros Instagram · <span style={{ color: D.blue2 }}>{filtName || "Original"}</span></div>
-          <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 6, scrollbarWidth: "none", marginBottom: 14 }}>
-            {Object.keys(FPRESET).map(name => {
-              const f = FPRESET[name];
-              const css = `brightness(${f.brightness}%) contrast(${f.contrast}%) saturate(${f.saturate}%) sepia(${f.sepia||0}%) hue-rotate(${f.hue||0}deg)`;
-              const active = filtName === name;
-              return (
-                <div key={name} onClick={() => applyFilt(name)} style={{ flexShrink: 0, cursor: "pointer", textAlign: "center", width: 66 }}>
-                  <div style={{ width: 66, height: 66, borderRadius: 12, overflow: "hidden", border: `2.5px solid ${active ? D.blue2 : D.b0}`, transition: "border .15s", marginBottom: 4, background: D.bg2 }}>
-                    {fileURL && isImg
-                      ? <img src={fileURL} alt={name} style={{ width: "100%", height: "100%", objectFit: "cover", filter: css }} />
-                      : <div style={{ width: "100%", height: "100%", background: `linear-gradient(135deg,#1d4ed8,#06b6d4)`, filter: css }} />}
+          {/* Preview */}
+          <div className="card" style={{ padding: 0, overflow: "hidden", position: "relative", minHeight: 300, background: D.bg2, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div id="preview-to-export" style={{ width: "100%", borderRadius: 18, overflow: "hidden", position: "relative", background: D.bg2, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              {fileURL ? (
+                <div style={{ width: "100%", position: "relative" }}>
+                  {isImg ? (
+                    <img src={fileURL} alt="" style={{ width: "100%", height: "auto", display: "block", filter: fCSS }} />
+                  ) : (
+                    <video src={fileURL} autoPlay muted loop playsInline style={{ width: "100%", height: "auto", display: "block" }} />
+                  )}
+                  <div style={{ position: "absolute", inset: 0, padding: 20, display: "flex", flexDirection: "column", justifyContent: "space-between", pointerEvents: "none", background: "linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, transparent 20%, transparent 80%, rgba(0,0,0,0.6) 100%)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                      <div style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)", padding: "6px 10px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", gap: 6 }}>
+                        <img src="/src/assets/logo.png" style={{ width: 14, height: 14, objectFit: "contain" }} alt="" />
+                        <div style={{ fontSize: 10, fontWeight: 800, color: "#fff", letterSpacing: 1 }}>DVSCREATOR</div>
+                      </div>
+                      <ScoreRing score={result?.score} />
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      {(selMusic || result?.musicas?.[0]) && (function() {
+                        const m = selMusic || result.musicas[0];
+                        const mName = m.trackName || m.nome || "";
+                        const mArtist = m.artistName || m.artista || "";
+                        return (
+                          <div style={{ alignSelf: "flex-start", background: "rgba(0,0,0,0.6)", backdropFilter: "blur(12px)", padding: "8px 14px", borderRadius: 14, display: "flex", alignItems: "center", gap: 10, border: "1px solid rgba(255,255,255,0.2)" }}>
+                            <div style={{ width: 24, height: 24, borderRadius: 6, background: D.gBlue, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>🎵</div>
+                            <div style={{ display: "flex", flexDirection: "column" }}>
+                              <span style={{ fontSize: 12, fontWeight: 800, color: "#fff" }}>{mName}</span>
+                              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.7)" }}>{mArtist}</span>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                      <div style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(10px)", padding: "12px 16px", borderRadius: 16, border: "1px solid rgba(255,255,255,0.1)", maxWidth: "85%" }}>
+                        <div style={{ fontSize: 13, color: "#fff", lineHeight: 1.4, fontWeight: 500, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                          {caption.split("\n")[0]}...
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div style={{ fontSize: 10, fontWeight: active ? 800 : 500, color: active ? D.blue2 : D.w3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</div>
+                </div>
+              ) : <div style={{ color: D.w3 }}>Sem prévia</div>}
+            </div>
+          </div>
+
+          {/* Filtros */}
+          <div className="card" style={{ padding: 15 }}>
+            <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>Filtros <span style={{ color: D.blue2 }}>{filtName || "Original"}</span></div>
+            <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 6, scrollbarWidth: "none", marginBottom: 14 }}>
+              {Object.keys(FPRESET).map(function(name) {
+                const f = FPRESET[name];
+                const css = "brightness(" + f.brightness + "%) contrast(" + f.contrast + "%) saturate(" + f.saturate + "%) sepia(" + (f.sepia||0) + "%) hue-rotate(" + (f.hue||0) + "deg)";
+                const active = filtName === name;
+                return (
+                  <div key={name} onClick={() => applyFilt(name)} style={{ flexShrink: 0, cursor: "pointer", textAlign: "center", width: 66 }}>
+                    <div style={{ width: 66, height: 66, borderRadius: 12, overflow: "hidden", border: "2.5px solid " + (active ? D.blue2 : D.b0), transition: "border .15s", marginBottom: 4, background: D.bg2 }}>
+                      {fileURL && isImg ? <img src={fileURL} alt={name} style={{ width: "100%", height: "100%", objectFit: "cover", filter: css }} /> : <div style={{ width: "100%", height: "100%", background: "linear-gradient(135deg,#1d4ed8,#06b6d4)", filter: css }} />}
+                    </div>
+                    <div style={{ fontSize: 10, fontWeight: active ? 800 : 500, color: active ? D.blue2 : D.w3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</div>
+                  </div>
+                );
+              })}
+            </div>
+            {[["brightness","Brilho",50,160],["contrast","Contraste",50,160],["saturate","Saturação",0,200]].map(function(item) {
+              const k = item[0], lb = item[1], mn = item[2], mx = item[3];
+              return (
+                <div key={k} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 7 }}>
+                  <div style={{ width: 68, fontSize: 11, color: D.w2 }}>{lb}</div>
+                  <input type="range" min={mn} max={mx} value={filters?.[k] || 100} onChange={function(e) { setFilters(function(p) { return Object.assign({}, p, { [k]: +e.target.value }); }); }} style={{ flex: 1, accentColor: D.blue2 }} />
+                  <div style={{ width: 32, fontSize: 11, color: D.w3, textAlign: "right" }}>{filters?.[k] || 100}%</div>
                 </div>
               );
             })}
           </div>
-          {[["brightness","Brilho",50,160],["contrast","Contraste",50,160],["saturate","Satura\u00e7\u00e3o",0,200]].map(([k,lb,mn,mx]) => (
-            <div key={k} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 7 }}>
-              <div style={{ width: 68, fontSize: 11, color: D.w2 }}>{lb}</div>
-              <input type="range" min={mn} max={mx} value={filters?.[k]??100} onChange={e => setFilters(p => ({ ...p, [k]: +e.target.value }))} style={{ flex: 1, accentColor: D.blue2 }} />
-              <div style={{ width: 32, fontSize: 11, color: D.w3, textAlign: "right" }}>{filters?.[k]??100}%</div>
+
+          {/* Legenda */}
+          <div className="card" style={{ padding: 15 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+              <div style={{ fontWeight: 700, fontSize: 14 }}>Legenda Otimizada</div>
+              <button className="btn outline xs" onClick={copiar}>Copiar</button>
             </div>
-          ))}
-        </div>
-
-        <div className="card" style={{ padding: 15 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
-            <div style={{ fontWeight: 700, fontSize: 14 }}>✍️ Legenda Otimizada</div>
-            <button className="btn outline xs" onClick={copiar}>Copiar</button>
+            <textarea className="inp" value={caption} onChange={function(e) { setCaption(e.target.value); }} style={{ minHeight: 100, fontSize: 13 }} />
           </div>
-          <textarea className="inp" value={caption} onChange={e => setCaption(e.target.value)} style={{ minHeight: 100, fontSize: 13 }} />
-        </div>
 
-        <SmartSoundPlayer musicas={result?.musicas} toast={toast} plan={plan} />
+          {/* SmartSound */}
+          <SmartSoundPlayer musicas={result?.musicas} toast={toast} plan={plan} songsChanged={songsChanged} setSongsChanged={setSongsChanged} onSelect={setSelMusic} />
 
-        <button className="btn rose lg" style={{ width: "100%" }} onClick={viral} disabled={vLoad}>
-          {vLoad ? <Spin s={18} /> : "🚀 TURBINAR PARA VIRALIZAR"}
-        </button>
-                <div style={{ marginTop: 12, background: D.s0, borderRadius: 24, padding: 24, border: '2px solid ' + D.blue, boxShadow: "0 15px 45px rgba(0,0,0,0.4)" }}>
-          <div style={{ fontSize: 11, fontWeight: 900, color: D.blue2, textAlign: "center", marginBottom: 20, letterSpacing: 2 }}>LANÇAR NAS REDES</div>
-          
-          <button className="btn" style={{ width: "100%", height: 60, background: D.gBlue, color: "#fff", borderRadius: 16, fontSize: 16, fontWeight: 900, marginBottom: 16, boxShadow: "0 8px 20px rgba(37,99,235,0.3)" }} onClick={compartilharDireto}>
-             🚀 COMPARTILHAR AGORA
+          {/* Turbinar */}
+          <button className="btn rose lg" style={{ width: "100%" }} onClick={viral} disabled={vLoad}>
+            {vLoad ? <Spin s={18} /> : "TURBINAR PARA VIRALIZAR"}
           </button>
-          
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-            <button className="btn outline sm" style={{ fontSize: 10 }} onClick={() => setMock({ platform: 'insta', type: 'reels' })}>PREVIEW</button>
-            <button className="btn outline sm" style={{ fontSize: 10 }} onClick={() => { navigator.clipboard.writeText(caption); toast("Copiado!"); }}>COPIAR</button>
-            <button className="btn outline sm" style={{ fontSize: 10 }} onClick={async () => {
-               const el = document.getElementById('preview-to-export');
-               if(el) {
-                 const c = await html2canvas(el, {useCORS:true, scale:2});
-                 const l = document.createElement('a'); l.download='dvs.png'; l.href=c.toDataURL(); l.click();
-               }
-            }}>BAIXAR</button>
+
+          {/* Compartilhar */}
+          <div style={{ background: D.s0, borderRadius: 20, padding: 20, border: "1px solid " + D.b1 }}>
+            <div style={{ fontSize: 11, fontWeight: 900, color: D.blue2, textAlign: "center", marginBottom: 16, letterSpacing: 2 }}>COMPARTILHAR NAS REDES</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
+              {REDES.map(function(net) {
+                return (
+                  <button key={net.id}
+                    onClick={function() { compartilharRede(net.id); }}
+                    style={{ display: "flex", alignItems: "center", gap: 10, padding: "13px 14px", background: net.grad, color: "#fff", border: "none", borderRadius: 14, fontWeight: 800, fontSize: 13, cursor: "pointer", boxShadow: "0 4px 16px " + net.color + "40", transition: "transform .15s" }}
+                  >
+                    <span style={{ fontSize: 18 }}>{net.icon}</span>
+                    <span>{net.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+              <button className="btn ghost xs" onClick={function() { setMock({ platform: "insta", type: "reels" }); }} style={{ fontSize: 10 }}>👁️ Preview</button>
+              <button className="btn ghost xs" onClick={function() { navigator.clipboard.writeText(caption); toast("Copiado!", "ok"); }} style={{ fontSize: 10 }}>📋 Copiar</button>
+              <button className="btn ghost xs" onClick={compartilharDireto} style={{ fontSize: 10 }}>📤 Nativo</button>
+            </div>
+          </div>
+
+          <div style={{ textAlign: "center", fontSize: 10, color: D.w3, marginTop: 4 }}>
+            DVS — crie, edite e compartilhe seu conteúdo viral.
           </div>
         </div>
-        <div style={{ textAlign: "center", fontSize: 10, color: D.w3, marginTop: 4 }}>
-          DVS simulará o app original para você conferir o resultado final.
-        </div>
-      </div>
-    </>
-  );
-
-
+      </>
+    );
   }
 
-  /* ── HOME ── */
+  // HOME
   return (
     <div style={{ padding: "20px 16px", display: "flex", flexDirection: "column", gap: 18 }}>
 
-      {/* ── FILE INPUT NATIVO — único, sempre no DOM ──
-          Usar <label htmlFor> é a forma mais compatível com iOS Safari e Android Chrome */}
       <input
         id={fileId}
         type="file"
         accept="image/*,video/*"
-        capture={undefined}
         style={{ position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none" }}
         onChange={handleFileChange}
       />
 
-      {/* hero */}
       <div className="fu">
-        <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 24, marginBottom: 5 }}>Modo Criador 🔥</div>
-        <div style={{ fontSize: 14, color: D.w2, lineHeight: 1.6 }}>Envie uma foto ou vídeo — a IA analisa, cria a legenda e escolhe a música ideal 🤖</div>
+        <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 24, marginBottom: 5 }}>Modo Criador </div>
+        <div style={{ fontSize: 14, color: D.w2, lineHeight: 1.6 }}>Envie uma foto ou vídeo  a IA analisa e cria sua postagem viral </div>
       </div>
 
-      {/* upload zone — usa label htmlFor para máxima compatibilidade mobile */}
       <label htmlFor={fileId} className="fu d1" style={{
         display: "flex", flexDirection: "column", alignItems: "center", gap: 16,
         padding: "32px 20px", borderRadius: 20, cursor: "pointer",
@@ -1215,30 +1379,17 @@ ${jsonTpl}`,
         background: `linear-gradient(135deg,${D.s0},${D.bg3})`,
         transition: "border-color .18s, background .18s",
         WebkitTapHighlightColor: "transparent",
-      }}
-        onMouseOver={e => e.currentTarget.style.borderColor = D.blue}
-        onMouseOut={e => e.currentTarget.style.borderColor = D.b1}
-      >
-        <div style={{ width: 68, height: 68, borderRadius: 20, background: D.blueLo, border: `1px solid ${D.blueM}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, animation: "float2 3.5s ease-in-out infinite" }}>📁</div>
+      }}>
+                <div style={{ width: 68, height: 68, borderRadius: 18, overflow: 'hidden', border: `1px solid ${D.blueM}`, display: "flex", alignItems: "center", justifyContent: "center", animation: "float2 3.5s ease-in-out infinite", background: D.bg3 }}>
+          <img src="/src/assets/logo.png" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Logo" />
+        </div>
         <div style={{ textAlign: "center" }}>
           <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 17, marginBottom: 5 }}>Envie sua foto ou vídeo</div>
           <div style={{ fontSize: 13, color: D.w2 }}>Foto ou vídeo da galeria</div>
-          <div style={{ fontSize: 12, color: D.w3, marginTop: 4 }}>JPG · PNG · GIF · MP4 · MOV</div>
+          <div style={{ fontSize: 12, color: D.w3, marginTop: 4 }}>JPG • PNG • GIF • MP4 • MOV</div>
         </div>
-        <span className="tag tblue" style={{ fontSize: 12 }}>🤖 IA analisa o conteúdo visual automaticamente</span>
+        <span className="tag tblue" style={{ fontSize: 12 }}> IA analisa o conteúdo visual automaticamente</span>
       </label>
-
-      {/* botão alternativo para câmera */}
-      <div className="fu d1" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-        <label htmlFor={fileId} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 7, padding: "11px 12px", borderRadius: 12, border: `1.5px solid ${D.blueM}`, color: D.blue2, fontWeight: 700, fontSize: 13, cursor: "pointer", background: D.blueLo, WebkitTapHighlightColor: "transparent" }}>
-          🖼️ Galeria
-        </label>
-        <label htmlFor={fileId + "-cam"} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 7, padding: "11px 12px", borderRadius: 12, border: `1.5px solid ${D.b1}`, color: D.w1, fontWeight: 700, fontSize: 13, cursor: "pointer", background: D.s2, WebkitTapHighlightColor: "transparent" }}>
-          📷 Câmera
-        </label>
-      </div>
-      {/* input separado para câmera */}
-      <input id={fileId + "-cam"} type="file" accept="image/*,video/*" capture="environment" style={{ position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none" }} onChange={handleFileChange} />
 
       {/* preview */}
       {fileURL && (
@@ -1249,11 +1400,11 @@ ${jsonTpl}`,
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{file?.name}</div>
             <div style={{ display: "flex", gap: 6 }}>
-              <span className={`tag ${isImg ? "tcyan" : "trose"}`}>{isImg ? "🖼️ Imagem" : "🎥 Vídeo"}</span>
-              <span className="tag tgrn">✓ Pronto</span>
+              <span className={`tag ${isImg ? "tcyan" : "trose"}`}>{isImg ? " Imagem" : " V deo"}</span>
+              <span className="tag tgrn"> Pronto</span>
             </div>
           </div>
-          <button className="btn ghost xs" onClick={() => { setFile(null); setFileURL(null); }}>✕</button>
+          <button className="btn ghost xs" onClick={() => { setFile(null); setFileURL(null); }}></button>
         </div>
       )}
 
@@ -1272,257 +1423,17 @@ ${jsonTpl}`,
       </div>
 
       <button className="btn primary lg fu d4" style={{ width: "100%", fontFamily: "'Sora',sans-serif" }} onClick={startCreate} disabled={!file}>
-        ✨ Criar Conteúdo com IA
+         Criar Conte do com IA
       </button>
 
       <div className="card fu d5" style={{ padding: "12px 15px", display: "flex", gap: 10, alignItems: "center" }}>
-        <span style={{ fontSize: 16 }}>🔒</span>
+        <span style={{ fontSize: 16 }}></span>
         <span style={{ fontSize: 13, color: D.w2 }}>
-          {plan === "free" ? "Plano Gratuito · 3 posts/dia" : 
-           plan === "social" ? "Social Premium · 5 posts/dia" :
-           plan === "student" ? "Estudante Premium · 10 posts/dia" :
-           "Plano Completo · Ilimitado"} · <span style={{ color: D.amber, fontWeight: 700, cursor: "pointer" }} onClick={() => toast("Acesse a aba Planos!", "info")}>{plan === "full" ? "Gerenciar" : "Upgrade"} →</span>
+          {plan === "free" ? "Plano Gratuito   3 posts/dia" : 
+           plan === "social" ? "Social Premium   5 posts/dia" :
+           plan === "student" ? "Estudante Premium   10 posts/dia" :
+           "Plano Completo   Ilimitado"}   <span style={{ color: D.amber, fontWeight: 700, cursor: "pointer" }} onClick={() => toast("Acesse a aba Planos!", "info")}>{plan === "full" ? "Gerenciar" : "Upgrade"} </span>
         </span>
-      </div>
-    </div>
-  );
-};
-
-const Estudante = ({ toast, session, plan }) => {
-  const [tab, setTab] = useState("voz");
-  const [rec, setRec] = useState(false); const [secs, setSecs] = useState(0);
-  const [trans, setTrans] = useState("");
-  const [texto, setTexto] = useState("");
-  const [load, setLoad] = useState(false); const [ltab, setLtab] = useState(""); const [pct, setPct] = useState(0); const [cur, setCur] = useState(0);
-  const [res, setRes] = useState(null); const [rtype, setRtype] = useState(null);
-  const [flips, setFlips] = useState({}); const [qans, setQans] = useState({}); const [qrev, setQrev] = useState({});
-  const recRef = useRef(); const timerRef = useRef();
-  const wt = texto || trans;
-
-  const rend = () => {
-    if (!res) return null;
-    if (res._err) return <div style={{ padding: 14, background: D.roseLo, borderRadius: 13, color: D.rose, fontSize: 14 }}>{res._err}</div>;
-
-    if (rtype === "resumo") return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }} className="fi">
-        <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
-          {res.dificuldade && <span className="tag tamb">📊 {res.dificuldade}</span>}
-          {res.tempoEstudo && <span className="tag tcyan">⏱️ {res.tempoEstudo}</span>}
-        </div>
-        <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 20, lineHeight: 1.3 }}>{res.titulo}</div>
-        <div style={{ fontSize: 14, color: D.w2, lineHeight: 1.82, whiteSpace: "pre-line", background: D.bg2, borderRadius: 14, padding: 16, border: `1px solid ${D.b0}` }}>{res.resumo}</div>
-        <div>
-          <div className="sec-label">Pontos principais</div>
-          {res.pontos?.map((p, i) => (
-            <div key={i} style={{ display: "flex", gap: 10, padding: "9px 0", borderBottom: i < res.pontos.length - 1 ? `1px solid ${D.b0}` : "none", alignItems: "flex-start" }}>
-              <div style={{ width: 23, height: 23, borderRadius: 7, background: D.gBlue, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 900, flexShrink: 0, color: "#fff" }}>{i + 1}</div>
-              <span style={{ fontSize: 14, lineHeight: 1.55 }}>{p}</span>
-            </div>
-          ))}
-        </div>
-        <div><div className="sec-label">Palavras-chave</div><div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>{res.palavrasChave?.map((k, i) => <span key={i} className="tag tgrn">{k}</span>)}</div></div>
-      </div>
-    );
-
-    if (rtype === "mapa") return <MindMap data={res} />;
-    if (rtype === "slides") return <SlidesComp data={res} />;
-
-    if (rtype === "cards") return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 11 }} className="fi">
-        <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 17 }}>🃏 {res.flashcards?.length} Flashcards</div>
-        {res.flashcards?.map((c, i) => {
-          const fl = flips[i]; const col = c.dificuldade === "fácil" ? D.mint : c.dificuldade === "difícil" ? D.rose : D.amber;
-          return (
-            <div key={i} onClick={() => setFlips(p => ({ ...p, [i]: !p[i] }))} style={{ cursor: "pointer", borderRadius: 16, border: `1.5px solid ${fl ? col + "55" : D.b0}`, background: fl ? col + "10" : D.s1, transition: "all .22s", padding: "14px 16px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 9 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: fl ? col : D.blue2, letterSpacing: 1 }}>{fl ? "✅ RESPOSTA" : `❓ PERGUNTA ${i + 1}`}</span>
-                <div style={{ display: "flex", gap: 5 }}>
-                  <span className={`tag ${c.dificuldade === "fácil" ? "tgrn" : c.dificuldade === "difícil" ? "trose" : "tamb"}`} style={{ fontSize: 10 }}>{c.dificuldade}</span>
-                  {c.categoria && <span className="tag tblue" style={{ fontSize: 10 }}>{c.categoria}</span>}
-                </div>
-              </div>
-              <div style={{ fontSize: 14, lineHeight: 1.62, fontWeight: fl ? 400 : 600 }}>{fl ? c.resposta : c.pergunta}</div>
-              <div style={{ marginTop: 9, fontSize: 11, color: D.w3 }}>👆 Toque para {fl ? "ver pergunta" : "revelar resposta"}</div>
-            </div>
-          );
-        })}
-      </div>
-    );
-
-    if (rtype === "quiz") {
-      const total = res.quiz?.length || 0, done = Object.keys(qrev).length;
-      const correct = res.quiz?.filter((q, i) => qrev[i] && qans[i] === q.correta).length || 0;
-      return (
-        <div style={{ display: "flex", flexDirection: "column", gap: 13 }} className="fi">
-          <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 17, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span>⚡ Quiz · {total} questões</span>
-            {done === total && <span className="tag tgrn">{correct}/{total} certas</span>}
-          </div>
-          {res.quiz?.map((q, i) => {
-            const rv = qrev[i];
-            return (
-              <div key={i} className="card" style={{ padding: 15 }}>
-                <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 11 }}>{q.num}. {q.pergunta}</div>
-                {q.alternativas?.map((a, j) => { const sel = qans[i] === j, crt = rv && j === q.correta, wrg = rv && sel && !crt; return <button key={j} onClick={() => { if (!rv) setQans(p => ({ ...p, [i]: j })); }} style={{ width: "100%", textAlign: "left", padding: "10px 13px", borderRadius: 11, marginBottom: 6, border: `1.5px solid ${crt ? D.mint + "65" : wrg ? D.rose + "65" : sel ? D.blueM : D.b0}`, background: crt ? D.mintLo : wrg ? D.roseLo : sel ? D.blueLo : D.bg2, cursor: rv ? "default" : "pointer", fontSize: 13, color: D.w1, transition: "all .15s", fontFamily: "Inter" }}>{a}{crt && " ✅"}{wrg && " ❌"}</button>; })}
-                {qans[i] !== undefined && !rv && <button className="btn outline sm" style={{ marginTop: 3 }} onClick={() => setQrev(p => ({ ...p, [i]: true }))}>Ver resposta</button>}
-                {rv && q.explicacao && <div style={{ marginTop: 8, padding: "9px 12px", background: D.mintLo, borderRadius: 10, fontSize: 13, color: D.mint, lineHeight: 1.5, border: `1px solid ${D.mint}25` }}>💡 {q.explicacao}</div>}
-              </div>
-            );
-          })}
-          {done === total && <div style={{ padding: 24, borderRadius: 18, background: correct / total >= .7 ? D.mintLo : D.amberLo, border: `1px solid ${correct / total >= .7 ? D.mint + "35" : D.amber + "35"}`, textAlign: "center" }}><div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 900, fontSize: 36, color: correct / total >= .7 ? D.mint : D.amber, animation: "cntA .5s ease both" }}>{Math.round((correct / total) * 100)}%</div><div style={{ fontSize: 15, color: D.w2, marginTop: 5 }}>{correct / total >= .7 ? "Excelente! 🎉" : correct / total >= .5 ? "Bom! Continue 📚" : "Revise o material 💪"}</div></div>}
-        </div>
-      );
-    }
-    return null;
-  };
-
-  const TABS = [
-    { id: "voz", l: "Voz", e: "🎤" }, { id: "resumo", l: "Resumo", e: "🧠" },
-    { id: "mapa", l: "Mapa", e: "🗺️" }, { id: "slides", l: "Slides", e: "📊" },
-    { id: "cards", l: "Flashcards", e: "🃏" }, { id: "quiz", l: "Quiz", e: "⚡" },
-  ];
-  
-
-  const startRec = () => {
-    setRec(true); setSecs(0);
-    timerRef.current = setInterval(() => setSecs(s => s + 1), 1000);
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (SR) {
-      const r = new SR(); r.continuous = true; r.interimResults = true; r.lang = "pt-BR";
-      r.onresult = e => { let t = ""; for (let i = 0; i < e.results.length; i++) t += e.results[i][0].transcript; setTrans(t); };
-      r.onerror = () => toast("Permita o acesso ao microfone.", "warn");
-      r.start(); recRef.current = r;
-    } else {
-      setTimeout(() => setTrans("Exemplo de transcrição: A fotossíntese é o processo pelo qual plantas usam luz solar, água e CO₂ para produzir glicose e oxigênio. Ocorre nos cloroplastos e é essencial para a vida na Terra."), 1500);
-    }
-  };
-  const stopRec = () => { setRec(false); clearInterval(timerRef.current); recRef.current?.stop(); if (trans) { setTexto(trans); toast("Transcrição salva!", "ok"); } };
-
-  const gen = async type => {
-    if (!wt.trim()) { toast("Adicione texto ou grave sua voz!", "warn"); return; }
-    
-    // Database studies check
-    let currentStudyUsage = 0;
-        const limits = { free: 3, social: 5, student: 10, full: Infinity };
-    const limit = limits[plan] || 3;
-
-    if (plan !== "full") {
-       const { data: profile } = await supabase.from('profiles').select('estudos_used').eq('id', session.id).single();
-       currentStudyUsage = profile?.estudos_used || 0;
-       if (currentStudyUsage >= limit) {
-          toast(`Limite de ${limit} estudos atingido. Faça upgrade para o plano superior! 🎓`, "error");
-          return;
-       }
-    }
-
-    setLoad(true); setLtab(type); setPct(0); setCur(0); setRes(null); setRtype(type); setFlips({}); setQans({}); setQrev({});
-    const steps = STEPS3[type] || [];
-    for (let i = 0; i < steps.length; i++) { setCur(i); await sleep(420 + Math.random() * 330); setPct(Math.round(((i + 1) / steps.length) * 86)); }
-
-    const P = {
-      resumo: `Analise este texto com profundidade. APENAS JSON sem markdown:
-{"titulo":"título claro e atrativo","resumo":"resumo bem desenvolvido em 2-3 parágrafos separados por \\n\\n","pontos":["5 pontos principais detalhados"],"palavrasChave":["6 palavras-chave"],"dificuldade":"Básico/Intermediário/Avançado","tempoEstudo":"X min"}
-Texto:"${wt.slice(0,2200)}"`,
-      mapa: `Crie mapa mental completo. APENAS JSON sem markdown:
-{"topico":"TEMA CENTRAL","descricao":"descrição em 1 frase clara","ramos":[{"titulo":"RAMO 1","subtopicos":["conceito 1","conceito 2","conceito 3"]},{"titulo":"RAMO 2","subtopicos":["conceito 1","conceito 2","conceito 3"]},{"titulo":"RAMO 3","subtopicos":["conceito 1","conceito 2"]},{"titulo":"RAMO 4","subtopicos":["conceito 1","conceito 2"]}]}
-Texto:"${wt.slice(0,2200)}"`,
-      slides: `Crie apresentação didática. APENAS JSON sem markdown:
-{"titulo":"Título da Apresentação","slides":[{"num":1,"titulo":"Introdução","subtitulo":"Visão Geral","pontos":["Ponto importante 1","Ponto importante 2","Ponto importante 3"],"nota":"Apresente o tema e objetivos"},{"num":2,"titulo":"Desenvolvimento","subtitulo":"Conceitos Principais","pontos":["Conceito central 1","Conceito central 2","Conceito central 3"],"nota":"Explique cada ponto com exemplos"},{"num":3,"titulo":"Análise Detalhada","subtitulo":"Aprofundamento","pontos":["Detalhe importante 1","Detalhe importante 2","Detalhe importante 3"],"nota":""},{"num":4,"titulo":"Conclusão","subtitulo":"Resumo e Próximos Passos","pontos":["Conclusão principal","Aplicação prática"],"nota":"Encerre com uma reflexão ou pergunta"}]}
-Texto:"${wt.slice(0,2200)}"`,
-      cards: `Crie 5 flashcards de estudo eficazes. APENAS JSON sem markdown:
-{"flashcards":[{"pergunta":"Pergunta direta e clara 1?","resposta":"Resposta completa e didática que ajuda a memorizar.","dificuldade":"fácil","categoria":"Conceito Básico"},{"pergunta":"Pergunta 2?","resposta":"Resposta 2 detalhada.","dificuldade":"médio","categoria":"Intermediário"},{"pergunta":"Pergunta 3 mais difícil?","resposta":"Resposta 3 aprofundada.","dificuldade":"difícil","categoria":"Avançado"},{"pergunta":"Pergunta 4?","resposta":"Resposta 4.","dificuldade":"médio","categoria":"Aplicação"},{"pergunta":"Pergunta 5 de revisão?","resposta":"Resposta 5 consolidada.","dificuldade":"fácil","categoria":"Revisão"}]}
-Texto:"${wt.slice(0,2200)}"`,
-      quiz: `Crie quiz com 4 questões bem elaboradas. APENAS JSON sem markdown:
-{"quiz":[{"num":1,"pergunta":"Questão completa e inequívoca 1?","alternativas":["A) Alternativa correta e bem escrita","B) Alternativa plausível mas incorreta","C) Alternativa plausível mas incorreta","D) Alternativa claramente diferente"],"correta":0,"explicacao":"Explicação detalhada de por que A é a resposta correta."},{"num":2,"pergunta":"Questão 2?","alternativas":["A) Errada","B) Correta","C) Errada","D) Errada"],"correta":1,"explicacao":"Explicação questão 2."},{"num":3,"pergunta":"Questão 3?","alternativas":["A) Errada","B) Errada","C) Correta","D) Errada"],"correta":2,"explicacao":"Explicação questão 3."},{"num":4,"pergunta":"Questão 4?","alternativas":["A) Errada","B) Errada","C) Errada","D) Correta"],"correta":3,"explicacao":"Explicação questão 4."}]}
-Texto:"${wt.slice(0,2200)}"`,
-    };
-    const raw = await callAI(P[type] || P.resumo, "Retorne APENAS JSON válido. Zero texto fora do JSON. Zero markdown. Zero explicações.");
-    setPct(100);
-    const parsed = pj(raw);
-    if (parsed) { 
-      setRes(parsed); 
-      toast("Gerado com sucesso!", "ok"); 
-      // Save to Supabase
-      await supabase.from('estudos').insert([{ user_id: session.id, type: type, content: parsed }]);
-      if (plan !== "full") {
-         await supabase.from('profiles').update({ estudos_used: currentStudyUsage + 1 }).eq('id', session.id);
-      }
-    } else setRes({ _err: "Não foi possível processar. Adicione mais texto." });
-    setLoad(false);
-  };
-
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column" }}>
-      {/* tab bar */}
-      <div style={{ display: "flex", overflowX: "auto", gap: 3, padding: "13px 15px 9px", borderBottom: `1px solid ${D.b0}`, scrollbarWidth: "none" }}>
-        {TABS.map(t => { const a = tab === t.id; return <button key={t.id} onClick={() => { setTab(t.id); setRes(null); }} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, padding: "8px 11px", borderRadius: 11, border: `1px solid ${a ? D.blueM : "transparent"}`, background: a ? D.blueLo : "transparent", cursor: "pointer", whiteSpace: "nowrap", transition: "all .15s", minWidth: 52 }}><span style={{ fontSize: 17 }}>{t.e}</span><span style={{ fontSize: 11, fontWeight: 700, color: a ? D.blue2 : D.w2, fontFamily: "Inter" }}>{t.l}</span></button>; })}
-      </div>
-
-      <div style={{ padding: "17px 16px", display: "flex", flexDirection: "column", gap: 16 }}>
-        {tab === "voz" && (
-          <div className="fi" style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-            <div><div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 21, marginBottom: 4 }}>Transcrição por Voz 🎤</div><div style={{ fontSize: 14, color: D.w2 }}>Fale — IA transcreve em português</div></div>
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "20px 0", gap: 16 }}>
-              <div style={{ position: "relative" }}>
-                {rec && <div style={{ position: "absolute", inset: -13, borderRadius: "50%", border: `2.5px solid ${D.rose}`, animation: "micA 1.2s ease-in-out infinite", opacity: .65 }} />}
-                <button onClick={rec ? stopRec : startRec} style={{ width: 90, height: 90, borderRadius: "50%", background: rec ? D.gRose : D.gBlue, border: "none", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 5, boxShadow: rec ? `0 0 36px rgba(244,63,94,.48)` : `0 0 28px rgba(37,99,235,.38)`, transition: "all .22s" }}>
-                                    <span style={{ fontSize: 30 }}>{rec ? "⏸" : "🎤"}</span>
-                  {rec && <div style={{ fontSize: 11, color: "#fff", fontWeight: 700 }}>{String(Math.floor(secs / 60)).padStart(2, "0")}:{String(secs % 60).padStart(2, "0")}</div>}
-                </button>
-              </div>
-              {rec ? <div style={{ display: "flex", alignItems: "center", gap: 9, color: D.rose, fontSize: 13, fontWeight: 600 }}><WaveBar on col={D.rose} /> Gravando…</div> : <div style={{ fontSize: 13, color: D.w3 }}>Toque para {trans ? "continuar" : "iniciar"}</div>}
-            </div>
-            {trans && (
-              <div className="card" style={{ padding: 15 }}>
-                <div className="sec-label">Transcrição</div>
-                <div style={{ fontSize: 14, lineHeight: 1.75 }}>{trans}</div>
-                <div style={{ display: "flex", gap: 7, marginTop: 12, flexWrap: "wrap" }}>
-                  <button className="btn primary sm" onClick={() => { setTexto(trans); setTab("resumo"); setTimeout(() => gen("resumo"), 50); }}>🧠 Resumo</button>
-                  <button className="btn ghost sm" onClick={() => { setTexto(trans); setTab("mapa"); setTimeout(() => gen("mapa"), 50); }}>🗺️ Mapa</button>
-                  <button className="btn ghost sm" onClick={() => { setTexto(trans); setTab("slides"); setTimeout(() => gen("slides"), 50); }}>📊 Slides</button>
-                  <button className="btn ghost sm" onClick={() => { setTexto(trans); setTab("cards"); setTimeout(() => gen("cards"), 50); }}>🃏 Cards</button>
-                </div>
-              </div>
-            )}
-            {trans && <button className="btn ghost xs" style={{ alignSelf: "flex-start" }} onClick={() => { setTrans(""); setTexto(""); }}>🗑️ Limpar</button>}
-          </div>
-        )}
-
-        {tab !== "voz" && !load && (
-          <div className="fi" style={{ display: "flex", flexDirection: "column", gap: 13 }}>
-            <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 21 }}>
-              {tab === "resumo" ? "Resumo Inteligente 🧠" : tab === "mapa" ? "Mapa Mental 🗺️" : tab === "slides" ? "Gerador de Slides 📊" : tab === "cards" ? "Flashcards 🃏" : "Quiz Interativo ⚡"}
-            </div>
-            <textarea className="inp" value={wt} onChange={e => setTexto(e.target.value)} placeholder="Cole o texto da aula, artigo ou resumo aqui…" style={{ minHeight: 118 }} />
-            <button className="btn primary lg" style={{ width: "100%", fontFamily: "'Sora',sans-serif" }} onClick={() => gen(tab)} disabled={!wt.trim()}>✨ Gerar com IA</button>
-          </div>
-        )}
-
-        {load && <LoadScreen steps={STEPS3[ltab] || []} cur={cur} pct={pct} title={`Gerando ${tab === "mapa" ? "Mapa Mental" : tab === "slides" ? "Slides" : tab === "cards" ? "Flashcards" : tab === "quiz" ? "Quiz" : "Resumo"}…`} />}
-
-                {!load && res && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 13 }}>
-            <div style={{ height: 1, background: D.b0 }} />
-            {rend()}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 4 }}>
-              <button className="btn ghost sm" onClick={() => { toast("📄 Gerando PDF…", "info"); setTimeout(() => toast("✅ PDF gerado!", "ok"), 2000); }}>📄 PDF</button>
-              <button className="btn ghost sm" onClick={() => { navigator.clipboard.writeText(JSON.stringify(res, null, 2)); toast("Copiado!", "ok"); }}>📋 Copiar</button>
-              <button className="btn ghost sm" onClick={() => { setRes(null); gen(rtype); }}>↺ Refazer</button>
-            </div>
-          </div>
-        )}
-      </div>
-      <div style={{ padding: "0 16px 20px" }}>
-        <div className="card fu" style={{ padding: "12px 15px", display: "flex", gap: 10, alignItems: "center" }}>
-          <span style={{ fontSize: 16 }}>{plan === "full" ? "👑" : "🔒"}</span>
-          <span style={{ fontSize: 13, color: D.w2 }}>
-            {plan === "free" ? "Plano Gratuito · 3 estudos/dia" : 
-             plan === "social" ? "Social Premium · 5 estudos/dia" :
-             plan === "student" ? "Estudante Premium · 10 estudos/dia" :
-             "Plano Completo · Ilimitado"} · <span style={{ color: D.amber, fontWeight: 700, cursor: "pointer" }} onClick={() => toast("Acesse a aba Planos!", "info")}>{plan === "full" ? "Gerenciar" : "Upgrade"} →</span>
-          </span>
-        </div>
       </div>
     </div>
   );
@@ -1531,10 +1442,10 @@ Texto:"${wt.slice(0,2200)}"`,
 const Planos = ({ plan, setPlan, toast }) => {
   const [ann, setAnn] = useState(false);
     const PL = [
-    { id: "free", name: "Gratuito", price: 0, col: D.w2, grad: D.gDark, badge: null, feats: ["3 posts por dia", "3 estudos por dia", "Marca d'água DVS", "IA básica", "Transcrição simples"], miss: ["SmartSound AI", "Mapas Mentais", "Slides IA", "Export HD", "Sem marca d'água"] },
-    { id: "social", name: "Social Premium", price: 10, col: D.blue2, grad: D.gBlue, badge: "⭐ MAIS POPULAR", link: "https://buy.stripe.com/test_dRm14m1KC9iLaHr6VF5sA04", feats: ["5 posts por dia", "5 estudos por dia", "Sem marca d'água", "SmartSound AI (Músicas)", "Exportação HD", "Score Viral Avançado", "Legendas Otimizadas"], miss: ["Slides IA", "Mapas Mentais", "Quiz IA"] },
-    { id: "student", name: "Estudante Premium", price: 15, col: D.mint, grad: D.gMint, badge: "🎓 MELHOR CUSTO", link: "https://buy.stripe.com/test_6oUdR874W52veXHeo75sA03", feats: ["10 posts por dia", "10 estudos por dia", "Tudo do Social Premium", "Mapas Mentais IA", "Slides Profissionais", "Flashcards & Quiz", "Transcrição Avançada"], miss: ["Uso Ilimitado"] },
-    { id: "full", name: "Plano Completo", price: 20, col: D.amber, grad: D.gAmber, badge: "👑 TUDO INCLUSO", link: "https://buy.stripe.com/test_5kQ6oG4WO9iLbLv93N5sA01", feats: ["Tudo Ilimitado", "IA Prioritária", "Sem marcas d'água", "Exportação 4K", "Suporte VIP 24/7", "Novas funções antecipadas"], miss: [] },
+    { id: "free", name: "Gratuito", price: 0, col: D.w2, grad: D.gDark, badge: null, feats: ["3 posts por dia", "3 trocas de música", "Marca d'água DVS", "IA básica", "Transcrição simples"], miss: ["Mapas Mentais", "Slides IA", "Export HD", "Sem marca d'água"] },
+    { id: "social", name: "Social Premium", price: 10, col: D.blue2, grad: D.gBlue, badge: " MAIS POPULAR", link: "https://buy.stripe.com/test_dRm14m1KC9iLaHr6VF5sA04", feats: ["5 posts por dia", "5 estudos por dia", "Sem marca d'água", "SmartSound AI (músicas)", "Exportação HD", "Score Viral Avançado", "Legendas Otimizadas"], miss: ["Slides IA", "Mapas Mentais", "Quiz IA"] },
+    { id: "student", name: "Estudante Premium", price: 15, col: D.mint, grad: D.gMint, badge: " MELHOR CUSTO", link: "https://buy.stripe.com/test_6oUdR874W52veXHeo75sA03", feats: ["10 posts por dia", "10 estudos por dia", "Tudo do Social Premium", "Mapas Mentais IA", "Slides Profissionais", "Flashcards & Quiz", "Transcrição Avançada"], miss: ["Uso Ilimitado"] },
+    { id: "full", name: "Plano Completo", price: 20, col: D.amber, grad: D.gAmber, badge: " TUDO INCLUSO", link: "https://buy.stripe.com/test_5kQ6oG4WO9iLbLv93N5sA01", feats: ["Tudo Ilimitado", "IA Prioritária", "Sem marcas d'água", "Exportação 4K", "Suporte VIP 24/7", "Novas funções antecipadas"], miss: [] },
   ];
   return (
     <div style={{ padding: "20px 16px", display: "flex", flexDirection: "column", gap: 18 }}>
@@ -1543,7 +1454,7 @@ const Planos = ({ plan, setPlan, toast }) => {
         <div style={{ fontSize: 14, color: D.w2 }}>Escolha o plano ideal para você</div>
       </div>
       <div className="card fu d1" style={{ padding: 5, display: "flex", gap: 3 }}>
-        {["Mensal", "Anual  –20%"].map((l, i) => <button key={i} onClick={() => setAnn(i === 1)} style={{ flex: 1, padding: "10px 4px", borderRadius: 11, border: "none", fontWeight: 700, fontSize: 13, cursor: "pointer", transition: "all .15s", background: ann === (i === 1) ? D.blue : "transparent", color: ann === (i === 1) ? "#fff" : D.w2, fontFamily: "Inter" }}>{l}</button>)}
+        {["Mensal", "Anual  20%"].map((l, i) => <button key={i} onClick={() => setAnn(i === 1)} style={{ flex: 1, padding: "10px 4px", borderRadius: 11, border: "none", fontWeight: 700, fontSize: 13, cursor: "pointer", transition: "all .15s", background: ann === (i === 1) ? D.blue : "transparent", color: ann === (i === 1) ? "#fff" : D.w2, fontFamily: "Inter" }}>{l}</button>)}
       </div>
       {PL.map((p, idx) => {
         const price = ann && p.price > 0 ? Math.round(p.price * .8) : p.price; const active = plan === p.id;
@@ -1556,17 +1467,17 @@ const Planos = ({ plan, setPlan, toast }) => {
               {ann && p.price > 0 && <div style={{ fontSize: 11, color: "rgba(255,255,255,.6)", marginTop: 2 }}>Cobrado anualmente</div>}
             </div>
             <div style={{ padding: "15px 20px 18px" }}>
-              {p.feats.map((f, i) => <div key={i} style={{ display: "flex", gap: 9, fontSize: 13, marginBottom: 8, alignItems: "center", color: D.w1 }}><span style={{ color: D.mint, fontSize: 14 }}>✓</span>{f}</div>)}
-              {p.miss.map((f, i) => <div key={i} style={{ display: "flex", gap: 9, fontSize: 13, marginBottom: 8, color: D.w3, alignItems: "center" }}><span style={{ fontSize: 14 }}>✗</span>{f}</div>)}
+              {p.feats.map((f, i) => <div key={i} style={{ display: "flex", gap: 9, fontSize: 13, marginBottom: 8, alignItems: "center", color: D.w1 }}><span style={{ color: D.mint, fontSize: 14 }}></span>{f}</div>)}
+              {p.miss.map((f, i) => <div key={i} style={{ display: "flex", gap: 9, fontSize: 13, marginBottom: 8, color: D.w3, alignItems: "center" }}><span style={{ fontSize: 14 }}></span>{f}</div>)}
               <button onClick={() => { 
                 if (p.id === "free" || active) {
                   setPlan(p.id); 
-                  if (!active) toast(`✅ Plano "${p.name}" ativado!`, "ok"); 
+                  if (!active) toast(` Plano "${p.name}" ativado!`, "ok"); 
                 } else if (p.link) {
                   window.open(p.link, "_blank");
                 }
               }} style={{ width: "100%", marginTop: 12, padding: "12px 0", borderRadius: 12, border: `1.5px solid ${active ? p.col : p.col + "40"}`, background: active ? p.grad : "transparent", color: active ? "#fff" : p.col, cursor: "pointer", fontWeight: 800, fontSize: 14, fontFamily: "'Sora',sans-serif", transition: "all .18s" }}>
-                {active ? "✓ Plano Atual" : p.id === "free" ? "Usar Grátis" : "Assinar Agora"}
+                {active ? " Plano Atual" : p.id === "free" ? "Usar Grátis" : "Assinar Agora"}
               </button>
             </div>
           </div>
@@ -1576,7 +1487,7 @@ const Planos = ({ plan, setPlan, toast }) => {
   );
 };
 
-const SmartSoundPlayer = ({ musicas = [], toast, plan }) => {
+const SmartSoundPlayer = ({ musicas = [], toast, plan, songsChanged, setSongsChanged, onSelect }) => {
   const [track,      setTrack]    = useState(null); // faixa tocando
   const [results,    setResults]  = useState([]);
   const [queue,      setQueue]    = useState([]);
@@ -1593,28 +1504,33 @@ const SmartSoundPlayer = ({ musicas = [], toast, plan }) => {
   const audioRef  = useRef(null);
   const progTimer = useRef(null);
 
-  // ── Inicializa audio ──────────────────────────
+  //  Inicializa audio 
   useEffect(() => {
     const a = new Audio();
     a.volume = volume;
     a.crossOrigin = "anonymous";
     a.onended = () => { setPlaying(false); setProgress(0); setElapsed(0); playNext(); };
     a.onloadedmetadata = () => setDuration(a.duration || 30);
-    a.onerror = () => { toast("Prévia indisponível. Tente outra música.", "warn"); setPlaying(false); };
+    a.onerror = () => { toast("Pr via indisponível. Tente outra música.", "warn"); setPlaying(false); };
     audioRef.current = a;
     return () => { a.pause(); clearInterval(progTimer.current); };
   }, []);
 
-  // ── Volume ────────────────────────────────────
+  //  Volume 
   useEffect(() => { if (audioRef.current) audioRef.current.volume = volume; }, [volume]);
 
-  // ── Toca faixa ───────────────────────────────
+  //  Toca faixa 
   const playTrack = (t) => {
-    if (plan === "free" || plan === "student") {
-      toast("O SmartSound AI é um recurso do Social Premium e Completo! 🎵💎", "warn");
+    if (plan === "free" && songsChanged >= 3 && t !== track) {
+      toast("Limite de 3 trocas atingido no plano Gratuito!", "warn");
       return;
     }
-    if (!t?.previewUrl) { toast("Prévia não disponível para esta faixa.", "warn"); return; }
+    if (t !== track) setSongsChanged(prev => prev + 1);
+    if (plan === "student_old") { // Allowed for free now with limits
+      toast("O SmartSound AI   um recurso do Social Premium e Completo! ?", "warn");
+      return;
+    }
+    if (!t?.previewUrl) { toast("Pr via n o disponível para esta faixa.", "warn"); return; }
     const a = audioRef.current;
     if (!a) return;
     a.pause(); clearInterval(progTimer.current);
@@ -1623,13 +1539,14 @@ const SmartSoundPlayer = ({ musicas = [], toast, plan }) => {
     a.play().catch(() => toast("Clique novamente para tocar.", "info"));
     setTrack(t); setPlaying(true); setProgress(0); setElapsed(0);
     setHistory(h => [t, ...h.filter(x => x.trackId !== t.trackId)].slice(0, 20));
+    if (onSelect) onSelect(t);
     progTimer.current = setInterval(() => {
       if (!a.paused) {
         setElapsed(Math.floor(a.currentTime));
         setProgress((a.currentTime / (a.duration || 30)) * 100);
       }
     }, 500);
-    toast(`▶ ${t.trackName} — ${t.artistName}`, "ok");
+    toast(` ${t.trackName}  ${t.artistName}`, "ok");
   };
 
   const togglePlay = () => {
@@ -1653,7 +1570,7 @@ const SmartSoundPlayer = ({ musicas = [], toast, plan }) => {
   };
 
   const playNext = () => { if (queue.length > 0) { playTrack(queue[0]); setQueue(q => q.slice(1)); } };
-  const addQueue = (t) => { setQueue(q => [...q, t]); toast(`🔜 "${t.trackName}" adicionada à fila`, "ok"); };
+  const addQueue = (t) => { setQueue(q => [...q, t]); toast(` "${t.trackName}" adicionada   fila`, "ok"); };
 
   const stop = () => {
     const a = audioRef.current;
@@ -1662,7 +1579,7 @@ const SmartSoundPlayer = ({ musicas = [], toast, plan }) => {
     setPlaying(false); setProgress(0); setElapsed(0); setTrack(null);
   };
 
-  // ── Busca iTunes API (real, CORS ok) ──────────
+  //  Busca iTunes API (real, CORS ok) 
   const searchItunes = async (q, country = "br") => {
     if (!q.trim()) return;
     setSearching(true); setResults([]);
@@ -1679,14 +1596,14 @@ const SmartSoundPlayer = ({ musicas = [], toast, plan }) => {
     setSearching(false);
   };
 
-  // ── IA sugere → busca iTunes ──────────────────
+  //  IA sugere  busca iTunes 
   const playFromAI = async (m) => {
     setAiLoading(m.tipo);
-    // IA melhora o termo de busca para máxima precisão
+    // IA melhora o termo de busca para m xima precisão
     const raw = await callAI(
-      `A música sugerida é "${m.nome}" de "${m.artista}" (estilo: ${m.vibe}).
-Retorne o MELHOR termo de busca em inglês ou português para encontrar esta música ou música similar no iTunes.
-APENAS o termo de busca, sem aspas, sem explicações. Máximo 5 palavras.`,
+      `A música sugerida   "${m.nome}" de "${m.artista}" (estilo: ${m.vibe}).
+Retorne o MELHOR termo de busca em ingl s ou portugu s para encontrar esta música ou música similar no iTunes.
+APENAS o termo de busca, sem aspas, sem explicaes. M ximo 5 palavras.`,
       "Retorne APENAS o termo de busca."
     );
     const termo = raw?.trim() || `${m.nome} ${m.artista}`;
@@ -1703,35 +1620,35 @@ APENAS o termo de busca, sem aspas, sem explicações. Máximo 5 palavras.`,
         const data2 = await res2.json();
         const t2 = (data2.results||[]).filter(r => r.previewUrl);
         if (t2.length > 0) playTrack(t2[0]);
-        else toast("Prévia não encontrada. Busque manualmente.", "warn");
+        else toast("Pr via n o encontrada. Busque manualmente.", "warn");
       }
     } catch { toast("Erro ao buscar música.", "err"); }
     setAiLoading(null);
   };
 
-  // ── Géneros rápidos ───────────────────────────
+  //  G neros r pidos 
   const GENEROS = [
-    { l: "🔥 Funk BR",    q: "funk brasileiro" },
-    { l: "😌 Lo-fi",      q: "lofi hip hop" },
-    { l: "🎵 Sertanejo",  q: "sertanejo universitario" },
-    { l: "🌊 Trap",       q: "trap brasil" },
-    { l: "💜 R&B",        q: "R&B soul" },
-    { l: "🎸 Rock",       q: "rock alternativo" },
-    { l: "⚡ Eletrônico", q: "electronic dance music" },
-    { l: "🎷 Jazz",       q: "jazz bossa nova brasil" },
-    { l: "🌟 Pop BR",     q: "pop brasileiro" },
-    { l: "🎤 Rap BR",     q: "rap brasileiro" },
-    { l: "☀️ Pagode",     q: "pagode samba" },
-    { l: "🕺 Funk US",    q: "funk old school" },
+    { l: " Funk BR",    q: "funk brasileiro" },
+    { l: " Lo-fi",      q: "lofi hip hop" },
+    { l: " Sertanejo",  q: "sertanejo universitario" },
+    { l: " Trap",       q: "trap brasil" },
+    { l: " R&B",        q: "R&B soul" },
+    { l: " Rock",       q: "rock alternativo" },
+    { l: " Eletr nico", q: "electronic dance music" },
+    { l: " Jazz",       q: "jazz bossa nova brasil" },
+    { l: " Pop BR",     q: "pop brasileiro" },
+    { l: " Rap BR",     q: "rap brasileiro" },
+    { l: " Pagode",     q: "pagode samba" },
+    { l: " Funk US",    q: "funk old school" },
   ];
 
   const artworkUrl = (t) => t?.artworkUrl100?.replace("100x100", "300x300") || null;
 
-  // ── RENDER ────────────────────────────────────
+  //  RENDER 
   return (
     <div className="card" style={{ padding: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
 
-      {/* ── NOW PLAYING ── */}
+      {/*  NOW PLAYING  */}
       <div style={{
         background: track ? `linear-gradient(135deg, ${D?.bg3 || "#0d1018"} 0%, ${D?.s2 || "#182030"} 100%)` : (D?.s1 || "#131928"),
         padding: "16px 16px 12px", display: "flex", flexDirection: "column", gap: 12,
@@ -1747,7 +1664,7 @@ APENAS o termo de busca, sem aspas, sem explicações. Máximo 5 palavras.`,
                 {artworkUrl(track) ? (
                   <img src={artworkUrl(track)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 ) : (
-                  <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>🎵</div>
+                  <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}></div>
                 )}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -1755,8 +1672,8 @@ APENAS o termo de busca, sem aspas, sem explicações. Máximo 5 palavras.`,
                 <div style={{ fontSize: 12, color: (D?.w2 || "#94a3b8"), marginTop: 2 }}>{track.artistName}</div>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <a href={track.trackViewUrl} target="_blank" rel="noreferrer" style={{ color: (D?.w3 || "#3d4f6e"), fontSize: 14, textDecoration: "none", padding: 4 }}>↗</a>
-                <button onClick={stop} style={{ background: "none", border: "none", color: (D?.w3 || "#3d4f6e"), cursor: "pointer", padding: 4, fontSize: 18 }}>✕</button>
+                <a href={track.trackViewUrl} target="_blank" rel="noreferrer" style={{ color: (D?.w3 || "#3d4f6e"), fontSize: 14, textDecoration: "none", padding: 4 }}></a>
+                <button onClick={stop} style={{ background: "none", border: "none", color: (D?.w3 || "#3d4f6e"), cursor: "pointer", padding: 4, fontSize: 18 }}></button>
               </div>
             </div>
 
@@ -1776,13 +1693,13 @@ APENAS o termo de busca, sem aspas, sem explicações. Máximo 5 palavras.`,
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <button onClick={() => { if (history.length > 1) playTrack(history[1]); }}
                 disabled={history.length <= 1}
-                style={{ background: "none", border: "none", color: history.length > 1 ? (D?.w2 || "#94a3b8") : (D?.w3 || "#3d4f6e"), cursor: "pointer", fontSize: 20 }}>⏮</button>
+                style={{ background: "none", border: "none", color: history.length > 1 ? (D?.w2 || "#94a3b8") : (D?.w3 || "#3d4f6e"), cursor: "pointer", fontSize: 20 }}></button>
               <button onClick={togglePlay}
                 style={{ width: 42, height: 42, borderRadius: "50%", background: (D?.gRose || "#f43f5e"), border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: "#fff", boxShadow: "0 4px 14px rgba(244,63,94,.4)" }}>
-                {playing ? "⏸" : "▶"}
+                {playing ? "" : ""}
               </button>
               <button onClick={playNext} disabled={!queue.length}
-                style={{ background: "none", border: "none", color: queue.length ? (D?.w2 || "#94a3b8") : (D?.w3 || "#3d4f6e"), cursor: "pointer", fontSize: 20 }}>⏭</button>
+                style={{ background: "none", border: "none", color: queue.length ? (D?.w2 || "#94a3b8") : (D?.w3 || "#3d4f6e"), cursor: "pointer", fontSize: 20 }}></button>
               <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 7 }}>
                 <input type="range" min={0} max={1} step={.05} value={volume} onChange={e => setVolume(+e.target.value)} style={{ flex: 1, accentColor: (D?.rose || "#f43f5e"), height: 3 }} />
               </div>
@@ -1790,18 +1707,18 @@ APENAS o termo de busca, sem aspas, sem explicações. Máximo 5 palavras.`,
           </div>
         ) : (
           <div key="idle-state" style={{ display: "flex", gap: 14, alignItems: "center" }}>
-            <div style={{ width: 56, height: 56, borderRadius: 14, background: (D?.roseLo || "rgba(244,63,94,0.1)"), border: `1px solid ${D?.roseLo || "rgba(244,63,94,0.1)"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26 }}>🎵</div>
+            <div style={{ width: 56, height: 56, borderRadius: 14, background: (D?.roseLo || "rgba(244,63,94,0.1)"), border: `1px solid ${D?.roseLo || "rgba(244,63,94,0.1)"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26 }}></div>
             <div>
               <div style={{ fontWeight: 800, fontSize: 14, color: (D?.w1 || "#f8faff") }}>SmartSound AI</div>
-              <div style={{ fontSize: 12, color: (D?.w2 || "#94a3b8"), marginTop: 3 }}>Músicas reais · Prévia de 30s</div>
+              <div style={{ fontSize: 12, color: (D?.w2 || "#94a3b8"), marginTop: 3 }}>músicas reais   Pr via de 30s</div>
             </div>
           </div>
         )}
       </div>
 
-      {/* ── TABS ── */}
+      {/*  TABS  */}
       <div style={{ display: "flex", borderBottom: `1px solid ${D.b0}` }}>
-        {[["sugestoes","🤖 IA"], ["busca","🔍 Buscar"], ["generos","🎭 Gêneros"], ["historico","🕐 Histórico"]].map(([id, l]) => (
+        {[["sugestoes"," IA"], ["busca"," Buscar"], ["generos"," G neros"], ["historico"," Hist rico"]].map(([id, l]) => (
           <button key={id} onClick={() => setTab(id)}
             style={{ flex: 1, padding: "10px 4px", background: "none", border: "none", borderBottom: `2px solid ${tab===id?D.rose:"transparent"}`, color: tab===id?D.rose:D.w3, fontWeight: 700, fontSize: 11, cursor: "pointer", transition: "all .15s", fontFamily: "Inter" }}>
             {l}
@@ -1811,52 +1728,56 @@ APENAS o termo de busca, sem aspas, sem explicações. Máximo 5 palavras.`,
 
       <div style={{ padding: "14px 14px 16px", display: "flex", flexDirection: "column", gap: 12, minHeight: 180 }}>
 
-        {/* ── TAB: SUGESTÕES IA ── */}
+        {/*  TAB: SUGEST ES IA  */}
         {tab === "sugestoes" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: D.w3, letterSpacing: .8 }}>SUGERIDAS PELA IA PARA SEU CONTEÚDO</div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: D.w3, letterSpacing: .8 }}>SUGERIDAS PELA IA</div>
+              {plan === "free" && <span style={{ fontSize: 10, fontWeight: 800, color: D.rose }}>{songsChanged}/3 trocas</span>}
+            </div>
             {musicas?.length ? musicas.map((m, i) => (
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 11, padding: "10px 12px", borderRadius: 12, background: D.bg2, border: `1.5px solid ${D.b0}`, cursor: "pointer", transition: "all .15s" }}
                 onMouseOver={e => e.currentTarget.style.borderColor = D.blueM}
                 onMouseOut={e => e.currentTarget.style.borderColor = D.b0}
                 onClick={() => playFromAI(m)}>
                 <div style={{ width: 38, height: 38, borderRadius: 10, background: i===0?D.gRose:i===1?D.gBlue:D.gMint, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>
-                  {i===0?"🔥":i===1?"⚖️":"🎨"}
+                  {i===0?"":i===1?"":""}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 700, fontSize: 13 }}>{m.nome}</div>
-                  <div style={{ fontSize: 11, color: D.w2 }}>{m.artista} · {m.vibe}</div>
+                  <div style={{ fontSize: 11, color: D.w2 }}>{m.artista}   {m.vibe}</div>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
                   <span className="tag trose" style={{ fontSize: 10 }}>{m.tipo}</span>
                   {aiLoading === m.tipo
                     ? <Spin s={14} c={D.rose} />
-                    : <span style={{ fontSize: 11, color: D.blue2, fontWeight: 700 }}>▶ Tocar</span>}
+                    : <span style={{ fontSize: 11, color: D.blue2, fontWeight: 700 }}> Tocar</span>}
                 </div>
               </div>
             )) : (
               <div style={{ textAlign: "center", padding: "24px 0", color: D.w3, fontSize: 13 }}>
-                Crie um conteúdo para receber sugestões da IA 🎵
+                Crie um conteúdo para receber sugest es da IA 
               </div>
             )}
           </div>
         )}
 
-        {/* ── TAB: BUSCA ── */}
+        {/*  TAB: BUSCA  */}
         {tab === "busca" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {plan === "free" && <div style={{ fontSize: 10, fontWeight: 800, color: D.rose, marginBottom: 6, textAlign: "right" }}>{songsChanged}/3 trocas de música utilizadas</div>}
             <div style={{ display: "flex", gap: 8 }}>
               <input className="inp" value={search} onChange={e => setSearch(e.target.value)}
                 onKeyDown={e => e.key==="Enter" && searchItunes(search)}
-                placeholder="Artista, música, álbum… ex: Anitta, Drake, Taylor"
+                placeholder="Artista, música, álbum ex: Anitta, Drake, Taylor"
                 style={{ flex: 1, padding: "11px 14px", fontSize: 14 }} />
               <button className="btn primary sm" onClick={() => searchItunes(search)} disabled={searching || !search.trim()}>
-                {searching ? <Spin s={14} c="#fff" /> : "🔍"}
+                {searching ? <Spin s={14} c="#fff" /> : ICONS.search}
               </button>
             </div>
             {/* country filter */}
             <div style={{ display: "flex", gap: 6 }}>
-              {[["br","🇧🇷 BR"], ["us","🇺🇸 US"], ["pt","🇵🇹 PT"], ["mx","🇲🇽 MX"]].map(([c, l]) => (
+              {[["br","? BR"], ["us","? US"], ["pt","? PT"], ["mx","? MX"]].map(([c, l]) => (
                 <button key={c} className="btn ghost xs" onClick={() => searchItunes(search, c)} disabled={!search.trim() || searching}>{l}</button>
               ))}
             </div>
@@ -1869,14 +1790,14 @@ APENAS o termo de busca, sem aspas, sem explicações. Máximo 5 palavras.`,
                     onClick={() => playTrack(r)}>
                     {r.artworkUrl60
                       ? <img src={r.artworkUrl60} alt="" style={{ width: 40, height: 40, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} />
-                      : <div style={{ width: 40, height: 40, borderRadius: 8, background: D.gBlue, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>🎵</div>}
+                      : <div style={{ width: 40, height: 40, borderRadius: 8, background: D.gBlue, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}></div>}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontWeight: 700, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.trackName}</div>
-                      <div style={{ fontSize: 11, color: D.w2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.artistName} · {r.collectionName}</div>
+                      <div style={{ fontSize: 11, color: D.w2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.artistName}   {r.collectionName}</div>
                     </div>
                     <div style={{ display: "flex", gap: 5, flexShrink: 0 }}>
                       <span style={{ fontSize: 11, color: D.w3 }}>{fmt(r.trackTimeMillis)}</span>
-                      <button onClick={e => { e.stopPropagation(); addQueue(r); }} title="Adicionar à fila"
+                      <button onClick={e => { e.stopPropagation(); addQueue(r); }} title="Adicionar   fila"
                         style={{ background: D.accLo||D.blueLo, border: `1px solid ${D.blueM}`, borderRadius: 6, padding: "3px 7px", fontSize: 11, color: D.blue2, cursor: "pointer" }}>+</button>
                     </div>
                   </div>
@@ -1884,15 +1805,15 @@ APENAS o termo de busca, sem aspas, sem explicações. Máximo 5 palavras.`,
               </div>
             )}
             {!searching && results.length === 0 && search && (
-              <div style={{ textAlign: "center", padding: "20px 0", color: D.w3, fontSize: 13 }}>Pressione 🔍 para buscar</div>
+              <div style={{ textAlign: "center", padding: "20px 0", color: D.w3, fontSize: 13 }}>Pressione  para buscar</div>
             )}
           </div>
         )}
 
-        {/* ── TAB: GÊNEROS ── */}
+        {/*  TAB: G NEROS  */}
         {tab === "generos" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: D.w3, letterSpacing: .8 }}>EXPLORE POR GÊNERO — TOQUE E OUÇA</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: D.w3, letterSpacing: .8 }}>EXPLORE POR G NERO  TOQUE E OU A</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 7 }}>
               {GENEROS.map((g, i) => (
                 <button key={i} className="btn ghost sm" style={{ justifyContent: "flex-start", fontWeight: 700, fontSize: 13 }}
@@ -1904,10 +1825,10 @@ APENAS o termo de busca, sem aspas, sem explicações. Máximo 5 palavras.`,
           </div>
         )}
 
-        {/* ── TAB: HISTÓRICO ── */}
+        {/*  TAB: HIST RICO  */}
         {tab === "historico" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: D.w3, letterSpacing: .8 }}>MÚSICAS TOCADAS ({history.length})</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: D.w3, letterSpacing: .8 }}>músicaS TOCADAS ({history.length})</div>
             {history.length === 0 && <div style={{ textAlign: "center", padding: "24px 0", color: D.w3, fontSize: 13 }}>Nenhuma música tocada ainda</div>}
             {history.map((h, i) => (
               <div key={i} style={{ display: "flex", gap: 10, alignItems: "center", padding: "8px 10px", borderRadius: 10, background: D.bg2, border: `1px solid ${D.b0}`, cursor: "pointer" }}
@@ -1917,21 +1838,21 @@ APENAS o termo de busca, sem aspas, sem explicações. Máximo 5 palavras.`,
                   <div style={{ fontWeight: 600, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{h.trackName}</div>
                   <div style={{ fontSize: 11, color: D.w2 }}>{h.artistName}</div>
                 </div>
-                <span style={{ fontSize: 11, color: D.w3 }}>▶</span>
+                <span style={{ fontSize: 11, color: D.w3 }}></span>
               </div>
             ))}
             {history.length > 0 && (
-              <button className="btn ghost xs" style={{ alignSelf: "center", marginTop: 4 }} onClick={() => setHistory([])}>🗑️ Limpar histórico</button>
+              <button className="btn ghost xs" style={{ alignSelf: "center", marginTop: 4 }} onClick={() => setHistory([])}> Limpar hist rico</button>
             )}
           </div>
         )}
       </div>
 
-      {/* rodapé */}
+      {/* rodap  */}
       <div style={{ padding: "8px 14px 10px", borderTop: `1px solid ${D.b0}`, display: "flex", alignItems: "center", gap: 6 }}>
-        <span style={{ fontSize: 10, color: D.w3 }}>🎵 Powered by iTunes · Prévias de 30s gratuitas · Ilimitado</span>
+        <span style={{ fontSize: 10, color: D.w3 }}> Powered by iTunes   Pr vias de 30s gratuitas   Ilimitado</span>
         {track?.trackViewUrl && (
-          <a href={track.trackViewUrl} target="_blank" rel="noreferrer" style={{ marginLeft: "auto", fontSize: 11, color: D.blue2, fontWeight: 700, textDecoration: "none" }}>Apple Music ↗</a>
+          <a href={track.trackViewUrl} target="_blank" rel="noreferrer" style={{ marginLeft: "auto", fontSize: 11, color: D.blue2, fontWeight: 700, textDecoration: "none" }}>Apple Music </a>
         )}
       </div>
     </div>
@@ -1951,14 +1872,14 @@ function getInitials(name) {
   return name.trim().split(" ").slice(0, 2).map(w => w[0]?.toUpperCase() || "").join("") || "?";
 }
 
-/* ── fmt: ms → m:ss ── */
+/*  fmt: ms  m:ss  */
 const fmt = (ms) => {
   if (!ms || isNaN(ms)) return "0:00";
   const s = Math.floor(ms / 1000);
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 };
 
-/* ── Field: reutilizável ── */
+/*  Field: reutiliz vel  */
 const Field = ({ label, icon, type = "text", value, onChange, placeholder, hint }) => (
   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
     <label style={{ fontSize: 13, fontWeight: 600, color: D.w2 }}>{icon} {label}</label>
@@ -1974,9 +1895,9 @@ const Field = ({ label, icon, type = "text", value, onChange, placeholder, hint 
   </div>
 );
 
-/* ═══════════════════════════════════════════════
+/* 
    AUTH HELPERS  (localStorage persistence)
-═══════════════════════════════════════════════ */
+ */
 const DB_KEY = "dvs_users_v1";
 const SESSION_KEY = "dvs_session_v1";
 
@@ -1992,7 +1913,7 @@ function hashPass(p) {
   return h.toString(36);
 }
 
-/* Rate limiter local — proteção brute-force */
+/* Rate limiter local  proteo brute-force */
 const RL = {
   attempts: {},
   check(email) {
@@ -2019,7 +1940,7 @@ function gerarSenhaForte() {
   return Array.from({length: 14}, () => chars[Math.floor(Math.random() * chars.length)]).join("");
 }
 
-/* Força da senha */
+/* For a da senha */
 function senhaForte(p) {
   if (!p) return { score: 0, label: "", color: "" };
   let s = 0;
@@ -2039,8 +1960,106 @@ function senhaForte(p) {
   return { score, ...data[score] };
 }
 
+/*    */
+const ICONS = {
+  eye:     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>,
+  eyeOff:  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>,
+  mail:    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>,
+  lock:    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>,
+  user:    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
+  check:   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>,
+  shield:  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
+  wand:    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 4l5 5M4 20l11-11M8.5 8.5l7 7"/></svg>,
+  refresh: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>,
+  arrow:   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>,
+  key:     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="7.5" cy="15.5" r="5.5"/><path d="M21 2l-9.6 9.6M15.5 7.5l3 3"/></svg>,
+  phone:   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18"/></svg>,
+};
+
+/*  Input component  */
+const AuthInput = ({ label, icon, right, type, val, onChange, err, placeholder, autoComplete, hint, onSubmit, errors, setErrors }) => {
+  const [focused, setFocused] = useState(false);
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+      {(label || hint) && (
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          {label && <label style={{ fontSize: 12, fontWeight: 700, color: D.w2, letterSpacing: .4, textTransform: "uppercase" }}>{label}</label>}
+          {hint && <span style={{ fontSize: 11, color: D.w3 }}>{hint}</span>}
+        </div>
+      )}
+      <div style={{ position: "relative" }}>
+        <div style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: focused ? D.blue2 : D.w3, transition: "color .18s", pointerEvents: "none", display: "flex" }}>
+          {icon}
+        </div>
+        <input
+          type={type || "text"} value={val}
+          onChange={e => { onChange(e.target.value); if (errors && errors[autoComplete]) setErrors(p => { const n={...p}; delete n[autoComplete]; return n; }); }}
+          onKeyDown={e => e.key === "Enter" && onSubmit && onSubmit()}
+          placeholder={placeholder}
+          autoComplete={autoComplete || "off"}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          style={{
+            width: "100%", background: D.s0,
+            border: `1.5px solid ${err ? D.rose + "90" : focused ? D.blueM : D.b0}`,
+            borderRadius: 14, color: D.w1, fontSize: 15, lineHeight: 1,
+            padding: `15px 46px 15px ${icon ? "46px" : "16px"}`,
+            outline: "none", transition: "border .18s, box-shadow .18s",
+            fontFamily: "Inter",
+            boxShadow: focused ? `0 0 0 3px ${err ? D.roseLo : D.blueLo}` : "none",
+          }}
+        />
+        {right && <div style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", display: "flex", alignItems: "center" }}>{right}</div>}
+      </div>
+      {err && (
+        <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: D.rose, animation: "fadeIn .2s ease both" }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={D.rose} strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          {err}
+        </div>
+      )}
+    </div>
+  );
+};
+
+/*  Eye button  */
+const AuthEye = ({ show, toggle }) => (
+  <button type="button" onClick={toggle} style={{ background: "none", border: "none", color: show ? D.blue2 : D.w3, cursor: "pointer", padding: 4, display: "flex", transition: "color .18s" }}>
+    {show ? ICONS.eyeOff : ICONS.eye}
+  </button>
+);
+
+/*  Social btn  */
+const AuthSocialBtn = ({ icon, label, onClick }) => (
+  <button onClick={onClick} style={{ flex: 1, padding: "12px 8px", borderRadius: 13, border: `1.5px solid ${D.b1}`, background: D.s0, color: D.w1, fontWeight: 700, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, transition: "all .18s", fontFamily: "Inter" }}
+    onMouseOver={e => { e.currentTarget.style.borderColor = D.b2; e.currentTarget.style.background = D.s2; }}
+    onMouseOut={e => { e.currentTarget.style.borderColor = D.b1; e.currentTarget.style.background = D.s0; }}>
+    {icon}{label}
+  </button>
+);
+
+/*  Step bar  */
+const AuthStepBar = ({ step }) => (
+  <div style={{ display: "flex", alignItems: "center", gap: 0, marginBottom: 22 }}>
+    {["Dados", "Senha", "Verificar"].map((l, i) => {
+      const s = i + 1;
+      const done = step > s, active = step === s;
+      return (
+        <div key={l} style={{ display: "flex", alignItems: "center", flex: i < 2 ? 1 : 0 }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+            <div style={{ width: 32, height: 32, borderRadius: "50%", background: done ? D.mint : active ? D.gBlue : D.s3, border: `2px solid ${done ? D.mint : active ? D.blue : D.b1}`, display: "flex", alignItems: "center", justifyContent: "center", transition: "all .3s", color: done || active ? "#fff" : D.w3, fontWeight: 800, fontSize: 12 }}>
+              {done ? ICONS.check : s}
+            </div>
+            <span style={{ fontSize: 10, fontWeight: 700, color: active ? D.blue2 : done ? D.mint : D.w3, whiteSpace: "nowrap" }}>{l}</span>
+          </div>
+          {i < 2 && <div style={{ flex: 1, height: 2, background: step > s ? D.mint : D.b1, margin: "0 6px", marginBottom: 16, borderRadius: 99, transition: "background .3s" }} />}
+        </div>
+      );
+    })}
+  </div>
+);
+
 const AuthScreen = ({ onLogin }) => {
-  /* ── state ── */
+  /*  state  */
   const [page, setPage] = useState("login"); // login | register | forgot | reset | verify
   const [step, setStep] = useState(1);       // register steps 1-3
 
@@ -2049,7 +2068,7 @@ const AuthScreen = ({ onLogin }) => {
   const [email,      setEmail]      = useState("");
   const [pass,       setPass]       = useState("");
   const [pass2,      setPass2]      = useState("");
-  const [code,       setCode]       = useState("");      // verificação email
+  const [code,       setCode]       = useState("");      // verificao email
   const [resetCode,  setResetCode]  = useState("");
   const [newPass,    setNewPass]    = useState("");
   const [remember,   setRemember]   = useState(false);
@@ -2074,7 +2093,7 @@ const AuthScreen = ({ onLogin }) => {
   const pwd = senhaForte(page === "reset" ? newPass : pass);
   const timerRef = useRef(null);
 
-  /* ── lockout timer ── */
+  /*  lockout timer  */
   useEffect(() => {
     if (!locked) return;
     let secs = 30;
@@ -2087,7 +2106,7 @@ const AuthScreen = ({ onLogin }) => {
     return () => clearInterval(timerRef.current);
   }, [locked]);
 
-  /* ── IA tip — email ── */
+  /*  IA tip  email  */
   useEffect(() => {
     if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/) || page !== "login") return;
     const t = setTimeout(async () => {
@@ -2098,33 +2117,33 @@ const AuthScreen = ({ onLogin }) => {
       );
       if (raw?.trim()) setAiTip(raw.trim());
       setAiLoad(false);
-    }, 1400);
+    }, 400); // Reduzido de 1400ms para 400ms
     return () => clearTimeout(t);
   }, [email, page]);
 
-  /* ── IA tip — nome ── */
+  /*  IA tip  nome  */
   useEffect(() => {
     if (!name.trim() || name.trim().length < 3 || page !== "register") return;
     const t = setTimeout(async () => {
       setAiLoad(true);
       const raw = await callAI(
-        `Novo usuário chamado "${name.trim().split(" ")[0]}". Crie mensagem motivacional e calorosa de boas-vindas para o DVS EduCreator (app de conteúdo com IA e estudo). 1 emoji, 1 frase.`,
+        `Novo usuário chamado "${name.trim().split(" ")[0]}". Crie mensagem motivacional e calorosa de boas-vindas para o DVSCREATOR (app de conteúdo com IA). 1 emoji, 1 frase.`,
         "Apenas 1 frase motivacional personalizada."
       );
       if (raw?.trim()) setAiTip(raw.trim());
       setAiLoad(false);
-    }, 1600);
+    }, 500); // Reduzido de 1600ms para 500ms
     return () => clearTimeout(t);
   }, [name, page]);
 
-  /* ── gera código de verificação ── */
+  /*  gera código de verificao  */
   const makeCode = () => {
     const c = Math.floor(100000 + Math.random() * 900000).toString();
     setGeneratedCode(c);
     return c;
   };
 
-  /* ── validate ── */
+  /*  validate  */
   const validate = () => {
     const e = {};
     if (page === "login") {
@@ -2138,7 +2157,7 @@ const AuthScreen = ({ onLogin }) => {
       }
       if (step === 2) {
         if (pwd.score < 2) e.pass = "Crie uma senha mais forte";
-        if (pass !== pass2) e.pass2 = "As senhas não coincidem";
+        if (pass !== pass2) e.pass2 = "As senhas n o coincidem";
         if (!termsOk) e.terms = "Aceite os termos para continuar";
       }
       if (step === 3) {
@@ -2156,227 +2175,140 @@ const AuthScreen = ({ onLogin }) => {
     return Object.keys(e).length === 0;
   };
 
-  /* ── submit ── */
+  /*  submit  */
   const submit = async () => {
     if (!validate() || loading || locked) return;
     setLoading(true);
 
-    /* ── LOGIN ── */
+    /*  LOGIN  */
     if (page === "login") {
-      if (!RL.check(email)) { setLocked(true); setLoading(false); return; }
-      setLoadMsg("Verificando credenciais…"); await sleep(550);
-      setLoadMsg("Autenticando com segurança…"); await sleep(500);
-      const users = getUsers();
-      const user = users[email.toLowerCase()];
-      if (!user || user.passHash !== hashPass(pass)) {
-        RL.add(email);
-        const rem = RL.remaining(email);
-        setAttempts(a => a + 1);
-        if (rem <= 0) { setLocked(true); }
-        setErrors({ pass: `E-mail ou senha incorretos.${rem > 0 ? ` ${rem} tentativa(s) restante(s).` : ""}` });
-        // shake the card
-        const card = document.getElementById("auth-card");
-        if (card) { card.classList.remove("shake"); void card.offsetWidth; card.classList.add("shake"); }
-        setLoading(false); setLoadMsg(""); return;
+      setLoadMsg("Autenticando... ");
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: email.toLowerCase(),
+          password: pass,
+        });
+
+        if (error) {
+          setErrors({ pass: "E-mail ou senha incorretos." });
+          setLoading(false); setLoadMsg(""); return;
+        }
+
+        const sessionData = { 
+          id: data.user.id, 
+          email: data.user.email, 
+          name: data.user.user_metadata?.full_name || data.user.email 
+        };
+        saveSession(sessionData);
+        onLogin(sessionData);
+      } catch (e) {
+        setErrors({ pass: "Erro ao conectar ao servidor." });
+        setLoading(false); setLoadMsg("");
       }
-      if (remember) saveSession({ ...{}, rememberMe: true });
-      setLoadMsg(`Bem-vindo de volta, ${user.name.split(" ")[0]}! 🎉`); await sleep(500);
-      const session = { email: email.toLowerCase(), name: user.name, plan: user.plan || "free", token: crypto?.randomUUID?.() || (Math.random().toString(36)+Date.now().toString(36)) };
-      saveSession(session);
-      onLogin(session);
       return;
     }
 
-    /* ── REGISTER ── */
+    /*  REGISTER  */
     if (page === "register") {
       if (step === 1) {
-        setLoadMsg("Verificando disponibilidade…"); await sleep(700);
-        const users = getUsers();
-        if (users[email.toLowerCase()]) {
-          setErrors({ email: "Este e-mail já possui uma conta. Faça login." });
-          setLoading(false); return;
-        }
-        setStep(2); setLoading(false); setLoadMsg(""); return;
+        setStep(2); setLoading(false); return;
       }
       if (step === 2) {
-        setLoadMsg("Configurando segurança…"); await sleep(600);
         const c = makeCode();
         setVerifyEmail(email);
-        // Em produção: enviar email com c
-        console.log("Código de verificação:", c); // apenas para demo
-        setStep(3); setLoading(false); setLoadMsg(""); return;
+        setStep(3); setLoading(false); return;
       }
       if (step === 3) {
-        setLoadMsg("Criando sua conta…"); await sleep(500);
-        setLoadMsg("Ativando IA personalizada…"); await sleep(700);
-        setLoadMsg("Finalizando…"); await sleep(400);
-        const users = getUsers();
-        const user = {
-          name: name.trim(), email: email.toLowerCase(),
-          passHash: hashPass(pass), plan: "free",
-          createdAt: new Date().toISOString(),
-          bio: "", phone: "", verified: true,
-          stats: { posts: 0, transcricoes: 0, mapas: 0, flashcards: 0, quiz: 0 },
-        };
-        users[email.toLowerCase()] = user;
-        saveUsers(users);
-        const session = { email: email.toLowerCase(), name: user.name, plan: "free", token: crypto?.randomUUID?.() || (Math.random().toString(36)+Date.now().toString(36)) };
-        saveSession(session);
-        onLogin(session);
+        setLoadMsg("Criando conta... ");
+        try {
+          const { data, error } = await supabase.auth.signUp({
+            email: email.toLowerCase(),
+            password: pass,
+            options: {
+              data: { full_name: name.trim() }
+            }
+          });
+
+          if (error) {
+            setErrors({ code: error.message });
+            setLoading(false); setLoadMsg(""); return;
+          }
+
+          if (data.user) {
+            const sess = { 
+                id: data.user.id, 
+                email: data.user.email, 
+                name: name.trim() 
+            };
+            saveSession(sess);
+            onLogin(sess);
+          } else {
+            setSuccessMsg("Verifique seu e-mail para confirmar a conta.");
+            setLoading(false);
+          }
+        } catch (e) {
+          setErrors({ code: "Erro ao criar conta." });
+          setLoading(false); setLoadMsg("");
+        }
         return;
       }
     }
 
-    /* ── FORGOT ── */
+    /*  FORGOT  */
     if (page === "forgot") {
-      setLoadMsg("Verificando conta…"); await sleep(600);
-      const users = getUsers();
-      if (!users[email.toLowerCase()]) {
-        // Não revelamos se conta existe (segurança)
-        setLoadMsg("Verificando…"); await sleep(400);
+      try {
+        const { error } = await supabase.auth.resetPasswordForEmail(email.toLowerCase());
+        if (error) {
+          setErrors({ email: error.message });
+        } else {
+          setSuccessMsg("E-mail de recuperação enviado!");
+        }
+      } catch (e) {
+        setErrors({ email: "Erro ao enviar e-mail." });
       }
-      const c = makeCode();
-      console.log("Código redefinição:", c);
-      setLoadMsg("Enviando e-mail seguro…"); await sleep(800);
-      setPage("reset"); setLoading(false); setLoadMsg(""); return;
+      setLoading(false); return;
     }
 
-    /* ── RESET ── */
+    /*  RESET  */
     if (page === "reset") {
-      setLoadMsg("Validando código…"); await sleep(500);
-      setLoadMsg("Redefinindo senha…"); await sleep(600);
-      const users = getUsers();
-      if (users[email.toLowerCase()]) {
-        users[email.toLowerCase()].passHash = hashPass(newPass);
-        saveUsers(users);
-      }
-      setSuccessMsg("Senha redefinida com sucesso! Faça login.");
-      setPage("login"); setPass(""); setLoading(false); setLoadMsg(""); return;
+       try {
+         const { error } = await supabase.auth.updateUser({ password: newPass });
+         if (error) {
+           setErrors({ newPass: error.message });
+         } else {
+           setSuccessMsg("Senha redefinida!");
+           setPage("login");
+         }
+       } catch (e) {
+         setErrors({ newPass: "Erro ao redefinir senha." });
+       }
+       setLoading(false); return;
     }
 
     setLoading(false); setLoadMsg("");
   };
 
-  /* ── Gerar senha sugerida ── */
+  /*  Gerar senha sugerida  */
   const sugerirSenha = () => {
     const s = gerarSenhaForte();
     setPass(s); setPass2(s);
     setShowPass(true); setShowPass2(true);
   };
 
-  /* ── Ícones SVG inline ── */
-  const I = {
-    eye:     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>,
-    eyeOff:  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>,
-    mail:    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>,
-    lock:    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>,
-    user:    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
-    check:   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>,
-    shield:  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
-    wand:    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 4l5 5M4 20l11-11M8.5 8.5l7 7"/></svg>,
-    refresh: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>,
-    arrow:   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>,
-    key:     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="7.5" cy="15.5" r="5.5"/><path d="M21 2l-9.6 9.6M15.5 7.5l3 3"/></svg>,
-    phone:   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18"/></svg>,
-  };
-
-  /* ── Input component ── */
-  const Inp = ({ label, icon, right, type, val, onChange, err, placeholder, autoComplete, hint }) => {
-    const [focused, setFocused] = useState(false);
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-        {(label || hint) && (
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            {label && <label style={{ fontSize: 12, fontWeight: 700, color: D.w2, letterSpacing: .4, textTransform: "uppercase" }}>{label}</label>}
-            {hint && <span style={{ fontSize: 11, color: D.w3 }}>{hint}</span>}
-          </div>
-        )}
-        <div style={{ position: "relative" }}>
-          {/* left icon */}
-          <div style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: focused ? D.blue2 : D.w3, transition: "color .18s", pointerEvents: "none", display: "flex" }}>
-            {icon}
-          </div>
-          <input
-            type={type || "text"} value={val}
-            onChange={e => { onChange(e.target.value); if (errors[autoComplete]) setErrors(p => { const n={...p}; delete n[autoComplete]; return n; }); }}
-            onKeyDown={e => e.key === "Enter" && submit()}
-            placeholder={placeholder}
-            autoComplete={autoComplete || "off"}
-            onFocus={() => setFocused(true)}
-            onBlur={() => setFocused(false)}
-            style={{
-              width: "100%", background: D.s0,
-              border: `1.5px solid ${err ? D.rose + "90" : focused ? D.blueM : D.b0}`,
-              borderRadius: 14, color: D.w1, fontSize: 15, lineHeight: 1,
-              padding: `15px 46px 15px ${icon ? "46px" : "16px"}`,
-              outline: "none", transition: "border .18s, box-shadow .18s",
-              fontFamily: "Inter",
-              boxShadow: focused ? `0 0 0 3px ${err ? D.roseLo : D.blueLo}` : "none",
-            }}
-          />
-          {/* right slot */}
-          {right && <div style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", display: "flex", alignItems: "center" }}>{right}</div>}
-        </div>
-        {err && (
-          <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: D.rose, animation: "fadeIn .2s ease both" }}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={D.rose} strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            {err}
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  /* ── Eye button ── */
-  const Eye = ({ show, toggle }) => (
-    <button type="button" onClick={toggle} style={{ background: "none", border: "none", color: show ? D.blue2 : D.w3, cursor: "pointer", padding: 4, display: "flex", transition: "color .18s" }}>
-      {show ? I.eyeOff : I.eye}
-    </button>
-  );
-
-  /* ── Social btn ── */
-  const SocialBtn = ({ icon, label, onClick }) => (
-    <button onClick={onClick} style={{ flex: 1, padding: "12px 8px", borderRadius: 13, border: `1.5px solid ${D.b1}`, background: D.s0, color: D.w1, fontWeight: 700, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, transition: "all .18s", fontFamily: "Inter" }}
-      onMouseOver={e => { e.currentTarget.style.borderColor = D.b2; e.currentTarget.style.background = D.s2; }}
-      onMouseOut={e => { e.currentTarget.style.borderColor = D.b1; e.currentTarget.style.background = D.s0; }}>
-      {icon}{label}
-    </button>
-  );
-
-  /* ── Config por page ── */
+  /*  Config por page  */
   const pageConfig = {
     login:    { title: "Bem-vindo de volta 👋", sub: "Entre na sua conta DVS" },
     register: {
-      title: step === 1 ? "Criar conta ✨" : step === 2 ? "Escolha sua senha 🔒" : "Verificar e-mail 📧",
+      title: step === 1 ? "Criar conta " : step === 2 ? "Escolha sua senha " : "Verificar e-mail ",
       sub:   step === 1 ? "Preencha seus dados" : step === 2 ? "Crie uma senha forte e segura" : "Digite o código enviado",
     },
-    forgot: { title: "Recuperar senha 🔑", sub: "Enviaremos um código de recuperação" },
-    reset:  { title: "Redefinir senha 🔐", sub: "Código enviado para " + email },
+    forgot: { title: "Recuperar senha ", sub: "Enviaremos um código de recuperao" },
+    reset:  { title: "Redefinir senha ", sub: "C digo enviado para " + email },
   };
   const cfg = pageConfig[page] || pageConfig.login;
 
-  /* ── Step bar ── */
-  const StepBar = () => (
-    <div style={{ display: "flex", alignItems: "center", gap: 0, marginBottom: 22 }}>
-      {["Dados", "Senha", "Verificar"].map((l, i) => {
-        const s = i + 1;
-        const done = step > s, active = step === s;
-        return (
-          <div key={l} style={{ display: "flex", alignItems: "center", flex: i < 2 ? 1 : 0 }}>
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-              <div style={{ width: 32, height: 32, borderRadius: "50%", background: done ? D.mint : active ? D.gBlue : D.s3, border: `2px solid ${done ? D.mint : active ? D.blue : D.b1}`, display: "flex", alignItems: "center", justifyContent: "center", transition: "all .3s", color: done || active ? "#fff" : D.w3, fontWeight: 800, fontSize: 12 }}>
-                {done ? I.check : s}
-              </div>
-              <span style={{ fontSize: 10, fontWeight: 700, color: active ? D.blue2 : done ? D.mint : D.w3, whiteSpace: "nowrap" }}>{l}</span>
-            </div>
-            {i < 2 && <div style={{ flex: 1, height: 2, background: step > s ? D.mint : D.b1, margin: "0 6px", marginBottom: 16, borderRadius: 99, transition: "background .3s" }} />}
-          </div>
-        );
-      })}
-    </div>
-  );
 
-  /* ─────────────── RENDER ─────────────── */
+  /*  RENDER  */
   return (
     <div style={{ minHeight: "100vh", background: D.bg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "20px 16px", overflowY: "auto" }}>
 
@@ -2389,28 +2321,25 @@ const AuthScreen = ({ onLogin }) => {
 
       <div style={{ width: "100%", maxWidth: 400, position: "relative", zIndex: 1, display: "flex", flexDirection: "column", gap: 0 }}>
 
-        {/* ── LOGO ── */}
+        {/*  LOGO  */}
         <div className="fu" style={{ textAlign: "center", marginBottom: 24 }}>
           <div style={{ position: "relative", display: "inline-block", marginBottom: 14 }}>
-            <div
-              style={{ width: 80, height: 80, borderRadius: 26, background: D.gBlue, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 36, boxShadow: "0 0 0 6px rgba(37,99,235,.1), 0 0 0 14px rgba(37,99,235,.05), 0 10px 36px rgba(37,99,235,.38)", cursor: "pointer", transition: "transform .2s" }}
-              onClick={e => { e.currentTarget.style.animation = "none"; void e.currentTarget.offsetWidth; e.currentTarget.style.animation = "logoPop .35s ease both"; }}>
-              ✨
+            <div style={{ width: 84, height: 84, borderRadius: 24, overflow: 'hidden', boxShadow: '0px 8px 24px rgba(0,0,0,0.5)', border: `2px solid ${D.b1}` }}>
+              <img src="/src/assets/logo.png" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="DVS Logo" />
             </div>
             {/* verified badge */}
-            <div style={{ position: "absolute", bottom: -2, right: -2, width: 24, height: 24, borderRadius: "50%", background: D.gMint, border: `2px solid ${D.bg}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}>✓</div>
+            <div style={{ position: "absolute", bottom: -2, right: -2, width: 24, height: 24, borderRadius: "50%", background: D.gMint, border: `2px solid ${D.bg}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}></div>
           </div>
-          <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 26, letterSpacing: "-.5px", lineHeight: 1.2 }}>DVS EduCreator</div>
-          <div style={{ fontSize: 13, color: D.w2, marginTop: 5 }}>IA para criar conteúdo & estudar</div>
+          
           {/* feature pills */}
           <div style={{ display: "flex", gap: 6, justifyContent: "center", marginTop: 12, flexWrap: "wrap" }}>
-            {["🔥 Conteúdo viral", "📚 Modo estudo", "🎵 Música real"].map((f, i) => (
+            {["🔥 Conteúdo viral", "📚 Modo estudo", " música real"].map((f, i) => (
               <span key={i} style={{ fontSize: 11, fontWeight: 700, color: D.w3, background: D.s2, border: `1px solid ${D.b0}`, borderRadius: 99, padding: "4px 10px" }}>{f}</span>
             ))}
           </div>
         </div>
 
-        {/* ── TABS login/register ── */}
+        {/*  TABS login/register  */}
         {(page === "login" || page === "register") && (
           <div className="fu d1" style={{ display: "flex", background: D.s1, borderRadius: 14, padding: 4, marginBottom: 20, gap: 3, border: `1px solid ${D.b0}` }}>
             {[["login", "Entrar"], ["register", "Criar conta"]].map(([p, l]) => (
@@ -2422,7 +2351,7 @@ const AuthScreen = ({ onLogin }) => {
           </div>
         )}
 
-        {/* ── CARD ── */}
+        {/*  CARD  */}
         <div id="auth-card" className="card auth-card fu d2" style={{ padding: "24px 22px", display: "flex", flexDirection: "column", gap: 18 }}>
 
           {/* back btn (forgot/reset) */}
@@ -2439,149 +2368,112 @@ const AuthScreen = ({ onLogin }) => {
             <div style={{ fontSize: 13, color: D.w2 }}>{cfg.sub}</div>
           </div>
 
-          {/* step bar — register */}
-          {page === "register" && <StepBar />}
+          {/* step bar  register */}
+          {page === "register" && <AuthStepBar step={step} />}
 
-          {/* ── IA TIP ── */}
+          {/*  IA TIP  */}
           {(aiTip || aiLoad) && (
             <div style={{ padding: "10px 14px", background: D.blueLo, borderRadius: 12, fontSize: 13, color: D.blue3, border: `1px solid ${D.blueM}`, display: "flex", gap: 8, alignItems: "center", lineHeight: 1.5, animation: "fadeIn .3s ease both" }}>
-              {aiLoad ? <Spin s={14} c={D.blue2} /> : <div style={{ color: D.blue2 }}>{I.wand}</div>}
-              <span style={{ flex: 1 }}>{aiLoad ? "IA personalizando…" : aiTip}</span>
+              {aiLoad ? <Spin s={14} c={D.blue2} /> : <div style={{ color: D.blue2 }}>{ICONS.wand}</div>}
+              <span style={{ flex: 1 }}>{aiLoad ? "IA personalizando" : aiTip}</span>
             </div>
           )}
 
-          {/* ── LOCKOUT ── */}
+          {/*  LOCKOUT  */}
           {locked && (
             <div style={{ padding: "12px 14px", background: D.roseLo, borderRadius: 12, fontSize: 13, color: D.rose, border: `1px solid ${D.rose}35`, display: "flex", gap: 8, alignItems: "center" }}>
-              🔒 Muitas tentativas. Aguarde {lockTimer}s antes de tentar novamente.
+               Muitas tentativas. Aguarde {lockTimer}s antes de tentar novamente.
             </div>
           )}
 
-          {/* ── SUCCESS MSG ── */}
+          {/*  SUCCESS MSG  */}
           {successMsg && (
             <div style={{ padding: "12px 14px", background: D.mintLo, borderRadius: 12, fontSize: 13, color: D.mint, border: `1px solid ${D.mint}35`, display: "flex", gap: 8, alignItems: "center", animation: "fadeIn .3s both" }}>
-              <div style={{ color: D.mint }}>{I.check}</div> {successMsg}
+              <div style={{ color: D.mint }}>{ICONS.check}</div> {successMsg}
             </div>
           )}
 
-          {/* ══════════ FORMS ══════════ */}
+          {/*  FORMS  */}
 
           {/* LOGIN */}
           {page === "login" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <Inp label="E-mail" icon={I.mail} type="email" val={email} onChange={setEmail} err={errors.email} placeholder="seu@email.com" autoComplete="email" />
-              <Inp label="Senha" icon={I.lock} type={showPass ? "text" : "password"} val={pass} onChange={setPass} err={errors.pass} placeholder="Sua senha" autoComplete="current-password"
-                right={<Eye show={showPass} toggle={() => setShowPass(v=>!v)} />} />
-
-              {/* remember + forgot */}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <label style={{ display: "flex", alignItems: "center", gap: 7, cursor: "pointer", fontSize: 13, color: D.w2, userSelect: "none" }}>
-                  <div onClick={() => setRemember(v=>!v)} style={{ width: 18, height: 18, borderRadius: 5, border: `1.5px solid ${remember ? D.blue : D.b1}`, background: remember ? D.blue : "transparent", display: "flex", alignItems: "center", justifyContent: "center", transition: "all .18s", cursor: "pointer", flexShrink: 0 }}>
-                    {remember && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}
-                  </div>
-                  Lembrar de mim
-                </label>
-                <button onClick={() => { setPage("forgot"); setErrors({}); setAiTip(""); }} style={{ background: "none", border: "none", color: D.blue2, fontSize: 13, fontWeight: 700, cursor: "pointer", padding: 0 }}>
-                  Esqueci a senha
-                </button>
+              <AuthInput label="E-mail" icon={ICONS.mail} type="email" val={email} onChange={setEmail} err={errors.email} placeholder="seu@email.com" autoComplete="email" onSubmit={submit} errors={errors} setErrors={setErrors} />
+              <AuthInput label="Sua senha" icon={ICONS.lock} type={showPass ? "text" : "password"} val={pass} onChange={setPass} err={errors.pass} placeholder="••••••••" autoComplete="current-password" onSubmit={submit} errors={errors} setErrors={setErrors}
+                right={<AuthEye show={showPass} toggle={() => setShowPass(v=>!v)} />}
+                hint={<span onClick={() => setPage("forgot")} style={{ cursor: "pointer", color: D.blue2, fontWeight: 700 }}>Esqueceu?</span>} />
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "2px 0" }}>
+                <div onClick={() => setRemember(!remember)} style={{ width: 18, height: 18, borderRadius: 5, border: `1.5px solid ${remember ? D.blue : D.b1}`, background: remember ? D.gBlue : D.s0, cursor: "pointer", transition: "all .18s", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}>
+                  {remember && ICONS.check}
+                </div>
+                <span onClick={() => setRemember(!remember)} style={{ fontSize: 13, color: D.w2, cursor: "pointer", userSelect: "none" }}>Lembrar de mim</span>
               </div>
             </div>
           )}
 
-          {/* REGISTER — step 1 */}
-          {page === "register" && step === 1 && (
+          {/* REGISTER */}
+          {page === "register" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <Inp label="Nome completo" icon={I.user} val={name} onChange={setName} err={errors.name} placeholder="Seu nome completo" autoComplete="name" />
-              <Inp label="E-mail" icon={I.mail} type="email" val={email} onChange={setEmail} err={errors.email} placeholder="seu@email.com" autoComplete="email" />
-            </div>
-          )}
+              {step === 1 && (
+                <>
+                  <AuthInput label="Nome completo" icon={ICONS.user} val={name} onChange={setName} err={errors.name} placeholder="Como quer ser chamado?" autoComplete="name" onSubmit={submit} errors={errors} setErrors={setErrors} />
+                  <AuthInput label="E-mail profissional" icon={ICONS.mail} type="email" val={email} onChange={setEmail} err={errors.email} placeholder="seu@email.com" autoComplete="email" onSubmit={submit} errors={errors} setErrors={setErrors} />
+                </>
+              )}
+              {step === 2 && (
+                <>
+                  <AuthInput label="Senha segura" icon={ICONS.lock} type={showPass ? "text" : "password"} val={pass} onChange={setPass} err={errors.pass} placeholder="Mínimo 6 caracteres" autoComplete="new-password" onSubmit={submit} errors={errors} setErrors={setErrors}
+                    right={<AuthEye show={showPass} toggle={() => setShowPass(v=>!v)} />}
+                    hint={<span onClick={sugerirSenha} style={{ cursor: "pointer", color: D.blue2, fontWeight: 700 }}>Sugerir </span>} />
+                  <AuthInput label="Confirmar senha" icon={ICONS.lock} type={showPass2 ? "text" : "password"} val={pass2} onChange={setPass2} err={errors.pass2} placeholder="Repita a senha" autoComplete="new-password" onSubmit={submit} errors={errors} setErrors={setErrors}
+                    right={<AuthEye show={showPass2} toggle={() => setShowPass2(v=>!v)} />} />
+                  
+                  {pass.length > 0 && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 5, animation: "fadeIn .2s both" }}>
+                      <div style={{ display: "flex", gap: 4 }}>
+                        {[1,2,3,4].map(i => { const ps = senhaForte(pass); return <div key={i} style={{ flex: 1, height: 4, borderRadius: 99, background: i <= ps.score ? ps.color : D.b1, transition: "background .25s" }} />; })}
+                      </div>
+                      <div style={{ fontSize: 12, color: senhaForte(pass).color, fontWeight: 700 }}>Senha {senhaForte(pass).label}</div>
+                    </div>
+                  )}
 
-          {/* REGISTER — step 2 */}
-          {page === "register" && step === 2 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <Inp label="Senha" icon={I.lock} type={showPass ? "text" : "password"} val={pass} onChange={setPass} err={errors.pass} placeholder="Mínimo 6 caracteres" autoComplete="new-password"
-                right={<Eye show={showPass} toggle={() => setShowPass(v=>!v)} />} hint="Mín. 6 caracteres" />
-
-              {/* força da senha */}
-              {pass.length > 0 && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 6, animation: "fadeIn .2s both" }}>
-                  <div style={{ display: "flex", gap: 4 }}>
-                    {[1,2,3,4].map(i => <div key={i} style={{ flex: 1, height: 4, borderRadius: 99, background: i <= pwd.score ? pwd.color : D.b1, transition: "background .25s" }} />)}
+                  <div style={{ display: "flex", gap: 10, alignItems: "flex-start", marginTop: 4 }}>
+                    <div onClick={() => { setTermsOk(!termsOk); if (errors.terms) setErrors(p=>{const n={...p};delete n.terms;return n;}); }}
+                      style={{ width: 18, height: 18, borderRadius: 5, border: `1.5px solid ${errors.terms ? D.rose : termsOk ? D.blue : D.b1}`, background: termsOk ? D.gBlue : D.s0, cursor: "pointer", flexShrink: 0, marginTop: 2, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}>
+                      {termsOk && ICONS.check}
+                    </div>
+                    <div style={{ fontSize: 12, color: D.w2, lineHeight: 1.5 }}>
+                      Li e aceito os <span style={{ color: D.blue2, fontWeight: 700 }}>Termos de Uso</span> e a <span style={{ color: D.blue2, fontWeight: 700 }}>Política de Privacidade</span> do DVSCREATOR
+                    </div>
                   </div>
-                  <div style={{ fontSize: 12, color: pwd.color, fontWeight: 700, display: "flex", alignItems: "center", gap: 5 }}>
-                    <div style={{ color: pwd.color }}>{I.shield}</div>
-                    {pwd.score >= 3 ? `Senha ${pwd.label} — Ótima escolha!` : `Senha ${pwd.label} — Adicione letras maiúsculas, números e símbolos`}
+                  {errors.terms && <div style={{ fontSize: 12, color: D.rose, marginTop: -4 }}> {errors.terms}</div>}
+                </>
+              )}
+              {step === 3 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  <div style={{ padding: "12px 14px", background: D.blueLo, borderRadius: 12, fontSize: 13, color: D.blue3, border: `1px solid ${D.blueM}`, lineHeight: 1.5, textAlign: "center" }}>
+                    Enviamos um código de 6 dígitos para:<br/>
+                    <strong style={{ color: D.blue3 }}>{verifyEmail}</strong>
                   </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <label style={{ fontSize: 12, fontWeight: 700, color: D.w2, letterSpacing: .4, textTransform: "uppercase" }}>Código de verificação</label>
+                    <input
+                      type="text" maxLength={6} value={code} onChange={e => { setCode(e.target.value.replace(/\D/g, "").slice(0,6)); if(errors.code) setErrors(p=>{const n={...p};delete n.code;return n;}); }}
+                      placeholder="000000"
+                      style={{ letterSpacing: "0.35em", textAlign: "center", fontSize: 24, fontWeight: 800, background: D.s0, border: `1.5px solid ${errors.code ? D.rose+"90" : D.b0}`, borderRadius: 14, color: D.w1, padding: "16px 20px", outline: "none", width: "100%", fontFamily: "Inter", transition: "border .18s, box-shadow .18s" }}
+                      onFocus={e => { e.target.style.borderColor = D.blueM; e.target.style.boxShadow = `0 0 0 3px ${D.blueLo}`; }}
+                      onBlur={e => { e.target.style.borderColor = errors.code ? D.rose+"90" : D.b0; e.target.style.boxShadow = "none"; }}
+                    />
+                    {errors.code && <div style={{ fontSize: 12, color: D.rose, display: "flex", gap: 5 }}> {errors.code}</div>}
+                  </div>
+                  <div style={{ padding: "9px 12px", background: D.amberLo, borderRadius: 10, fontSize: 12, color: D.amber, border: `1px solid ${D.amber}30`, lineHeight: 1.5, display: "flex", gap: 7, alignItems: "center" }}>
+                    {ICONS.key} <span>Código de demo: <strong onClick={() => setCode(generatedCode)} style={{ cursor: "pointer", textDecoration: "underline" }}>{generatedCode}</strong> (clique para preencher)</span>
+                  </div>
+                  <button className="btn ghost sm" style={{ alignSelf: "center", fontSize: 13 }} onClick={() => { const c = makeCode(); setGeneratedCode(c); toast?.("Novo código gerado!","ok"); }}>
+                    {ICONS.refresh} Reenviar código
+                  </button>
                 </div>
               )}
-
-              {/* sugerir senha */}
-              <button onClick={sugerirSenha} style={{ background: D.blueLo, border: `1px solid ${D.blueM}`, borderRadius: 11, padding: "9px 14px", color: D.blue2, fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 7, fontFamily: "Inter" }}>
-                {I.wand} Sugerir senha forte automaticamente
-              </button>
-
-              <Inp label="Confirmar senha" icon={I.lock} type={showPass2 ? "text" : "password"} val={pass2} onChange={setPass2} err={errors.pass2} placeholder="Repita a senha" autoComplete="new-password"
-                right={<Eye show={showPass2} toggle={() => setShowPass2(v=>!v)} />} />
-
-              {/* requisitos */}
-              <div style={{ padding: "10px 13px", background: D.bg2, borderRadius: 11, border: `1px solid ${D.b0}` }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: D.w3, marginBottom: 7, letterSpacing: .5 }}>REQUISITOS DE SENHA</div>
-                {[["Mínimo 6 caracteres", pass.length >= 6], ["Letras maiúsculas e minúsculas", /[A-Z]/.test(pass) && /[a-z]/.test(pass)], ["Pelo menos 1 número", /[0-9]/.test(pass)], ["Símbolo especial (!@#$%)", /[^a-zA-Z0-9]/.test(pass)]].map(([req, ok]) => (
-                  <div key={req} style={{ display: "flex", gap: 7, alignItems: "center", marginBottom: 5, fontSize: 12, color: ok ? D.mint : D.w3, transition: "color .25s" }}>
-                    <div style={{ color: ok ? D.mint : D.b2, flexShrink: 0 }}>{ok ? I.check : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/></svg>}</div>
-                    {req}
-                  </div>
-                ))}
-              </div>
-
-              {/* termos */}
-              <label style={{ display: "flex", gap: 9, alignItems: "flex-start", cursor: "pointer", userSelect: "none" }}>
-                <div onClick={() => { setTermsOk(v=>!v); if (errors.terms) setErrors(p=>{const n={...p};delete n.terms;return n;}); }}
-                  style={{ width: 20, height: 20, borderRadius: 6, border: `1.5px solid ${errors.terms ? D.rose : termsOk ? D.blue : D.b1}`, background: termsOk ? D.blue : "transparent", display: "flex", alignItems: "center", justifyContent: "center", transition: "all .18s", cursor: "pointer", flexShrink: 0, marginTop: 1 }}>
-                  {termsOk && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}
-                </div>
-                <span style={{ fontSize: 13, color: D.w2, lineHeight: 1.5 }}>
-                  Concordo com os <span style={{ color: D.blue2, fontWeight: 700 }}>Termos de Uso</span> e a{" "}
-                  <span style={{ color: D.blue2, fontWeight: 700 }}>Política de Privacidade</span> do DVS EduCreator
-                </span>
-              </label>
-              {errors.terms && <div style={{ fontSize: 12, color: D.rose, display: "flex", gap: 5 }}>⚠️ {errors.terms}</div>}
-            </div>
-          )}
-
-          {/* REGISTER — step 3 — verificação de email */}
-          {page === "register" && step === 3 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <div style={{ padding: "14px 16px", background: D.blueLo, borderRadius: 14, border: `1px solid ${D.blueM}`, textAlign: "center" }}>
-                <div style={{ fontSize: 30, marginBottom: 8 }}>📧</div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: D.w1, marginBottom: 4 }}>Verifique seu e-mail</div>
-                <div style={{ fontSize: 13, color: D.w2, lineHeight: 1.55 }}>
-                  Enviamos um código de 6 dígitos para<br />
-                  <strong style={{ color: D.blue3 }}>{verifyEmail}</strong>
-                </div>
-              </div>
-
-              {/* code input — 6 boxes */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <label style={{ fontSize: 12, fontWeight: 700, color: D.w2, letterSpacing: .4, textTransform: "uppercase" }}>Código de verificação</label>
-                <input
-                  type="text" maxLength={6} value={code} onChange={e => { setCode(e.target.value.replace(/\D/g, "").slice(0,6)); if(errors.code) setErrors(p=>{const n={...p};delete n.code;return n;}); }}
-                  placeholder="000000"
-                  style={{ letterSpacing: "0.35em", textAlign: "center", fontSize: 24, fontWeight: 800, background: D.s0, border: `1.5px solid ${errors.code ? D.rose+"90" : D.b0}`, borderRadius: 14, color: D.w1, padding: "16px 20px", outline: "none", width: "100%", fontFamily: "Inter", transition: "border .18s, box-shadow .18s" }}
-                  onFocus={e => { e.target.style.borderColor = D.blueM; e.target.style.boxShadow = `0 0 0 3px ${D.blueLo}`; }}
-                  onBlur={e => { e.target.style.borderColor = errors.code ? D.rose+"90" : D.b0; e.target.style.boxShadow = "none"; }}
-                />
-                {errors.code && <div style={{ fontSize: 12, color: D.rose, display: "flex", gap: 5 }}>⚠️ {errors.code}</div>}
-              </div>
-
-              {/* demo helper */}
-              <div style={{ padding: "9px 12px", background: D.amberLo, borderRadius: 10, fontSize: 12, color: D.amber, border: `1px solid ${D.amber}30`, lineHeight: 1.5, display: "flex", gap: 7, alignItems: "center" }}>
-                {I.key} <span>Código de demo: <strong onClick={() => setCode(generatedCode)} style={{ cursor: "pointer", textDecoration: "underline" }}>{generatedCode}</strong> (clique para preencher)</span>
-              </div>
-
-              <button className="btn ghost sm" style={{ alignSelf: "center", fontSize: 13 }} onClick={() => { const c = makeCode(); setGeneratedCode(c); toast?.("Novo código gerado!","ok"); }}>
-                {I.refresh} Reenviar código
-              </button>
             </div>
           )}
 
@@ -2591,7 +2483,7 @@ const AuthScreen = ({ onLogin }) => {
               <div style={{ padding: "12px 14px", background: D.s0, borderRadius: 12, fontSize: 13, color: D.w2, border: `1px solid ${D.b0}`, lineHeight: 1.6 }}>
                 Informe o e-mail da sua conta e enviaremos um código para redefinir sua senha com segurança.
               </div>
-              <Inp label="E-mail cadastrado" icon={I.mail} type="email" val={email} onChange={setEmail} err={errors.email} placeholder="seu@email.com" autoComplete="email" />
+              <AuthInput label="E-mail cadastrado" icon={ICONS.mail} type="email" val={email} onChange={setEmail} err={errors.email} placeholder="seu@email.com" autoComplete="email" onSubmit={submit} errors={errors} setErrors={setErrors} />
             </div>
           )}
 
@@ -2599,15 +2491,14 @@ const AuthScreen = ({ onLogin }) => {
           {page === "reset" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <div style={{ padding: "12px 14px", background: D.blueLo, borderRadius: 12, fontSize: 13, color: D.blue3, border: `1px solid ${D.blueM}`, lineHeight: 1.5 }}>
-                📧 Um código foi enviado para <strong>{email}</strong>
+                 Um código foi enviado para <strong>{email}</strong>
               </div>
-              <Inp label="Código de recuperação" icon={I.key} val={resetCode} onChange={setResetCode} err={errors.resetCode} placeholder="000000" autoComplete="one-time-code" />
-              {/* demo helper */}
+              <AuthInput label="Código de recuperação" icon={ICONS.key} val={resetCode} onChange={setResetCode} err={errors.resetCode} placeholder="000000" autoComplete="one-time-code" onSubmit={submit} errors={errors} setErrors={setErrors} />
               <div style={{ fontSize: 12, color: D.amber, cursor: "pointer", textDecoration: "underline" }} onClick={() => setResetCode(generatedCode)}>
                 Preencher código de demo: {generatedCode}
               </div>
-              <Inp label="Nova senha" icon={I.lock} type={showNPass ? "text" : "password"} val={newPass} onChange={setNewPass} err={errors.newPass} placeholder="Mínimo 6 caracteres" autoComplete="new-password"
-                right={<Eye show={showNPass} toggle={() => setShowNPass(v=>!v)} />} />
+              <AuthInput label="Nova senha" icon={ICONS.lock} type={showNPass ? "text" : "password"} val={newPass} onChange={setNewPass} err={errors.newPass} placeholder="Mínimo 6 caracteres" autoComplete="new-password" onSubmit={submit} errors={errors} setErrors={setErrors}
+                right={<AuthEye show={showNPass} toggle={() => setShowNPass(v=>!v)} />} />
               {newPass.length > 0 && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 5, animation: "fadeIn .2s both" }}>
                   <div style={{ display: "flex", gap: 4 }}>
@@ -2619,26 +2510,26 @@ const AuthScreen = ({ onLogin }) => {
             </div>
           )}
 
-          {/* ── SUBMIT BUTTON ── */}
+          {/*  SUBMIT BUTTON  */}
           <button
             onClick={submit} disabled={loading || locked}
             style={{ width: "100%", padding: "15px 0", borderRadius: 14, background: D.gBlue, border: "none", color: "#fff", fontWeight: 800, fontSize: 15, fontFamily: "'Sora',sans-serif", cursor: loading || locked ? "not-allowed" : "pointer", opacity: locked ? .5 : 1, transition: "all .18s", boxShadow: "0 4px 20px rgba(37,99,235,.32)", display: "flex", alignItems: "center", justifyContent: "center", gap: 9 }}
             onMouseOver={e => { if (!loading && !locked) e.currentTarget.style.boxShadow = "0 8px 28px rgba(37,99,235,.45)"; }}
             onMouseOut={e => { e.currentTarget.style.boxShadow = "0 4px 20px rgba(37,99,235,.32)"; }}>
             {loading
-              ? <><Spin s={18} c="#fff" /><span>{loadMsg || "Processando…"}</span></>
-              : <><span>{page === "login" ? "Entrar na conta" : page === "forgot" ? "Enviar código" : page === "reset" ? "Redefinir senha" : step === 1 ? "Continuar" : step === 2 ? "Criar conta" : "Verificar e-mail"}</span>{I.arrow}</>}
+              ? <><Spin s={18} c="#fff" /><span>{loadMsg || "Processando"}</span></>
+              : <><span>{page === "login" ? "Entrar na conta" : page === "forgot" ? "Enviar código" : page === "reset" ? "Redefinir senha" : step === 1 ? "Continuar" : step === 2 ? "Criar conta" : "Verificar e-mail"}</span>{ICONS.arrow}</>}
           </button>
 
-          {/* back — register step 2/3 */}
+          {/* back  register step 2/3 */}
           {page === "register" && step > 1 && (
             <button onClick={() => { setStep(s => s - 1); setErrors({}); }} style={{ background: "none", border: "none", color: D.w2, fontSize: 13, fontWeight: 700, cursor: "pointer", textAlign: "center", padding: "4px 0", fontFamily: "Inter" }}>
-              ← Voltar
+               Voltar
             </button>
           )}
         </div>
 
-        {/* ── SOCIAL LOGIN ── */}
+        {/*  SOCIAL LOGIN  */}
         {(page === "login" || page === "register") && (
           <div className="fu d3" style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 16 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -2647,26 +2538,23 @@ const AuthScreen = ({ onLogin }) => {
               <div style={{ flex: 1, height: 1, background: D.b0 }} />
             </div>
             <div style={{ display: "flex", gap: 8 }}>
-              <SocialBtn
-                icon={<svg width="18" height="18" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>}
+              <AuthSocialBtn
+                icon={<svg width="18" height="18" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.47 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>}
                 label="Google"
-                onClick={() => { setErrors({ email: "Login com Google em breve." }); }}
+                onClick={async () => {
+                  setLoading(true);
+                  if (typeof supabase !== 'undefined') {
+                    const { error } = await supabase.auth.signInWithOAuth({
+                      provider: 'google',
+                      options: { redirectTo: window.location.origin }
+                    });
+                    if (error) { setErrors({ email: "Erro: " + error.message }); setLoading(false); }
+                  } else {
+                    setErrors({ email: "Supabase não configurado." });
+                    setLoading(false);
+                  }
+                }}
               />
-              <SocialBtn
-                icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="#fff"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>}
-                label="Apple"
-                onClick={() => { setErrors({ email: "Login com Apple em breve." }); }}
-              />
-              <SocialBtn
-                icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="#1877F2"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>}
-                label="Facebook"
-                onClick={() => { setErrors({ email: "Login com Facebook em breve." }); }}
-              />
-            </div>
-            {/* security note */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontSize: 12, color: D.w3, padding: "4px 0" }}>
-              {I.shield}
-              <span>Dados protegidos com criptografia</span>
             </div>
           </div>
         )}
@@ -2675,289 +2563,115 @@ const AuthScreen = ({ onLogin }) => {
   );
 };
 
-const Perfil = ({ session, plan, onLogout, onUpdateSession, toast }) => {
-  const [subpage, setSubpage] = useState("main"); // main | edit | security | notifications
-  const [editName,  setEditName]  = useState(session.name);
-  const [editBio,   setEditBio]   = useState(session.bio || "");
-  const [editPhone, setEditPhone] = useState(session.phone || "");
+const Perfil = ({ session, plan, postsUsed, onLogout, onUpdateSession, toast, onResetData }) => {
+  const [subpage, setSubpage] = useState("main");
+  const [editName,  setEditName]  = useState(session?.name || "");
+  const [editBio,   setEditBio]   = useState(session?.bio || "");
+  const [editPhone, setEditPhone] = useState(session?.phone || "");
   const [saving,    setSaving]    = useState(false);
 
-  const [passOld,  setPassOld]  = useState("");
-  const [passNew,  setPassNew]  = useState("");
-  const [passConf, setPassConf] = useState("");
-  const [passErr,  setPassErr]  = useState("");
-  const [passSaved,setPassSaved]= useState(false);
-  const [savingPw, setSavingPw] = useState(false);
-
-  const [notifs, setNotifs] = useState({ posts: true, estudos: true, promo: false, news: true });
-
   const pN  = { free: "Gratuito", social: "Social Premium", student: "Estudante Premium", full: "Plano Completo" };
-  const pC  = { free: D.w2, social: D.blue2, student: D.mint, full: D.amber };
   const pBg = { free: D.gDark, social: D.gBlue, student: D.gMint, full: D.gAmber };
   const pLimits = {
-    free:    { posts: 10, estudos: 5, postsUsed: 7, estudosUsed: 2 },
-    social:  { posts: null, estudos: 5, postsUsed: 47, estudosUsed: 5 },
-    student: { posts: 10, estudos: null, postsUsed: 9, estudosUsed: 23 },
-    full:    { posts: null, estudos: null, postsUsed: 47, estudosUsed: 23 },
+    free:    { posts: 3 },
+    social:  { posts: 5 },
+    student: { posts: 10 },
+    full:    { posts: Infinity },
   };
-  const lim = pLimits[plan];
-  const act = [4, 6, 3, 7, 9, 5, 2], acs = [2, 1, 4, 3, 2, 5, 1];
-  const days = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
-  const mx = Math.max(...act.map((a, i) => a + acs[i]));
+  const lim = pLimits[plan] || pLimits.free;
+  
   const stats = [
-    { l: "Posts",        v: lim.postsUsed,   c: D.blue2, e: "✨" },
-    { l: "Transcrições", v: "23",             c: D.rose,  e: "🎤" },
-    { l: "Mapas",        v: "12",             c: D.mint,  e: "🗺️" },
-    { l: "Flashcards",   v: "148",            c: D.cyan,  e: "🃏" },
-    { l: "Quiz",         v: "8",              c: D.amber, e: "⚡" },
-    { l: "Estudos",      v: lim.estudosUsed, c: D.blue3, e: "📚" },
+    { l: "Posts Criados", v: postsUsed || 0, c: D.blue2, e: "📸" },
+    { l: "Uso Diário", v: `${postsUsed || 0}/${lim.posts === Infinity ? '∞' : lim.posts}`, c: D.mint, e: "⚡" },
+    { l: "Plano", v: pN[plan], c: D.amber, e: "💎" },
   ];
 
   const saveProfile = async () => {
     if (!editName.trim()) return;
     setSaving(true);
-    await sleep(800);
-    const users = getUsers();
-    if (users[session.email]) { users[session.email].name = editName.trim(); users[session.email].bio = editBio; users[session.email].phone = editPhone; saveUsers(users); }
-    const newSession = { ...session, name: editName.trim(), bio: editBio, phone: editPhone };
-    saveSession(newSession); onUpdateSession(newSession);
-    toast("✅ Perfil atualizado!", "ok"); setSaving(false); setSubpage("main");
+    try {
+        if (session?.id) {
+            await supabase.from('profiles').update({ full_name: editName }).eq('id', session.id);
+        }
+        const newSession = { ...session, name: editName.trim(), bio: editBio, phone: editPhone };
+        saveSession(newSession); onUpdateSession(newSession);
+        toast(" Perfil atualizado!", "ok"); setSubpage("main");
+    } catch(e) {
+        toast("Erro ao salvar perfil", "error");
+    }
+    setSaving(false);
   };
 
-  const savePassword = async () => {
-    setPassErr(""); setSavingPw(true);
-    await sleep(700);
-    const users = getUsers();
-    const user = users[session.email];
-    if (!user || user.passHash !== hashPass(passOld)) { setPassErr("Senha atual incorreta"); setSavingPw(false); return; }
-    if (passNew.length < 6) { setPassErr("Nova senha deve ter pelo menos 6 caracteres"); setSavingPw(false); return; }
-    if (passNew !== passConf) { setPassErr("As senhas não coincidem"); setSavingPw(false); return; }
-    users[session.email].passHash = hashPass(passNew);
-    saveUsers(users);
-    setPassSaved(true); setPassOld(""); setPassNew(""); setPassConf("");
-    toast("✅ Senha alterada com sucesso!", "ok"); setSavingPw(false);
-  };
+  const avatarGrad = getAvatarGrad(session?.email || "user@dvs.com");
+  const initials   = getInitials(session?.name || "User");
 
-  const avatarGrad = getAvatarGrad(session.email);
-  const initials   = getInitials(session.name);
-  const joinDate   = (() => { try { const u = getUsers()[session.email]; return u?.createdAt ? new Date(u.createdAt).toLocaleDateString("pt-BR", { month: "long", year: "numeric" }) : "Recentemente"; } catch { return "Recentemente"; } })();
-
-  /* ── EDIT PROFILE ── */
   if (subpage === "edit") return (
-    <div style={{ padding: "20px 16px", display: "flex", flexDirection: "column", gap: 18 }}>
+    <div className="fi" style={{ padding: "20px 16px", display: "flex", flexDirection: "column", gap: 18 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4 }}>
-        <button className="btn ghost xs ico" onClick={() => setSubpage("main")}>←</button>
+        <button className="btn ghost xs" onClick={() => setSubpage("main")} style={{ padding: 8 }}>⬅️</button>
         <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 20 }}>Editar Perfil</div>
       </div>
-      {/* avatar picker */}
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, padding: "20px 0" }}>
-        <div style={{ width: 88, height: 88, borderRadius: "50%", background: avatarGrad, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, fontWeight: 900, color: "#fff", fontFamily: "'Sora',sans-serif", border: `3px solid ${D.b2}`, boxShadow: "0 0 24px rgba(37,99,235,.25)" }}>{initials}</div>
-        <div style={{ fontSize: 13, color: D.blue2, fontWeight: 600, cursor: "pointer" }}>Trocar foto de perfil</div>
-        <div style={{ display: "flex", gap: 8 }}>
-          {AVATAR_COLORS.map((g, i) => (
-            <div key={i} style={{ width: 28, height: 28, borderRadius: "50%", background: g, cursor: "pointer", border: `2px solid ${g === avatarGrad ? "#fff" : "transparent"}`, transition: "border .18s" }} />
-          ))}
-        </div>
-      </div>
       <div className="card" style={{ padding: 18, display: "flex", flexDirection: "column", gap: 14 }}>
-        <Field label="Nome completo" icon="👤" value={editName} onChange={e => setEditName(e.target.value)} placeholder="Seu nome" />
-        <Field label="E-mail" icon="📧" type="email" value={session.email} onChange={() => {}} placeholder="" hint="Não editável" />
+        <Field label="Nome completo" icon="" value={editName} onChange={e => setEditName(e.target.value)} placeholder="Seu nome" />
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <label style={{ fontSize: 13, fontWeight: 600, color: D.w2 }}>Bio</label>
-          <textarea className="inp" value={editBio} onChange={e => setEditBio(e.target.value)} placeholder="Conte um pouco sobre você…" style={{ minHeight: 80, fontSize: 14 }} />
+          <textarea className="inp" value={editBio} onChange={e => setEditBio(e.target.value)} placeholder="Conte um pouco sobre você..." style={{ minHeight: 80, fontSize: 14 }} />
         </div>
-        <Field label="Telefone" icon="📱" type="tel" value={editPhone} onChange={e => setEditPhone(e.target.value)} placeholder="+55 (11) 99999-9999" />
+        <Field label="Telefone" icon="" type="tel" value={editPhone} onChange={e => setEditPhone(e.target.value)} placeholder="+55 (11) 99999-9999" />
       </div>
-      <button className="btn primary lg" style={{ width: "100%", fontFamily: "'Sora',sans-serif" }} onClick={saveProfile} disabled={saving || !editName.trim()}>
-        {saving ? <><Spin s={18} c="#fff" /> Salvando…</> : "💾 Salvar alterações"}
+      <button className="btn primary lg" style={{ width: "100%", fontFamily: "'Sora',sans-serif" }} onClick={saveProfile} disabled={saving}>
+        {saving ? <Spin s={18} c="#fff" /> : "Salvar alterações"}
       </button>
     </div>
   );
 
-  /* ── SECURITY ── */
-  if (subpage === "security") return (
-    <div style={{ padding: "20px 16px", display: "flex", flexDirection: "column", gap: 18 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4 }}>
-        <button className="btn ghost xs ico" onClick={() => { setSubpage("main"); setPassErr(""); setPassSaved(false); }}>←</button>
-        <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 20 }}>Segurança</div>
-      </div>
-      <div className="card" style={{ padding: 18, display: "flex", flexDirection: "column", gap: 14 }}>
-        <div style={{ fontWeight: 700, fontSize: 15, display: "flex", gap: 8, alignItems: "center" }}>🔑 Alterar senha</div>
-        {passSaved && <div style={{ padding: "11px 14px", background: D.mintLo, borderRadius: 11, fontSize: 13, color: D.mint, border: `1px solid ${D.mint}35` }}>✅ Senha alterada com sucesso!</div>}
-        <Field label="Senha atual" icon="🔒" type="password" value={passOld} onChange={e => setPassOld(e.target.value)} placeholder="Sua senha atual" />
-        <Field label="Nova senha" icon="🔐" type="password" value={passNew} onChange={e => setPassNew(e.target.value)} placeholder="Mínimo 6 caracteres" />
-        <Field label="Confirmar nova senha" icon="🔐" type="password" value={passConf} onChange={e => setPassConf(e.target.value)} placeholder="Repita a nova senha" />
-        {passErr && <div style={{ fontSize: 13, color: D.rose, display: "flex", gap: 6, alignItems: "center" }}>⚠ {passErr}</div>}
-        <button className="btn primary md" style={{ width: "100%" }} onClick={savePassword} disabled={savingPw || !passOld || !passNew || !passConf}>
-          {savingPw ? <><Spin s={16} c="#fff" /> Salvando…</> : "Alterar senha"}
-        </button>
-      </div>
-      <div className="card" style={{ padding: 18, display: "flex", flexDirection: "column", gap: 12 }}>
-        <div style={{ fontWeight: 700, fontSize: 15 }}>🛡️ Sessões ativas</div>
-        <div style={{ display: "flex", gap: 12, alignItems: "center", padding: "12px 14px", background: D.bg2, borderRadius: 12, border: `1px solid ${D.b0}` }}>
-          <div style={{ width: 40, height: 40, borderRadius: 12, background: D.blueLo, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>📱</div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 600, fontSize: 14 }}>Dispositivo atual</div>
-            <div style={{ fontSize: 12, color: D.mint, marginTop: 2 }}>● Ativo agora</div>
-          </div>
-          <div style={{ fontSize: 11, color: D.w3 }}>Este aparelho</div>
-        </div>
-        <div style={{ display: "flex", gap: 12, alignItems: "center", padding: "12px 14px", background: D.bg2, borderRadius: 12, border: `1px solid ${D.b0}` }}>
-          <div style={{ width: 40, height: 40, borderRadius: 12, background: D.s3, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>💻</div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 600, fontSize: 14 }}>Navegador Web</div>
-            <div style={{ fontSize: 12, color: D.w3, marginTop: 2 }}>Há 2 dias</div>
-          </div>
-          <button className="btn danger xs" onClick={() => toast("Sessão encerrada", "ok")}>Encerrar</button>
-        </div>
-      </div>
-      <div className="card" style={{ padding: 18 }}>
-        <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 14 }}>⚠️ Zona de perigo</div>
-        <button className="btn danger md" style={{ width: "100%" }} onClick={() => toast("Em breve: exclusão de conta", "warn")}>
-          🗑️ Excluir minha conta
-        </button>
-        <div style={{ fontSize: 12, color: D.w3, marginTop: 8, textAlign: "center" }}>Esta ação é permanente e irreversível</div>
-      </div>
-    </div>
-  );
-
-  /* ── NOTIFICATIONS ── */
-  if (subpage === "notifications") return (
-    <div style={{ padding: "20px 16px", display: "flex", flexDirection: "column", gap: 18 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4 }}>
-        <button className="btn ghost xs ico" onClick={() => setSubpage("main")}>←</button>
-        <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 20 }}>Notificações</div>
-      </div>
-      <div className="card" style={{ padding: 18, display: "flex", flexDirection: "column", gap: 0 }}>
-        {[
-          ["posts",  "📣", "Engajamento dos posts",  "Likes, comentários e compartilhamentos"],
-          ["estudos","📚", "Lembretes de estudo",     "Metas diárias e flashcards pendentes"],
-          ["promo",  "🎁", "Ofertas e promoções",     "Descontos exclusivos nos planos"],
-          ["news",   "🆕", "Novidades do app",        "Novas funcionalidades e melhorias"],
-        ].map(([key, icon, label, desc], i, arr) => (
-          <div key={key} style={{ display: "flex", gap: 14, alignItems: "center", padding: "14px 0", borderBottom: i < arr.length - 1 ? `1px solid ${D.b0}` : "none" }}>
-            <div style={{ width: 40, height: 40, borderRadius: 12, background: notifs[key] ? D.blueLo : D.s3, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0, transition: "background .2s" }}>{icon}</div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 700, fontSize: 14 }}>{label}</div>
-              <div style={{ fontSize: 12, color: D.w3, marginTop: 2 }}>{desc}</div>
-            </div>
-            {/* toggle switch */}
-            <div onClick={() => setNotifs(p => ({ ...p, [key]: !p[key] }))}
-              style={{ width: 44, height: 24, borderRadius: 99, background: notifs[key] ? D.blue : D.s3, position: "relative", cursor: "pointer", transition: "background .22s", flexShrink: 0 }}>
-              <div style={{ position: "absolute", top: 3, left: notifs[key] ? 23 : 3, width: 18, height: 18, borderRadius: "50%", background: "#fff", transition: "left .22s", boxShadow: "0 1px 4px rgba(0,0,0,.35)" }} />
-            </div>
-          </div>
-        ))}
-      </div>
-      <button className="btn primary md" style={{ width: "100%" }} onClick={() => { toast("✅ Preferências salvas!", "ok"); setSubpage("main"); }}>
-        Salvar preferências
-      </button>
-    </div>
-  );
-
-  /* ── MAIN PROFILE PAGE ── */
   return (
-    <div style={{ display: "flex", flexDirection: "column" }}>
-      {/* hero banner */}
+    <div className="fi" style={{ display: "flex", flexDirection: "column" }}>
       <div style={{ background: `linear-gradient(180deg,${D.s2} 0%,${D.bg} 100%)`, padding: "28px 20px 20px", display: "flex", flexDirection: "column", gap: 16 }}>
         <div style={{ display: "flex", gap: 16, alignItems: "flex-end" }}>
-          {/* avatar */}
-          <div style={{ position: "relative" }}>
-            <div style={{ width: 78, height: 78, borderRadius: "50%", background: avatarGrad, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, fontWeight: 900, color: "#fff", fontFamily: "'Sora',sans-serif", border: `3px solid ${D.b2}`, boxShadow: "0 0 20px rgba(37,99,235,.22)", flexShrink: 0 }}>{initials}</div>
-            <div style={{ position: "absolute", bottom: 0, right: 0, width: 22, height: 22, borderRadius: "50%", background: D.gBlue, border: `2px solid ${D.bg}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, cursor: "pointer" }} onClick={() => setSubpage("edit")}>✏️</div>
-          </div>
+          <div style={{ width: 78, height: 78, borderRadius: "50%", background: avatarGrad, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, fontWeight: 900, color: "#fff", fontFamily: "'Sora',sans-serif", border: `3px solid ${D.b2}` }}>{initials}</div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 20, lineHeight: 1.2 }}>{session.name}</div>
-            <div style={{ fontSize: 13, color: D.w2, marginTop: 3 }}>{session.email}</div>
-            {session.bio && <div style={{ fontSize: 13, color: D.w2, marginTop: 4, fontStyle: "italic" }}>"{session.bio}"</div>}
+            <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 20 }}>{session?.name}</div>
+            <div style={{ fontSize: 13, color: D.w2 }}>{session?.email}</div>
           </div>
           <button className="btn ghost xs" onClick={() => setSubpage("edit")}>Editar</button>
         </div>
-        {/* plan badge */}
-        <div style={{ display: "flex", gap: 10, alignItems: "center", padding: "12px 16px", background: pBg[plan], borderRadius: 14, boxShadow: "0 4px 16px rgba(0,0,0,.3)" }}>
-          <div style={{ fontSize: 22 }}>{plan === "free" ? "🆓" : plan === "social" ? "⭐" : plan === "student" ? "🎓" : "👑"}</div>
+        <div style={{ display: "flex", gap: 10, alignItems: "center", padding: "12px 16px", background: pBg[plan] || D.gDark, borderRadius: 14 }}>
           <div style={{ flex: 1 }}>
             <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 15, color: "#fff" }}>{pN[plan]}</div>
-            <div style={{ fontSize: 12, color: "rgba(255,255,255,.65)", marginTop: 2 }}>
-              {plan === "free" ? `${lim.postsUsed}/${lim.posts} posts · ${lim.estudosUsed}/${lim.estudos} estudos este mês` : "Acesso ilimitado"}
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,.65)" }}>
+              {plan === "free" ? `${postsUsed || 0}/3 posts diários` : "Acesso Premium"}
             </div>
           </div>
-          {plan === "free" && <button className="btn" style={{ background: "rgba(255,255,255,.2)", color: "#fff", border: "1px solid rgba(255,255,255,.3)", fontSize: 12, fontWeight: 700, padding: "7px 12px", borderRadius: 9 }}>Upgrade</button>}
-        </div>
-        {/* join date */}
-        <div style={{ fontSize: 12, color: D.w3, display: "flex", alignItems: "center", gap: 5 }}>
-          <span>📅</span> Membro desde {joinDate}
         </div>
       </div>
 
       <div style={{ padding: "4px 16px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
-        {/* stats grid */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
           {stats.map((s, i) => (
             <div key={i} className="card" style={{ padding: "12px 8px", textAlign: "center" }}>
               <div style={{ fontSize: 19, marginBottom: 4 }}>{s.e}</div>
-              <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 900, fontSize: 20, color: s.c, animation: "cntA .5s ease both" }}>{s.v}</div>
-              <div style={{ fontSize: 10, color: D.w3, marginTop: 2 }}>{s.l}</div>
+              <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 900, fontSize: 20, color: s.c }}>{s.v}</div>
+              <div style={{ fontSize: 10, color: D.w3 }}>{s.l}</div>
             </div>
           ))}
         </div>
 
-        {/* activity chart */}
-        <div className="card" style={{ padding: 18 }}>
-          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>📈 Atividade Semanal</div>
-          <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 72 }}>
-            {days.map((d, i) => (
-              <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
-                <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 1 }}>
-                  <div style={{ width: "100%", height: `${(act[i]/mx)*48}px`, background: D.gBlue, borderRadius: "4px 4px 0 0", minHeight: 3 }} />
-                  <div style={{ width: "100%", height: `${(acs[i]/mx)*48}px`, background: D.gMint, borderRadius: "0 0 4px 4px", minHeight: 3 }} />
-                </div>
-                <div style={{ fontSize: 9, color: D.w3 }}>{d.slice(0,1)}</div>
-              </div>
-            ))}
-          </div>
-          <div style={{ display: "flex", gap: 14, marginTop: 10 }}>
-            <div style={{ display: "flex", gap: 5, alignItems: "center", fontSize: 11, color: D.w2 }}><div style={{ width: 9, height: 9, borderRadius: 3, background: D.blue }} />Posts</div>
-            <div style={{ display: "flex", gap: 5, alignItems: "center", fontSize: 11, color: D.w2 }}><div style={{ width: 9, height: 9, borderRadius: 3, background: D.mint }} />Estudos</div>
-          </div>
-        </div>
-
-        {/* plan usage */}
-        <div className="card" style={{ padding: 18 }}>
-          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 14 }}>📊 Uso do Plano</div>
-          <ProgressBar val={lim.posts ? Math.round((lim.postsUsed/lim.posts)*100) : 100} color={D.blue2} h={7}
-            label={`Posts criados (${lim.posts ? `${lim.postsUsed}/${lim.posts}` : "Ilimitado"})`} />
-          <div style={{ marginTop: 12 }} />
-          <ProgressBar val={lim.estudos ? Math.round((lim.estudosUsed/lim.estudos)*100) : 72} color={D.mint} h={7}
-            label={`Estudos realizados (${lim.estudos ? `${lim.estudosUsed}/${lim.estudos}` : "Ilimitado"})`} />
-        </div>
-
-        {/* menu */}
         <div className="card" style={{ overflow: "hidden" }}>
           {[
-            { e:"✏️", l:"Editar perfil",       d:"Nome, bio e telefone",    fn:()=>setSubpage("edit") },
-            { e:"🔑", l:"Segurança",            d:"Senha e sessões",         fn:()=>setSubpage("security") },
-            { e:"🔔", l:"Notificações",         d:"Preferências de alertas", fn:()=>setSubpage("notifications") },
-            { e:"💎", l:"Meu plano",            d:pN[plan],                  fn:()=>toast("Veja a aba Planos","info") },
-            { e:"⭐", l:"Avaliar o app",        d:"Nos ajude a melhorar",    fn:()=>toast("Obrigado pelo apoio! ⭐","ok") },
-            { e:"💬", l:"Suporte",              d:"Fale com a equipe DVS",   fn:()=>toast("suporte@dvseducreator.app","info") },
-            { e:"📤", l:"Sair da conta",        d:"",                        fn:onLogout, danger:true },
+            { e:"✏️", l:"Editar perfil", d:"Nome, bio e telefone", fn:()=>setSubpage("edit") },
+            { e:"🧹", l:"Reiniciar conta", d:"Apagar posts e zerar uso", fn:onResetData, danger:true },
+            { e:"🚪", l:"Sair da conta", d:"", fn:onLogout, danger:true },
           ].map(({ e, l, d, fn, danger }, i, arr) => (
             <button key={i} className="btn ghost" onClick={fn}
-              style={{ width:"100%", justifyContent:"flex-start", padding:"14px 16px", borderRadius:0, gap:13, borderBottom: i < arr.length-1 ? `1px solid ${D.b0}` : "none", background: danger ? D.roseLo : "transparent", border:"none", borderBottom: i < arr.length-1 ? `1px solid ${D.b0}` : "none" }}>
-              <div style={{ width:40, height:40, borderRadius:12, background: danger ? D.roseLo : D.s3, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, flexShrink:0 }}>{e}</div>
+              style={{ width:"100%", justifyContent:"flex-start", padding:"14px 16px", borderRadius:0, gap:13, border: "none", borderBottom: i < arr.length-1 ? `1px solid ${D.b0}` : "none", background: danger ? "rgba(244,63,94,0.05)" : "transparent" }}>
+              <div style={{ width:40, height:40, borderRadius:12, background: danger ? D.roseLo : D.s3, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18 }}>{e}</div>
               <div style={{ flex:1, textAlign:"left" }}>
                 <div style={{ fontWeight:700, fontSize:14, color: danger ? D.rose : D.w1 }}>{l}</div>
-                {d && <div style={{ fontSize:12, color:D.w3, marginTop:2 }}>{d}</div>}
+                {d && <div style={{ fontSize:12, color:D.w3 }}>{d}</div>}
               </div>
-              <span style={{ color: danger ? D.rose : D.w3, fontSize:18 }}>{danger ? "" : "›"}</span>
             </button>
           ))}
-        </div>
-
-        {/* version */}
-        <div style={{ textAlign:"center", fontSize:12, color:D.w3, paddingTop:4 }}>
-          DVS EduCreator v6.0 · Feito com ❤️ no Brasil
         </div>
       </div>
     </div>
@@ -2977,18 +2691,49 @@ function App() {
   const [nav, setNav]         = useState("criador");
   const [plan, setPlan]       = useState("free");
   const [loadingAuth, setLoadingAuth] = useState(true);
+  const [postsUsed, setPostsUsed] = useState(0);
+
+  const fetchProfile = useCallback(async (userId) => {
+    if (!userId) return;
+    try {
+        const { data } = await supabase.from('profiles').select('posts_used, plan').eq('id', userId).single();
+        if (data) {
+          setPostsUsed(data.posts_used || 0);
+          if (data.plan) setPlan(data.plan);
+        }
+    } catch(e) {}
+  }, []);
 
   useEffect(() => {
-    // Load session from localStorage
-    const sess = getSession();
-    if (sess) {
-      setSession(sess);
-      try { const u = getUsers()[sess.email]; if (u?.plan) setPlan(u.plan); } catch {}
-    }
-    setLoadingAuth(false);
-  }, []);
-  const [toasts, setToasts] = useState([]);
+    supabase.auth.getSession().then(({ data: { session: s } }) => {
+      if (s) {
+        const sess = { id: s.user.id, email: s.user.email, name: s.user.user_metadata?.full_name || s.user.email };
+        setSession(sess);
+        fetchProfile(s.user.id);
+      } else {
+        const sess = getSession();
+        if (sess) {
+          setSession(sess);
+          if (sess.id) fetchProfile(sess.id);
+        }
+      }
+      setLoadingAuth(false);
+    });
 
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
+      if (s) {
+        const sess = { id: s.user.id, email: s.user.email, name: s.user.user_metadata?.full_name || s.user.email };
+        setSession(sess);
+        fetchProfile(s.user.id);
+      } else {
+        setSession(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [fetchProfile]);
+
+  const [toasts, setToasts] = useState([]);
   const toast = useCallback((msg, tp = "info") => {
     const id = ++_tid;
     setToasts(p => [...p.slice(-2), { id, msg, tp }]);
@@ -2998,11 +2743,12 @@ function App() {
 
   const handleLogin = useCallback(sess => {
     setSession(sess);
-    try { const u = getUsers()[sess.email]; if (u?.plan) setPlan(u.plan); } catch {}
     setNav("criador");
-  }, []);
+    if (sess.id) fetchProfile(sess.id);
+  }, [fetchProfile]);
 
   const handleLogout = useCallback(() => {
+    supabase.auth.signOut();
     clearSession(); setSession(null); setPlan("free"); setNav("criador");
     toast("Você saiu da conta.", "info");
   }, [toast]);
@@ -3011,9 +2757,8 @@ function App() {
 
   const handleSetPlan = useCallback((p) => {
     setPlan(p);
-    if (session?.email) {
-      const users = getUsers(); if (users[session.email]) { users[session.email].plan = p; saveUsers(users); }
-      const newSess = { ...session, plan: p }; saveSession(newSess); setSession(newSess);
+    if (session?.id) {
+        supabase.from('profiles').update({ plan: p }).eq('id', session.id);
     }
   }, [session]);
 
@@ -3021,13 +2766,11 @@ function App() {
   const pLbls = { free: "Gratuito", social: "Social Premium", student: "Estudante Premium", full: "Plano Completo" };
 
   const NAV = [
-    { id: "criador",   l: "Criador",   e: "✨" },
-    { id: "estudante", l: "Estudante", e: "📚" },
-    { id: "planos",    l: "Planos",    e: "💎" },
+    { id: "criador",   l: "Criador",   e: "📸" },
+    { id: "planos",    l: "Planos",    e: "💳" },
     { id: "perfil",    l: "Perfil",    e: "👤" },
   ];
 
-  /* ── not logged in → show auth ── */
   if (loadingAuth) return <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: D.bg }}><Spin s={40} c={D.blue} /></div>;
 
   if (!session) return (
@@ -3043,48 +2786,47 @@ function App() {
       <style>{CSS}</style>
       <div style={{ minHeight: "100vh", background: D.bg, display: "flex", justifyContent: "center" }}>
         <div style={{ width: "100%", maxWidth: 500, display: "flex", flexDirection: "column", minHeight: "100vh" }}>
-
-          {/* HEADER */}
-          <header style={{ position:"sticky", top:0, zIndex:400, background:`${D.bg}f2`, backdropFilter:"blur(20px)", WebkitBackdropFilter:"blur(20px)", borderBottom:`1px solid ${D.b0}`, padding:"12px 16px 10px", display:"flex", alignItems:"center", gap:12 }}>
-            <div style={{ width:38, height:38, borderRadius:12, background:D.gBlue, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, flexShrink:0, boxShadow:"0 0 16px rgba(37,99,235,.3)" }}>✨</div>
-            <div>
-              <div style={{ fontFamily:"'Sora',sans-serif", fontWeight:800, fontSize:16, letterSpacing:"-.2px", lineHeight:1.2 }}>DVS EduCreator</div>
-              <div style={{ fontSize:10, color:D.w3 }}>Olá, {session.name.split(" ")[0]} 👋</div>
+          <header style={{ position:"sticky", top:0, zIndex:400, background:`${D.bg}f2`, backdropFilter:"blur(20px)", borderBottom:`1px solid ${D.b0}`, padding:"12px 16px 10px", display:"flex", alignItems:"center", gap:12 }}>
+            <div style={{ width:38, height:38, borderRadius:10, overflow: 'hidden', flexShrink:0, boxShadow:"0 0 16px rgba(37,99,235,.3)" }}>
+              <img src="/src/assets/logo.png" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="DVS Logo" />
             </div>
-            
-              <div style={{ marginLeft:"auto", display:"flex", alignItems:"center", gap:10 }}>
+            <div>
+              <div style={{ fontFamily:"'Sora',sans-serif", fontWeight:800, fontSize:16, letterSpacing:"-.2px", lineHeight:1.2 }}>DVSCREATOR</div>
+              <div style={{ fontSize:10, color:D.w3 }}>Olá, {session.name.split(" ")[0]}! </div>
+            </div>
+            <div style={{ marginLeft:"auto", display:"flex", alignItems:"center", gap:10 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <div style={{ width:7, height:7, borderRadius:"50%", background:pCols[plan], animation:"pulse2 2s ease-in-out infinite" }}/>
                   <span style={{ fontSize:12, fontWeight:700, color:pCols[plan] }}>{pLbls[plan]}</span>
                 </div>
-                <button onClick={handleLogout} style={{ background: D.roseLo, border: `1.5px solid ${D.rose}30`, borderRadius: 10, padding: "6px 12px", color: D.rose, fontSize: 11, fontWeight: 800, cursor: "pointer", transition: "all .18s", fontFamily: "'Sora',sans-serif" }}
-                  onMouseOver={e => { e.currentTarget.style.background = D.rose; e.currentTarget.style.color = "#fff"; }}
-                  onMouseOut={e => { e.currentTarget.style.background = D.roseLo; e.currentTarget.style.color = D.rose; }}>
-                  SAIR
-                </button>
-              </div>
+            </div>
           </header>
 
-          {/* CONTENT */}
           <main style={{ flex:1, overflowY:"auto", paddingBottom:72 }}>
             {nav === "criador"   && <Criador   toast={toast} session={session} plan={plan} />}
-            {nav === "estudante" && <Estudante toast={toast} session={session} plan={plan} />}
             {nav === "planos"    && <Planos    plan={plan} setPlan={handleSetPlan} toast={toast} />}
-            {nav === "perfil"    && <Perfil    session={session} plan={plan} onLogout={handleLogout} onUpdateSession={handleUpdateSession} toast={toast} />}
+            {nav === "perfil"    && <Perfil    session={session} plan={plan} postsUsed={postsUsed} onLogout={handleLogout} onUpdateSession={handleUpdateSession} toast={toast} onResetData={async () => {
+                if (!confirm("Deseja realmente apagar todos os posts e reiniciar seu uso diário?")) return;
+                toast("Reiniciando...", "info");
+                try {
+                  await supabase.from('posts').delete().eq('user_id', session.id);
+                  await supabase.from('profiles').update({ posts_used: 0 }).eq('id', session.id);
+                  setPostsUsed(0);
+                  toast("Conta reiniciada!", "ok");
+                } catch(e) {
+                  toast("Erro ao reiniciar", "error");
+                }
+              }} />}
           </main>
 
-          {/* BOTTOM NAV */}
-          <nav style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:500, zIndex:300, background:`${D.s1}f8`, backdropFilter:"blur(24px)", WebkitBackdropFilter:"blur(24px)", borderTop:`1px solid ${D.b0}`, padding:"7px 4px 16px", display:"flex" }}>
+          <nav style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:500, zIndex:300, background:`${D.s1}f8`, backdropFilter:"blur(24px)", borderTop:`1px solid ${D.b0}`, padding:"7px 4px 16px", display:"flex" }}>
             {NAV.map(item => {
               const active = nav === item.id;
-              const isProfile = item.id === "perfil";
               return (
                 <button key={item.id} className="nav-item" onClick={() => setNav(item.id)}>
                   {active && <div style={{ position:"absolute", top:-7, left:"50%", transform:"translateX(-50%)", width:24, height:3, background:D.gBlue, borderRadius:99 }}/>}
-                  <div style={{ width:40, height:40, borderRadius:13, background:active?D.blueLo:"transparent", display:"flex", alignItems:"center", justifyContent:"center", transition:"background .18s", overflow:"hidden" }}>
-                    {isProfile
-                      ? <div style={{ width:28, height:28, borderRadius:"50%", background:getAvatarGrad(session.email), display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:900, color:"#fff", fontFamily:"'Sora',sans-serif" }}>{getInitials(session.name)}</div>
-                      : <span style={{ fontSize:20 }}>{item.e}</span>}
+                  <div style={{ width:40, height:40, borderRadius:13, background:active?D.blueLo:"transparent", display:"flex", alignItems:"center", justifyContent:"center", transition:"background .18s" }}>
+                    <span style={{ fontSize:20 }}>{item.e}</span>
                   </div>
                   <span style={{ fontSize:10, fontWeight:active?700:500, color:active?D.blue2:D.w3, transition:"color .18s" }}>{item.l}</span>
                 </button>
