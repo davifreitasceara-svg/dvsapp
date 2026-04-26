@@ -1,17 +1,48 @@
 const fs = require('fs');
-const path = 'c:/Users/PC GAMER/Desktop/vai que ne/src/App.jsx';
-let content = fs.readFileSync(path, 'utf8');
+const path = require('path');
 
-// The problematic area is around realPublicar
-// I'll find the broken realPublicar and replace it with just the shared function
-const target = /const realPublicar = async \(\) => {[\s\S]*?try {[\s\S]*?\/\/ 1\. Copiar a legenda automaticamente para o usuário só precisar "Colar"/;
+const filePath = path.join('c:', 'Users', 'PC GAMER', 'Desktop', 'vai que ne', 'src', 'App.jsx');
+let content = fs.readFileSync(filePath, 'utf8');
 
-content = content.replace(target, "");
+// The corrupted block:
+const corruptedBlock = `    } else setRes({ _err: "Não foi possível processar. Adicione mais texto." });
+    setLoad(false);
+  };`;
 
-// Also ensure everything is closed correctly
-// I'll check for unbalanced braces in the Criador component
-// Actually, I'll just use a surgical replace to remove the specific broken lines I saw in view_file
-content = content.replace(/const realPublicar = async \(\) => {[\s\S]*?try {[\s\S]*?\/\/ 1\. Copiar a legenda automaticamente para o usuário só precisar "Colar"/, "");
+// We need to find this block where it doesn't belong (inside the return)
+// Line 1464 ends with ...transcreve em português</div></div>
+// Line 1468 starts with const rend = () => {
 
-fs.writeFileSync(path, content, 'utf8');
-console.log("Syntax Fix applied!");
+const targetLine = '<div><div style={{ fontFamily: "\'Sora\',sans-serif", fontWeight: 800, fontSize: 21, marginBottom: 4 }}>Transcrição por Voz 🎤</div><div style={{ fontSize: 14, color: D.w2 }}>Fale — IA transcreve em português</div></div>';
+
+const brokenPattern = targetLine + '\n    } else setRes({ _err: "Não foi possível processar. Adicione mais texto." });\n    setLoad(false);\n  };';
+
+if (content.includes(brokenPattern)) {
+    content = content.replace(brokenPattern, targetLine);
+    fs.writeFileSync(filePath, content, 'utf8');
+    console.log('CORRUPTION FIX SUCCESS');
+} else {
+    // Try with different line endings
+    const brokenPatternLF = targetLine + '\r\n    } else setRes({ _err: "Não foi possível processar. Adicione mais texto." });\r\n    setLoad(false);\r\n  };';
+    if (content.includes(brokenPatternLF)) {
+        content = content.replace(brokenPatternLF, targetLine);
+        fs.writeFileSync(filePath, content, 'utf8');
+        console.log('CORRUPTION FIX SUCCESS (CRLF)');
+    } else {
+        console.log('Broken pattern not found exactly. Checking for partial match...');
+        const lines = content.split(/\r?\n/);
+        const newLines = [];
+        let skip = false;
+        for (let i = 0; i < lines.length; i++) {
+            if (lines[i].includes('Transcrição por Voz 🎤') && lines[i+1]?.includes('} else setRes({ _err:')) {
+                console.log(`Found corruption at line ${i+1}`);
+                newLines.push(lines[i]);
+                i += 3; // skip the 3 broken lines
+                continue;
+            }
+            newLines.push(lines[i]);
+        }
+        fs.writeFileSync(filePath, newLines.join('\n'), 'utf8');
+        console.log('CORRUPTION FIX SUCCESS (fallback)');
+    }
+}

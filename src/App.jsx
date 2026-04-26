@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
+import { supabase } from "./services/supabase";
 import html2canvas from "html2canvas";
 const SI = ["Analisando imagem", "Melhorando qualidade", "Calibrando cores", "Gerando conteúdo IA", "Calculando viral score"];
 const SV = ["Analisando vídeo", "Identificando momentos", "Aplicando efeitos", "Gerando conteúdo IA", "Calculando viral score"];
@@ -225,7 +226,7 @@ let _tid = 0;
 
 async function callAI(user, sys = "") {
   try {
-    const r = await fetch("/api/ai/v1beta/models/gemini-2.5-flash:generateContent", {
+    const r = await fetch("/api/ai/v1beta/models/gemini-flash-latest:generateContent", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -240,8 +241,19 @@ async function callAI(user, sys = "") {
 }
 
 function pj(raw) {
-  try { return JSON.parse(raw.replace(/```json\n?|```\n?/g, "").trim()); }
-  catch { return null; }
+  if (!raw) return null;
+  try {
+    const clean = raw.replace(/```json\n?|```\n?/g, "").trim();
+    const firstBrace = clean.indexOf("{");
+    const lastBrace = clean.lastIndexOf("}");
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      return JSON.parse(clean.substring(firstBrace, lastBrace + 1));
+    }
+    return JSON.parse(clean);
+  } catch (e) {
+    console.error("pj parse error:", e, "\nRAW:", raw);
+    return null;
+  }
 }
 
 function fileToBase64(file) {
@@ -255,7 +267,7 @@ function fileToBase64(file) {
 
 async function callAIVision(b64, mediaType, prompt, sys) {
   try {
-    const r = await fetch("/api/ai/v1beta/models/gemini-2.5-flash:generateContent", {
+    const r = await fetch("/api/ai/v1beta/models/gemini-flash-latest:generateContent", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -781,7 +793,7 @@ const PreviewMockup = ({ platform, type, fileURL, isImg, fCSS, caption, music, o
 };
 
 
-const Criador = ({ toast }) => {
+const Criador = ({ toast, session, plan }) => {
   const [stage, setStage] = useState("home");
   const [file, setFile] = useState(null);
   const [fileURL, setFileURL] = useState(null);
@@ -794,7 +806,7 @@ const Criador = ({ toast }) => {
   const [selMusic, setSelMusic] = useState(null);
   const [filters, setFilters] = useState({ brightness: 100, contrast: 100, saturate: 100 });
   const [filtName, setFiltName] = useState(null);
-  const [vLoad, setVLoad] = useState(false); const [rLoad, setRLoad] = useState(false);
+  const [vLoad, setVLoad] = useState(false); const SI = ["Lendo imagem...", "Extraindo cores...", "Analisando vibe...", "Buscando tendências...", "Gerando conteúdo..."]; const SV = ["Processando vídeo...", "Mapeando frames...", "Captando clima...", "Buscando áudio viral...", "Gerando estratégia..."]; const [rLoad, setRLoad] = useState(false);
   const fileId = "dvs-file-input";
 
   // MOCKUP STATE
@@ -839,27 +851,54 @@ const Criador = ({ toast }) => {
   };
 
   const startCreate = async () => {
-    if (!file && !topic.trim()) { toast("Envie uma m\u00eddia ou escreva um tema!", "warn"); return; }
+    if (!file) { toast("Envie uma foto ou vídeo primeiro! 📸", "warn"); return; }
+
+    // Database usage check
+    let currentUsage = 0;
+        const limits = { free: 3, social: 5, student: 10, full: Infinity };
+    const limit = limits[plan] || 3;
+
+    if (plan !== "full") {
+      const today = new Date().toISOString().split('T')[0];
+      const { data: profile } = await supabase.from('profiles').select('posts_used, last_usage_reset').eq('id', session.id).single();
+      
+      if (profile) {
+        if (profile.last_usage_reset !== today) {
+           await supabase.from('profiles').update({ posts_used: 0, last_usage_reset: today }).eq('id', session.id);
+           currentUsage = 0;
+        } else {
+           currentUsage = profile.posts_used;
+        }
+      }
+
+      if (currentUsage >= limit) {
+        toast(`Limite diário de ${limit} posts atingido. Faça upgrade para o plano superior! 💎`, "error");
+        return;
+      }
+    }
+
     setStage("proc"); setPct(0); setCur(0);
     const steps = isImg ? SI : SV;
     for (let i = 0; i < steps.length; i++) { setCur(i); await sleep(480 + Math.random() * 380); setPct(Math.round(((i + 1) / steps.length) * 88)); }
 
-    const jsonTpl = `{
-  "hook": "frase de impacto m\u00e1x 10 palavras com emoji BASEADA no conte\u00fado visual",
-  "caption": "legenda completa e relevante ao que aparece na imagem/v\u00eddeo",
-  "hashtags": ["8 hashtags relacionados ao conte\u00fado"],
-  "filtro": "Clarendon",
+            const jsonTpl = `{
+  "analiseVisual": "descrição detalhada do que aparece: pessoas, objetos, cenário, cores, clima, expressões",
+  "vibeImagem": "sentimento transmitido (alegria, paz, agitação, romance, adrenalina, elegância, etc.)",
+  "hook": "frase de impacto máx 10 palavras com emoji BASEADA EXATAMENTE no que está na foto/vídeo",
+  "caption": "legenda de 2-3 frases que descreve e valoriza ESPECIFICAMENTE o conteúdo visual, em português brasileiro natural e estilo ${estilo}",
+  "hashtags": ["10 hashtags específicos: mix de nicho e trending relacionados ao visual"],
+  "filtro": "filtro que melhor combina com as cores da foto (Clarendon, Gingham, Moon, Lark, Juno, Reyes, Valencia, Hudson, Nashville, HDR ou Vívido)",
   "musicas": [
-    {"tipo":"Em Alta","nome":"Nome Real da Musica","artista":"Nome do Artista","vibe":"vibe da musica"},
-    {"tipo":"Viral","nome":"Outra Musica Real","artista":"Artista 2","vibe":"outra vibe"},
-    {"tipo":"Recomendada","nome":"Terceira Musica","artista":"Artista 3","vibe":"vibe 3"}
+    {"tipo":"Combina perfeitamente","nome":"Música REAL famosa cuja vibe combina com o clima visual da foto","artista":"Artista real","vibe":"por que combina com este visual específico"},
+    {"tipo":"Em Alta no TikTok","nome":"Música viral atual que combina com o sentimento desta imagem","artista":"Artista real","vibe":"relação com o visual e clima da foto"},
+    {"tipo":"Alternativa","nome":"Terceira opção real adequada para o tema visual","artista":"Artista real","vibe":"por que esta também serve para este conteúdo"}
   ],
-  "score": 90,
-  "scoreMotivo": "motivo baseado no conte\u00fado",
-  "melhorias": ["dica espec\u00edfica para este conte\u00fado"],
-  "plataforma": "Insta",
-  "horario": "19h",
-  "cta": "chamada para a\u00e7\u00e3o"
+  "score": 85,
+  "scoreMotivo": "análise do potencial viral baseada nas características visuais DESTA foto específica",
+  "melhorias": ["dica concreta de melhoria baseada no que aparece nesta foto", "sugestão específica de edição ou composição"],
+  "plataforma": "rede social mais adequada para este conteúdo visual",
+  "horario": "melhor horário para este tipo de conteúdo",
+  "cta": "chamada para ação específica para o tema desta foto"
 }`;
 
     let raw = "";
@@ -868,15 +907,52 @@ const Criador = ({ toast }) => {
         const b64 = await fileToBase64(file);
         const mt = file.type?.startsWith("image") ? file.type : "image/jpeg";
         raw = await callAIVision(b64, mt,
-          `Analise DETALHADAMENTE esta imagem e crie conte\u00fado viral para redes sociais brasileiras.\nDescreva o que voc\u00ea v\u00ea: pessoas, produto, ambiente, cores, emo\u00e7\u00e3o \u2014 e baseie TUDO nisso.\nTema extra do usu\u00e1rio: "${topic || "nenhum"}" | Estilo: ${estilo}\nA legenda e o hook DEVEM ser sobre o que est\u00e1 NA IMAGEM.\nObrigat\u00f3rio: indique 3 m\u00fasicas REAIS (nome e artista de verdade, conhecidos no TikTok/Reels Brasil) que combinem com a vibe da imagem.\nRetorne APENAS este JSON (sem markdown):\n${jsonTpl}`,
-          "Retorne APENAS JSON v\u00e1lido. Zero texto fora do JSON."
+          `Você é um especialista em marketing viral brasileiro. ANALISE ESTA IMAGEM COM ATENÇÃO.
+
+PASSO 1 — ANALISE A IMAGEM:
+- O que aparece na foto? (pessoas, objetos, local, natureza, comida, produto, etc.)
+- Qual é a paleta de cores dominante? (cores quentes, frias, neutras, vibrantes)
+- Qual é o clima/sentimento? (alegre, romântico, agitado, sereno, elegante, divertido, etc.)
+- Qual é o contexto? (ao ar livre, interior, praia, cidade, academia, restaurante, etc.)
+
+PASSO 2 — BASEADO APENAS NO QUE VIU NA IMAGEM:
+- Escreva a legenda descrevendo ESTE conteúdo específico
+- Escolha músicas que COMBINAM com a vibe visual desta foto (não genéricas)
+- Sugira hashtags específicas para o que aparece na imagem
+
+Estilo desejado: ${estilo}
+
+IMPORTANTE: A legenda e músicas devem ser 100% baseadas EXCLUSIVAMENTE no que você VÊ nesta imagem. NÃO use temas genéricos.
+Se for uma praia → música de verão/reggae. Se for academia → música de treino/rap. Se for comida → música animada/brasileira. Etc.
+
+Retorne APENAS este JSON sem markdown:
+${jsonTpl}`,
+          "IMPORTANTE: Analise a imagem profundamente. Retorne APENAS JSON válido. Zero texto fora do JSON."
         );
       } catch (e) { console.error("Vision fallback:", e); }
     }
     if (!raw) {
       raw = await callAI(
-        `Crie conte\u00fado viral para redes sociais brasileiras.\nTipo: ${isImg ? "imagem" : "v\u00eddeo"} | Tema: "${topic || "conte\u00fado geral"}" | Estilo: ${estilo}\nObrigat\u00f3rio: indique 3 m\u00fasicas REAIS (nome e artista de verdade, conhecidos no TikTok/Reels Brasil) que combinem com o tema.\nRetorne APENAS este JSON (sem markdown):\n${jsonTpl}`,
-        "APENAS JSON."
+        `Você é especialista em marketing viral brasileiro. Crie conteúdo de alto impacto para Instagram/TikTok.
+
+Tipo de mídia: ${isImg ? "foto" : "vídeo"}
+Estilo desejado: ${estilo}
+
+INSTRUÇÕES PARA AS MÚSICAS:
+- Escolha músicas REAIS e CONHECIDAS no Brasil (não invente)
+- As músicas devem combinar com o TEMA e ESTILO do conteúdo
+- Ex: tema fitness → rap/funk agitado. Tema viagem → música animada. Tema romântico → música suave.
+- Prefira músicas que estão em alta no TikTok/Reels Brasil em 2024-2025
+
+INSTRUÇÕES PARA A LEGENDA:
+- Escreva como um criador de conteúdo brasileiro autêntico
+- Primeira linha: hook impactante com emoji
+- Corpo: descreva o conteúdo de forma cativante
+- Final: hashtags específicas para o nicho
+
+Retorne APENAS este JSON sem markdown:
+${jsonTpl}`,
+        "APENAS JSON válido. Zero markdown."
       );
     }
     setPct(100); await sleep(200);
@@ -894,13 +970,19 @@ const Criador = ({ toast }) => {
     ];
     // Randomize
     const fallbackMusicas = ALL_MUSIC.sort(() => 0.5 - Math.random()).slice(0, 3);
-    const p = pj(raw) || { hook: "Viral!", caption: "Legenda!", hashtags: ["viral","brasil"], filtro: "Clarendon", musicas: fallbackMusicas, score: 80, scoreMotivo: "Ok", melhorias: [], plataforma: "Insta", horario: "19h", cta: "Comenta!" };
+    const p = pj(raw) || { hook: "🔥 Uau!", caption: "Confira esse conteúdo incrível que preparamos para você!", hashtags: ["viral","brasil"], filtro: "Clarendon", musicas: fallbackMusicas, score: 80, scoreMotivo: "Ok", melhorias: [], plataforma: "Insta", horario: "19h", cta: "Comenta!" };
     if (!p.musicas || !Array.isArray(p.musicas) || p.musicas.length === 0) p.musicas = fallbackMusicas;
 
     setCaption(`${p.hook}\n\n${p.caption}\n\n${p.hashtags.map(h => "#" + h).join(" ")}`);
     setResult(p);
     if (p.filtro) applyFilt(p.filtro);
     setStage("result");
+    
+    // Save to Supabase
+    await supabase.from('posts').insert([{ user_id: session.id, content: p }]);
+    if (plan !== "full") {
+      await supabase.from('profiles').update({ posts_used: currentUsage + 1 }).eq('id', session.id);
+    }
   };
 
   const applyFilt = name => {
@@ -911,14 +993,6 @@ const Criador = ({ toast }) => {
   const [pPct, setPPct] = useState(0);
 
   
-  
-  const realPublicar = async () => {
-    if (!mock) return;
-    const { platform, type } = mock;
-    
-    try {
-      // 1. Copiar a legenda automaticamente para o usuário só precisar "Colar"
-
   
   const compartilharDireto = async () => {
     if (!isImg) {
@@ -937,7 +1011,7 @@ const Criador = ({ toast }) => {
     try {
       const el = document.getElementById('preview-to-export');
       if (!el) return;
-      const canvas = await html2canvas(el, { useCORS: true, scale: 2, backgroundColor: D.bg2 });
+      const canvas = await html2canvas(el, { useCORS: true, scale: (plan === "social" || plan === "full") ? 3 : 1, backgroundColor: D.bg2 });
       
       canvas.toBlob(async (blob) => {
         const fileToShare = new File([blob], 'dvs-viral.png', { type: 'image/png' });
@@ -981,6 +1055,26 @@ const Criador = ({ toast }) => {
     setVLoad(false);
   };
 
+  if (stage === "proc") {
+    return (
+      <div style={{ position: "fixed", inset: 0, zIndex: 10000, background: "rgba(5, 7, 9, 0.95)", backdropFilter: "blur(20px)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 24 }}>
+        <div style={{ position: "relative", width: 120, height: 120 }}>
+           <div style={{ position: "absolute", inset: 0, borderRadius: "50%", border: "4px solid " + D.blueLo, borderTopColor: D.blue2, animation: "spinA 1s linear infinite" }} />
+           <div style={{ position: "absolute", inset: 15, borderRadius: "50%", border: "4px solid " + D.roseLo, borderBottomColor: D.rose, animation: "spinA 2s linear reverse infinite" }} />
+           <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32 }}>✨</div>
+        </div>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 20, color: "#fff", marginBottom: 8 }}>{(isImg ? SI : SV)[cur] || "Analisando..."}</div>
+          <div style={{ width: 240, height: 6, background: "rgba(255,255,255,0.1)", borderRadius: 99, overflow: "hidden" }}>
+            <div style={{ width: pct + "%", height: "100%", background: D.gBlue, transition: "width .3s" }} />
+          </div>
+          <div style={{ fontSize: 12, color: D.w2, marginTop: 12, fontWeight: 600 }}>{pct}% CONCLUÍDO</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (stage === "result" && result) {
   return (
     <>
       {mock && (
@@ -991,7 +1085,7 @@ const Criador = ({ toast }) => {
           isImg={isImg} 
           fCSS={fCSS} 
           caption={caption} 
-          music={result.musicas?.[0]}
+          music={result?.musicas?.[0]}
           onClose={() => setMock(null)}
           onFinish={() => { toast("Publicado com sucesso!"); setMock(null); }}
         />
@@ -1015,31 +1109,8 @@ const Criador = ({ toast }) => {
                   <video src={fileURL} autoPlay muted loop playsInline style={{ width: "100%", height: "auto", display: "block" }} />
                 )}
                 
-                {/* Música Overlay Editável */}
-                {result.musicas?.[0] && (
-                  <div style={{
-                    position: "absolute",
-                    bottom: "20%",
-                    left: "10%",
-                    background: "rgba(255,255,255,0.92)",
-                    padding: "8px 12px",
-                    borderRadius: 12,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    boxShadow: "0 8px 25px rgba(0,0,0,0.3)",
-                    maxWidth: "80%",
-                    zIndex: 10
-                  }}>
-                    <div style={{ width: 34, height: 34, borderRadius: 8, background: 'linear-gradient(45deg, #f09433, #bc1888)', display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 18 }}>🎵</div>
-                    <div style={{ overflow: "hidden" }}>
-                      <div style={{ fontSize: 11, fontWeight: 900, color: "#000", whiteSpace: "nowrap" }}>{result.musicas[0].titulo}</div>
-                      <div style={{ fontSize: 9, color: "#666" }}>{result.musicas[0].artista}</div>
-                    </div>
-                  </div>
-                )}
 
-                <div style={{ position: "absolute", top: 12, right: 12 }}><ScoreRing score={result.score} /></div>
+                <div style={{ position: "absolute", top: 12, right: 12 }}><ScoreRing score={result?.score} /></div>
               </div>
             ) : <div style={{ color: D.w3 }}>Sem prévia</div>}
           </div>
@@ -1081,7 +1152,7 @@ const Criador = ({ toast }) => {
           <textarea className="inp" value={caption} onChange={e => setCaption(e.target.value)} style={{ minHeight: 100, fontSize: 13 }} />
         </div>
 
-        <SmartSoundPlayer musicas={result.musicas} toast={toast} />
+        <SmartSoundPlayer musicas={result?.musicas} toast={toast} plan={plan} />
 
         <button className="btn rose lg" style={{ width: "100%" }} onClick={viral} disabled={vLoad}>
           {vLoad ? <Spin s={18} /> : "🚀 TURBINAR PARA VIRALIZAR"}
@@ -1113,6 +1184,8 @@ const Criador = ({ toast }) => {
   );
 
 
+  }
+
   /* ── HOME ── */
   return (
     <div style={{ padding: "20px 16px", display: "flex", flexDirection: "column", gap: 18 }}>
@@ -1131,7 +1204,7 @@ const Criador = ({ toast }) => {
       {/* hero */}
       <div className="fu">
         <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 24, marginBottom: 5 }}>Modo Criador 🔥</div>
-        <div style={{ fontSize: 14, color: D.w2, lineHeight: 1.6 }}>Envie uma mídia — a IA cria legenda, score viral, músicas e muito mais</div>
+        <div style={{ fontSize: 14, color: D.w2, lineHeight: 1.6 }}>Envie uma foto ou vídeo — a IA analisa, cria a legenda e escolhe a música ideal 🤖</div>
       </div>
 
       {/* upload zone — usa label htmlFor para máxima compatibilidade mobile */}
@@ -1148,11 +1221,11 @@ const Criador = ({ toast }) => {
       >
         <div style={{ width: 68, height: 68, borderRadius: 20, background: D.blueLo, border: `1px solid ${D.blueM}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, animation: "float2 3.5s ease-in-out infinite" }}>📁</div>
         <div style={{ textAlign: "center" }}>
-          <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 17, marginBottom: 5 }}>Toque para selecionar</div>
+          <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 17, marginBottom: 5 }}>Envie sua foto ou vídeo</div>
           <div style={{ fontSize: 13, color: D.w2 }}>Foto ou vídeo da galeria</div>
           <div style={{ fontSize: 12, color: D.w3, marginTop: 4 }}>JPG · PNG · GIF · MP4 · MOV</div>
         </div>
-        <span className="tag tblue" style={{ fontSize: 12 }}>⚡ Processamento automático por IA</span>
+        <span className="tag tblue" style={{ fontSize: 12 }}>🤖 IA analisa o conteúdo visual automaticamente</span>
       </label>
 
       {/* botão alternativo para câmera */}
@@ -1184,11 +1257,7 @@ const Criador = ({ toast }) => {
         </div>
       )}
 
-      {/* tema */}
-      <div className="fu d2">
-        <div className="sec-label">Tema / contexto</div>
-        <input className="inp" value={topic} onChange={e => setTopic(e.target.value)} placeholder="Ex: produto fitness, motivação, lançamento, humor…" />
-      </div>
+
 
       {/* estilo */}
       <div className="fu d3">
@@ -1202,22 +1271,24 @@ const Criador = ({ toast }) => {
         </div>
       </div>
 
-      <button className="btn primary lg fu d4" style={{ width: "100%", fontFamily: "'Sora',sans-serif" }} onClick={startCreate} disabled={!file && !topic.trim()}>
+      <button className="btn primary lg fu d4" style={{ width: "100%", fontFamily: "'Sora',sans-serif" }} onClick={startCreate} disabled={!file}>
         ✨ Criar Conteúdo com IA
       </button>
 
       <div className="card fu d5" style={{ padding: "12px 15px", display: "flex", gap: 10, alignItems: "center" }}>
         <span style={{ fontSize: 16 }}>🔒</span>
-        <span style={{ fontSize: 13, color: D.w2 }}>Plano Gratuito · 10 posts/mês · <span style={{ color: D.amber, fontWeight: 700, cursor: "pointer" }} onClick={() => toast("Acesse a aba Planos!", "info")}>Ver Planos →</span></span>
+        <span style={{ fontSize: 13, color: D.w2 }}>
+          {plan === "free" ? "Plano Gratuito · 3 posts/dia" : 
+           plan === "social" ? "Social Premium · 5 posts/dia" :
+           plan === "student" ? "Estudante Premium · 10 posts/dia" :
+           "Plano Completo · Ilimitado"} · <span style={{ color: D.amber, fontWeight: 700, cursor: "pointer" }} onClick={() => toast("Acesse a aba Planos!", "info")}>{plan === "full" ? "Gerenciar" : "Upgrade"} →</span>
+        </span>
       </div>
     </div>
   );
 };
 
-/* ═══════════════════════════════════════════════
-   MODO ESTUDANTE
-═══════════════════════════════════════════════ */
-const Estudante = ({ toast }) => {
+const Estudante = ({ toast, session, plan }) => {
   const [tab, setTab] = useState("voz");
   const [rec, setRec] = useState(false); const [secs, setSecs] = useState(0);
   const [trans, setTrans] = useState("");
@@ -1227,58 +1298,6 @@ const Estudante = ({ toast }) => {
   const [flips, setFlips] = useState({}); const [qans, setQans] = useState({}); const [qrev, setQrev] = useState({});
   const recRef = useRef(); const timerRef = useRef();
   const wt = texto || trans;
-
-  const TABS = [
-    { id: "voz", l: "Voz", e: "🎤" }, { id: "resumo", l: "Resumo", e: "🧠" },
-    { id: "mapa", l: "Mapa", e: "🗺️" }, { id: "slides", l: "Slides", e: "📊" },
-    { id: "cards", l: "Flashcards", e: "🃏" }, { id: "quiz", l: "Quiz", e: "⚡" },
-  ];
-  
-
-  const startRec = () => {
-    setRec(true); setSecs(0);
-    timerRef.current = setInterval(() => setSecs(s => s + 1), 1000);
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (SR) {
-      const r = new SR(); r.continuous = true; r.interimResults = true; r.lang = "pt-BR";
-      r.onresult = e => { let t = ""; for (let i = 0; i < e.results.length; i++) t += e.results[i][0].transcript; setTrans(t); };
-      r.onerror = () => toast("Permita o acesso ao microfone.", "warn");
-      r.start(); recRef.current = r;
-    } else {
-      setTimeout(() => setTrans("Exemplo de transcrição: A fotossíntese é o processo pelo qual plantas usam luz solar, água e CO₂ para produzir glicose e oxigênio. Ocorre nos cloroplastos e é essencial para a vida na Terra."), 1500);
-    }
-  };
-  const stopRec = () => { setRec(false); clearInterval(timerRef.current); recRef.current?.stop(); if (trans) { setTexto(trans); toast("Transcrição salva!", "ok"); } };
-
-  const gen = async type => {
-    if (!wt.trim()) { toast("Adicione texto ou grave sua voz!", "warn"); return; }
-    setLoad(true); setLtab(type); setPct(0); setCur(0); setRes(null); setRtype(type); setFlips({}); setQans({}); setQrev({});
-    const steps = STEPS3[type] || [];
-    for (let i = 0; i < steps.length; i++) { setCur(i); await sleep(420 + Math.random() * 330); setPct(Math.round(((i + 1) / steps.length) * 86)); }
-
-    const P = {
-      resumo: `Analise este texto com profundidade. APENAS JSON sem markdown:
-{"titulo":"título claro e atrativo","resumo":"resumo bem desenvolvido em 2-3 parágrafos separados por \\n\\n","pontos":["5 pontos principais detalhados"],"palavrasChave":["6 palavras-chave"],"dificuldade":"Básico/Intermediário/Avançado","tempoEstudo":"X min"}
-Texto:"${wt.slice(0,2200)}"`,
-      mapa: `Crie mapa mental completo. APENAS JSON sem markdown:
-{"topico":"TEMA CENTRAL","descricao":"descrição em 1 frase clara","ramos":[{"titulo":"RAMO 1","subtopicos":["conceito 1","conceito 2","conceito 3"]},{"titulo":"RAMO 2","subtopicos":["conceito 1","conceito 2","conceito 3"]},{"titulo":"RAMO 3","subtopicos":["conceito 1","conceito 2"]},{"titulo":"RAMO 4","subtopicos":["conceito 1","conceito 2"]}]}
-Texto:"${wt.slice(0,2200)}"`,
-      slides: `Crie apresentação didática. APENAS JSON sem markdown:
-{"titulo":"Título da Apresentação","slides":[{"num":1,"titulo":"Introdução","subtitulo":"Visão Geral","pontos":["Ponto importante 1","Ponto importante 2","Ponto importante 3"],"nota":"Apresente o tema e objetivos"},{"num":2,"titulo":"Desenvolvimento","subtitulo":"Conceitos Principais","pontos":["Conceito central 1","Conceito central 2","Conceito central 3"],"nota":"Explique cada ponto com exemplos"},{"num":3,"titulo":"Análise Detalhada","subtitulo":"Aprofundamento","pontos":["Detalhe importante 1","Detalhe importante 2","Detalhe importante 3"],"nota":""},{"num":4,"titulo":"Conclusão","subtitulo":"Resumo e Próximos Passos","pontos":["Conclusão principal","Aplicação prática"],"nota":"Encerre com uma reflexão ou pergunta"}]}
-Texto:"${wt.slice(0,2200)}"`,
-      cards: `Crie 5 flashcards de estudo eficazes. APENAS JSON sem markdown:
-{"flashcards":[{"pergunta":"Pergunta direta e clara 1?","resposta":"Resposta completa e didática que ajuda a memorizar.","dificuldade":"fácil","categoria":"Conceito Básico"},{"pergunta":"Pergunta 2?","resposta":"Resposta 2 detalhada.","dificuldade":"médio","categoria":"Intermediário"},{"pergunta":"Pergunta 3 mais difícil?","resposta":"Resposta 3 aprofundada.","dificuldade":"difícil","categoria":"Avançado"},{"pergunta":"Pergunta 4?","resposta":"Resposta 4.","dificuldade":"médio","categoria":"Aplicação"},{"pergunta":"Pergunta 5 de revisão?","resposta":"Resposta 5 consolidada.","dificuldade":"fácil","categoria":"Revisão"}]}
-Texto:"${wt.slice(0,2200)}"`,
-      quiz: `Crie quiz com 4 questões bem elaboradas. APENAS JSON sem markdown:
-{"quiz":[{"num":1,"pergunta":"Questão completa e inequívoca 1?","alternativas":["A) Alternativa correta e bem escrita","B) Alternativa plausível mas incorreta","C) Alternativa plausível mas incorreta","D) Alternativa claramente diferente"],"correta":0,"explicacao":"Explicação detalhada de por que A é a resposta correta."},{"num":2,"pergunta":"Questão 2?","alternativas":["A) Errada","B) Correta","C) Errada","D) Errada"],"correta":1,"explicacao":"Explicação questão 2."},{"num":3,"pergunta":"Questão 3?","alternativas":["A) Errada","B) Errada","C) Correta","D) Errada"],"correta":2,"explicacao":"Explicação questão 3."},{"num":4,"pergunta":"Questão 4?","alternativas":["A) Errada","B) Errada","C) Errada","D) Correta"],"correta":3,"explicacao":"Explicação questão 4."}]}
-Texto:"${wt.slice(0,2200)}"`,
-    };
-    const raw = await callAI(P[type] || P.resumo, "Retorne APENAS JSON válido. Zero texto fora do JSON. Zero markdown. Zero explicações.");
-    setPct(100);
-    const parsed = pj(raw);
-    if (parsed) { setRes(parsed); toast("Gerado com sucesso!", "ok"); } else setRes({ _err: "Não foi possível processar. Adicione mais texto." });
-    setLoad(false);
-  };
 
   const rend = () => {
     if (!res) return null;
@@ -1357,6 +1376,82 @@ Texto:"${wt.slice(0,2200)}"`,
     return null;
   };
 
+  const TABS = [
+    { id: "voz", l: "Voz", e: "🎤" }, { id: "resumo", l: "Resumo", e: "🧠" },
+    { id: "mapa", l: "Mapa", e: "🗺️" }, { id: "slides", l: "Slides", e: "📊" },
+    { id: "cards", l: "Flashcards", e: "🃏" }, { id: "quiz", l: "Quiz", e: "⚡" },
+  ];
+  
+
+  const startRec = () => {
+    setRec(true); setSecs(0);
+    timerRef.current = setInterval(() => setSecs(s => s + 1), 1000);
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SR) {
+      const r = new SR(); r.continuous = true; r.interimResults = true; r.lang = "pt-BR";
+      r.onresult = e => { let t = ""; for (let i = 0; i < e.results.length; i++) t += e.results[i][0].transcript; setTrans(t); };
+      r.onerror = () => toast("Permita o acesso ao microfone.", "warn");
+      r.start(); recRef.current = r;
+    } else {
+      setTimeout(() => setTrans("Exemplo de transcrição: A fotossíntese é o processo pelo qual plantas usam luz solar, água e CO₂ para produzir glicose e oxigênio. Ocorre nos cloroplastos e é essencial para a vida na Terra."), 1500);
+    }
+  };
+  const stopRec = () => { setRec(false); clearInterval(timerRef.current); recRef.current?.stop(); if (trans) { setTexto(trans); toast("Transcrição salva!", "ok"); } };
+
+  const gen = async type => {
+    if (!wt.trim()) { toast("Adicione texto ou grave sua voz!", "warn"); return; }
+    
+    // Database studies check
+    let currentStudyUsage = 0;
+        const limits = { free: 3, social: 5, student: 10, full: Infinity };
+    const limit = limits[plan] || 3;
+
+    if (plan !== "full") {
+       const { data: profile } = await supabase.from('profiles').select('estudos_used').eq('id', session.id).single();
+       currentStudyUsage = profile?.estudos_used || 0;
+       if (currentStudyUsage >= limit) {
+          toast(`Limite de ${limit} estudos atingido. Faça upgrade para o plano superior! 🎓`, "error");
+          return;
+       }
+    }
+
+    setLoad(true); setLtab(type); setPct(0); setCur(0); setRes(null); setRtype(type); setFlips({}); setQans({}); setQrev({});
+    const steps = STEPS3[type] || [];
+    for (let i = 0; i < steps.length; i++) { setCur(i); await sleep(420 + Math.random() * 330); setPct(Math.round(((i + 1) / steps.length) * 86)); }
+
+    const P = {
+      resumo: `Analise este texto com profundidade. APENAS JSON sem markdown:
+{"titulo":"título claro e atrativo","resumo":"resumo bem desenvolvido em 2-3 parágrafos separados por \\n\\n","pontos":["5 pontos principais detalhados"],"palavrasChave":["6 palavras-chave"],"dificuldade":"Básico/Intermediário/Avançado","tempoEstudo":"X min"}
+Texto:"${wt.slice(0,2200)}"`,
+      mapa: `Crie mapa mental completo. APENAS JSON sem markdown:
+{"topico":"TEMA CENTRAL","descricao":"descrição em 1 frase clara","ramos":[{"titulo":"RAMO 1","subtopicos":["conceito 1","conceito 2","conceito 3"]},{"titulo":"RAMO 2","subtopicos":["conceito 1","conceito 2","conceito 3"]},{"titulo":"RAMO 3","subtopicos":["conceito 1","conceito 2"]},{"titulo":"RAMO 4","subtopicos":["conceito 1","conceito 2"]}]}
+Texto:"${wt.slice(0,2200)}"`,
+      slides: `Crie apresentação didática. APENAS JSON sem markdown:
+{"titulo":"Título da Apresentação","slides":[{"num":1,"titulo":"Introdução","subtitulo":"Visão Geral","pontos":["Ponto importante 1","Ponto importante 2","Ponto importante 3"],"nota":"Apresente o tema e objetivos"},{"num":2,"titulo":"Desenvolvimento","subtitulo":"Conceitos Principais","pontos":["Conceito central 1","Conceito central 2","Conceito central 3"],"nota":"Explique cada ponto com exemplos"},{"num":3,"titulo":"Análise Detalhada","subtitulo":"Aprofundamento","pontos":["Detalhe importante 1","Detalhe importante 2","Detalhe importante 3"],"nota":""},{"num":4,"titulo":"Conclusão","subtitulo":"Resumo e Próximos Passos","pontos":["Conclusão principal","Aplicação prática"],"nota":"Encerre com uma reflexão ou pergunta"}]}
+Texto:"${wt.slice(0,2200)}"`,
+      cards: `Crie 5 flashcards de estudo eficazes. APENAS JSON sem markdown:
+{"flashcards":[{"pergunta":"Pergunta direta e clara 1?","resposta":"Resposta completa e didática que ajuda a memorizar.","dificuldade":"fácil","categoria":"Conceito Básico"},{"pergunta":"Pergunta 2?","resposta":"Resposta 2 detalhada.","dificuldade":"médio","categoria":"Intermediário"},{"pergunta":"Pergunta 3 mais difícil?","resposta":"Resposta 3 aprofundada.","dificuldade":"difícil","categoria":"Avançado"},{"pergunta":"Pergunta 4?","resposta":"Resposta 4.","dificuldade":"médio","categoria":"Aplicação"},{"pergunta":"Pergunta 5 de revisão?","resposta":"Resposta 5 consolidada.","dificuldade":"fácil","categoria":"Revisão"}]}
+Texto:"${wt.slice(0,2200)}"`,
+      quiz: `Crie quiz com 4 questões bem elaboradas. APENAS JSON sem markdown:
+{"quiz":[{"num":1,"pergunta":"Questão completa e inequívoca 1?","alternativas":["A) Alternativa correta e bem escrita","B) Alternativa plausível mas incorreta","C) Alternativa plausível mas incorreta","D) Alternativa claramente diferente"],"correta":0,"explicacao":"Explicação detalhada de por que A é a resposta correta."},{"num":2,"pergunta":"Questão 2?","alternativas":["A) Errada","B) Correta","C) Errada","D) Errada"],"correta":1,"explicacao":"Explicação questão 2."},{"num":3,"pergunta":"Questão 3?","alternativas":["A) Errada","B) Errada","C) Correta","D) Errada"],"correta":2,"explicacao":"Explicação questão 3."},{"num":4,"pergunta":"Questão 4?","alternativas":["A) Errada","B) Errada","C) Errada","D) Correta"],"correta":3,"explicacao":"Explicação questão 4."}]}
+Texto:"${wt.slice(0,2200)}"`,
+    };
+    const raw = await callAI(P[type] || P.resumo, "Retorne APENAS JSON válido. Zero texto fora do JSON. Zero markdown. Zero explicações.");
+    setPct(100);
+    const parsed = pj(raw);
+    if (parsed) { 
+      setRes(parsed); 
+      toast("Gerado com sucesso!", "ok"); 
+      // Save to Supabase
+      await supabase.from('estudos').insert([{ user_id: session.id, type: type, content: parsed }]);
+      if (plan !== "full") {
+         await supabase.from('profiles').update({ estudos_used: currentStudyUsage + 1 }).eq('id', session.id);
+      }
+    } else setRes({ _err: "Não foi possível processar. Adicione mais texto." });
+    setLoad(false);
+  };
+
+
   return (
     <div style={{ display: "flex", flexDirection: "column" }}>
       {/* tab bar */}
@@ -1372,7 +1467,7 @@ Texto:"${wt.slice(0,2200)}"`,
               <div style={{ position: "relative" }}>
                 {rec && <div style={{ position: "absolute", inset: -13, borderRadius: "50%", border: `2.5px solid ${D.rose}`, animation: "micA 1.2s ease-in-out infinite", opacity: .65 }} />}
                 <button onClick={rec ? stopRec : startRec} style={{ width: 90, height: 90, borderRadius: "50%", background: rec ? D.gRose : D.gBlue, border: "none", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 5, boxShadow: rec ? `0 0 36px rgba(244,63,94,.48)` : `0 0 28px rgba(37,99,235,.38)`, transition: "all .22s" }}>
-                  <span style={{ fontSize: 30 }}>{rec ? "⏸" : "🎤"}</span>
+                                    <span style={{ fontSize: 30 }}>{rec ? "⏸" : "🎤"}</span>
                   {rec && <div style={{ fontSize: 11, color: "#fff", fontWeight: 700 }}>{String(Math.floor(secs / 60)).padStart(2, "0")}:{String(secs % 60).padStart(2, "0")}</div>}
                 </button>
               </div>
@@ -1406,7 +1501,7 @@ Texto:"${wt.slice(0,2200)}"`,
 
         {load && <LoadScreen steps={STEPS3[ltab] || []} cur={cur} pct={pct} title={`Gerando ${tab === "mapa" ? "Mapa Mental" : tab === "slides" ? "Slides" : tab === "cards" ? "Flashcards" : tab === "quiz" ? "Quiz" : "Resumo"}…`} />}
 
-        {!load && res && (
+                {!load && res && (
           <div style={{ display: "flex", flexDirection: "column", gap: 13 }}>
             <div style={{ height: 1, background: D.b0 }} />
             {rend()}
@@ -1418,20 +1513,28 @@ Texto:"${wt.slice(0,2200)}"`,
           </div>
         )}
       </div>
+      <div style={{ padding: "0 16px 20px" }}>
+        <div className="card fu" style={{ padding: "12px 15px", display: "flex", gap: 10, alignItems: "center" }}>
+          <span style={{ fontSize: 16 }}>{plan === "full" ? "👑" : "🔒"}</span>
+          <span style={{ fontSize: 13, color: D.w2 }}>
+            {plan === "free" ? "Plano Gratuito · 3 estudos/dia" : 
+             plan === "social" ? "Social Premium · 5 estudos/dia" :
+             plan === "student" ? "Estudante Premium · 10 estudos/dia" :
+             "Plano Completo · Ilimitado"} · <span style={{ color: D.amber, fontWeight: 700, cursor: "pointer" }} onClick={() => toast("Acesse a aba Planos!", "info")}>{plan === "full" ? "Gerenciar" : "Upgrade"} →</span>
+          </span>
+        </div>
+      </div>
     </div>
   );
 };
 
-/* ═══════════════════════════════════════════════
-   PLANOS
-═══════════════════════════════════════════════ */
 const Planos = ({ plan, setPlan, toast }) => {
   const [ann, setAnn] = useState(false);
-  const PL = [
-    { id: "free", name: "Gratuito", price: 0, col: D.w2, grad: D.gDark, badge: null, feats: ["10 posts/mês", "5 estudos/mês", "Marca d'água DVS", "IA básica"], miss: ["SmartSound AI", "Transcrição ilimitada", "Export HD"] },
-    { id: "social", name: "Social Premium", price: 10, col: D.blue2, grad: D.gBlue, badge: "⭐ MAIS POPULAR", feats: ["Posts ilimitados", "Sem marca d'água", "SmartSound AI", "Export HD", "Score avançado", "Suporte prioritário"], miss: [] },
-    { id: "student", name: "Estudante Premium", price: 15, col: D.mint, grad: D.gMint, badge: "🎓 MELHOR CUSTO", feats: ["Transcrição ilimitada", "Mapas mentais ilimitados", "Slides completos", "Flashcards ilimitados", "Quiz ilimitado", "Export PDF avançado"], miss: [] },
-    { id: "full", name: "Completo", price: 22, col: D.amber, grad: D.gAmber, badge: "👑 TUDO INCLUSO", feats: ["Tudo do Social", "Tudo do Estudante", "IA prioritária", "Sem limites", "Suporte 24/7"], miss: [] },
+    const PL = [
+    { id: "free", name: "Gratuito", price: 0, col: D.w2, grad: D.gDark, badge: null, feats: ["3 posts por dia", "3 estudos por dia", "Marca d'água DVS", "IA básica", "Transcrição simples"], miss: ["SmartSound AI", "Mapas Mentais", "Slides IA", "Export HD", "Sem marca d'água"] },
+    { id: "social", name: "Social Premium", price: 10, col: D.blue2, grad: D.gBlue, badge: "⭐ MAIS POPULAR", link: "https://buy.stripe.com/test_dRm14m1KC9iLaHr6VF5sA04", feats: ["5 posts por dia", "5 estudos por dia", "Sem marca d'água", "SmartSound AI (Músicas)", "Exportação HD", "Score Viral Avançado", "Legendas Otimizadas"], miss: ["Slides IA", "Mapas Mentais", "Quiz IA"] },
+    { id: "student", name: "Estudante Premium", price: 15, col: D.mint, grad: D.gMint, badge: "🎓 MELHOR CUSTO", link: "https://buy.stripe.com/test_6oUdR874W52veXHeo75sA03", feats: ["10 posts por dia", "10 estudos por dia", "Tudo do Social Premium", "Mapas Mentais IA", "Slides Profissionais", "Flashcards & Quiz", "Transcrição Avançada"], miss: ["Uso Ilimitado"] },
+    { id: "full", name: "Plano Completo", price: 20, col: D.amber, grad: D.gAmber, badge: "👑 TUDO INCLUSO", link: "https://buy.stripe.com/test_5kQ6oG4WO9iLbLv93N5sA01", feats: ["Tudo Ilimitado", "IA Prioritária", "Sem marcas d'água", "Exportação 4K", "Suporte VIP 24/7", "Novas funções antecipadas"], miss: [] },
   ];
   return (
     <div style={{ padding: "20px 16px", display: "flex", flexDirection: "column", gap: 18 }}>
@@ -1455,7 +1558,14 @@ const Planos = ({ plan, setPlan, toast }) => {
             <div style={{ padding: "15px 20px 18px" }}>
               {p.feats.map((f, i) => <div key={i} style={{ display: "flex", gap: 9, fontSize: 13, marginBottom: 8, alignItems: "center", color: D.w1 }}><span style={{ color: D.mint, fontSize: 14 }}>✓</span>{f}</div>)}
               {p.miss.map((f, i) => <div key={i} style={{ display: "flex", gap: 9, fontSize: 13, marginBottom: 8, color: D.w3, alignItems: "center" }}><span style={{ fontSize: 14 }}>✗</span>{f}</div>)}
-              <button onClick={() => { setPlan(p.id); toast(`✅ Plano "${p.name}" ativado!`, "ok"); }} style={{ width: "100%", marginTop: 12, padding: "12px 0", borderRadius: 12, border: `1.5px solid ${active ? p.col : p.col + "40"}`, background: active ? p.grad : "transparent", color: active ? "#fff" : p.col, cursor: "pointer", fontWeight: 800, fontSize: 14, fontFamily: "'Sora',sans-serif", transition: "all .18s" }}>
+              <button onClick={() => { 
+                if (p.id === "free" || active) {
+                  setPlan(p.id); 
+                  if (!active) toast(`✅ Plano "${p.name}" ativado!`, "ok"); 
+                } else if (p.link) {
+                  window.open(p.link, "_blank");
+                }
+              }} style={{ width: "100%", marginTop: 12, padding: "12px 0", borderRadius: 12, border: `1.5px solid ${active ? p.col : p.col + "40"}`, background: active ? p.grad : "transparent", color: active ? "#fff" : p.col, cursor: "pointer", fontWeight: 800, fontSize: 14, fontFamily: "'Sora',sans-serif", transition: "all .18s" }}>
                 {active ? "✓ Plano Atual" : p.id === "free" ? "Usar Grátis" : "Assinar Agora"}
               </button>
             </div>
@@ -1466,13 +1576,7 @@ const Planos = ({ plan, setPlan, toast }) => {
   );
 };
 
-/* ═══════════════════════════════════════════════
-   SMARTSOUND — Músicas REAIS via iTunes API
-   Preview MP3 gratuito · Ilimitado · Sem API key
-═══════════════════════════════════════════════ */
-const fmt = ms => { const t = Math.floor((ms||0)/1000); return `${Math.floor(t/60)}:${String(t%60).padStart(2,"0")}` };
-
-const SmartSoundPlayer = ({ musicas = [], toast }) => {
+const SmartSoundPlayer = ({ musicas = [], toast, plan }) => {
   const [track,      setTrack]    = useState(null); // faixa tocando
   const [results,    setResults]  = useState([]);
   const [queue,      setQueue]    = useState([]);
@@ -1506,6 +1610,10 @@ const SmartSoundPlayer = ({ musicas = [], toast }) => {
 
   // ── Toca faixa ───────────────────────────────
   const playTrack = (t) => {
+    if (plan === "free" || plan === "student") {
+      toast("O SmartSound AI é um recurso do Social Premium e Completo! 🎵💎", "warn");
+      return;
+    }
     if (!t?.previewUrl) { toast("Prévia não disponível para esta faixa.", "warn"); return; }
     const a = audioRef.current;
     if (!a) return;
@@ -1830,25 +1938,6 @@ APENAS o termo de busca, sem aspas, sem explicações. Máximo 5 palavras.`,
   );
 };
 
-/* ═══════════════════════════════════════════════
-   AUTH HELPERS  (localStorage persistence)
-═══════════════════════════════════════════════ */
-const DB_KEY = "dvs_users_v1";
-const SESSION_KEY = "dvs_session_v1";
-
-const getUsers  = () => { try { return JSON.parse(localStorage.getItem(DB_KEY) || "{}"); } catch { return {}; } };
-const saveUsers = u  => localStorage.setItem(DB_KEY, JSON.stringify(u));
-const getSession= () => { try { return JSON.parse(localStorage.getItem(SESSION_KEY) || "null"); } catch { return null; } };
-const saveSession=(s) => localStorage.setItem(SESSION_KEY, JSON.stringify(s));
-const clearSession=() => localStorage.removeItem(SESSION_KEY);
-
-function hashPass(p) {
-  // simple deterministic hash (not crypto, but fine for demo)
-  let h = 0;
-  for (let i = 0; i < p.length; i++) { h = Math.imul(31, h) + p.charCodeAt(i) | 0; }
-  return h.toString(36);
-}
-
 const AVATAR_COLORS = [D.gBlue, D.gMint, D.gRose, D.gAmber, D.gCyan,
   "linear-gradient(135deg,#7c3aed,#a855f7)",
   "linear-gradient(135deg,#0891b2,#06b6d4)",
@@ -1862,12 +1951,46 @@ function getInitials(name) {
   return name.trim().split(" ").slice(0, 2).map(w => w[0]?.toUpperCase() || "").join("") || "?";
 }
 
+/* ── fmt: ms → m:ss ── */
+const fmt = (ms) => {
+  if (!ms || isNaN(ms)) return "0:00";
+  const s = Math.floor(ms / 1000);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+};
 
+/* ── Field: reutilizável ── */
+const Field = ({ label, icon, type = "text", value, onChange, placeholder, hint }) => (
+  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+    <label style={{ fontSize: 13, fontWeight: 600, color: D.w2 }}>{icon} {label}</label>
+    <input
+      className="inp"
+      type={type}
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      style={{ fontSize: 14 }}
+    />
+    {hint && <div style={{ fontSize: 11, color: D.w3 }}>{hint}</div>}
+  </div>
+);
 
 /* ═══════════════════════════════════════════════
-   AUTH SCREEN — Sistema completo nível premium
-   Login · Cadastro · Recuperação · Confirmação
+   AUTH HELPERS  (localStorage persistence)
 ═══════════════════════════════════════════════ */
+const DB_KEY = "dvs_users_v1";
+const SESSION_KEY = "dvs_session_v1";
+
+const getUsers  = () => { try { return JSON.parse(localStorage.getItem(DB_KEY) || "{}"); } catch { return {}; } };
+const saveUsers = u  => localStorage.setItem(DB_KEY, JSON.stringify(u));
+const getSession= () => { try { return JSON.parse(localStorage.getItem(SESSION_KEY) || "null"); } catch { return null; } };
+const saveSession=(s) => localStorage.setItem(SESSION_KEY, JSON.stringify(s));
+const clearSession=() => localStorage.removeItem(SESSION_KEY);
+
+function hashPass(p) {
+  let h = 0;
+  for (let i = 0; i < p.length; i++) { h = Math.imul(31, h) + p.charCodeAt(i) | 0; }
+  return h.toString(36);
+}
 
 /* Rate limiter local — proteção brute-force */
 const RL = {
@@ -1915,166 +2038,6 @@ function senhaForte(p) {
   ];
   return { score, ...data[score] };
 }
-
-
-/* ── Auth Sub-components ── */
-const Eye = ({ show, toggle, I }) => (
-  <button type="button" onClick={toggle} style={{ background: "none", border: "none", color: show ? D.blue2 : D.w3, cursor: "pointer", padding: 4, display: "flex", transition: "color .18s" }}>
-    {show ? I.eyeOff : I.eye}
-  </button>
-);
-
-
-
-const Inp = ({ label, icon, right, type, val, onChange, err, placeholder, autoComplete, hint, errors, setErrors, submit, I }) => {
-  const [focused, setFocused] = useState(false);
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-      {(label || hint) && (
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          {label && <label style={{ fontSize: 12, fontWeight: 700, color: D.w2, letterSpacing: .4, textTransform: "uppercase" }}>{label}</label>}
-          {hint && <span style={{ fontSize: 11, color: D.w3 }}>{hint}</span>}
-        </div>
-      )}
-      <div style={{ position: "relative" }}>
-        <div style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: focused ? D.blue2 : D.w3, transition: "color .18s", pointerEvents: "none", display: "flex" }}>
-          {icon}
-        </div>
-        <input
-          type={type || "text"} value={val}
-          onChange={e => { onChange(e.target.value); if (errors && errors[autoComplete]) setErrors(p => { const n={...p}; delete n[autoComplete]; return n; }); }}
-          onKeyDown={e => e.key === "Enter" && submit()}
-          placeholder={placeholder}
-          autoComplete={autoComplete || "off"}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-          style={{
-            width: "100%", background: D.s0,
-            border: `1.5px solid ${err ? D.rose + "90" : focused ? D.blueM : D.b0}`,
-            borderRadius: 14, color: D.w1, fontSize: 15, lineHeight: 1,
-            padding: `15px 46px 15px ${icon ? "46px" : "16px"}`,
-            outline: "none", transition: "border .18s, box-shadow .18s",
-            fontFamily: "Inter",
-            boxShadow: focused ? `0 0 0 3px ${err ? D.roseLo : D.blueLo}` : "none",
-          }}
-        />
-        {right && <div style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", display: "flex", alignItems: "center" }}>{right}</div>}
-      </div>
-      {err && (
-        <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: D.rose, animation: "fadeIn .2s ease both" }}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={D.rose} strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          {err}
-        </div>
-      )}
-    </div>
-  );
-};
-
-const StepBar = ({ step, I }) => (
-  <div style={{ display: "flex", alignItems: "center", gap: 0, marginBottom: 22 }}>
-    {["Dados", "Senha", "Verificar"].map((l, i) => {
-      const s = i + 1;
-      const done = step > s, active = step === s;
-      return (
-        <div key={l} style={{ display: "flex", alignItems: "center", flex: i < 2 ? 1 : 0 }}>
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-            <div style={{ width: 32, height: 32, borderRadius: "50%", background: done ? D.mint : active ? D.gBlue : D.s3, border: `2px solid ${done ? D.mint : active ? D.blue : D.b1}`, display: "flex", alignItems: "center", justifyContent: "center", transition: "all .3s", color: done || active ? "#fff" : D.w3, fontWeight: 800, fontSize: 12 }}>
-              {done ? I.check : s}
-            </div>
-            <span style={{ fontSize: 10, fontWeight: 700, color: active ? D.blue2 : done ? D.mint : D.w3, whiteSpace: "nowrap" }}>{l}</span>
-          </div>
-          {i < 2 && <div style={{ flex: 1, height: 2, background: step > s ? D.mint : D.b1, margin: "0 6px", marginBottom: 16, borderRadius: 99, transition: "background .3s" }} />}
-        </div>
-      );
-    })}
-  </div>
-);
-
-
-/* ── Real Google Login Integration ── */
-const GoogleLoginBtn = ({ onLogin, setErrors }) => {
-  const btnRef = useRef(null);
-  const [gReady, setGReady] = useState(!!window.google);
-
-  // Carrega o script do Google dinamicamente se ainda não estiver presente
-  useEffect(() => {
-    if (window.google) { setGReady(true); return; }
-    const existing = document.querySelector('script[src*="accounts.google.com/gsi"]');
-    if (existing) return;
-    const script = document.createElement('script');
-    script.src = 'https://accounts.google.com/gsi/client';
-    script.async = true;
-    script.defer = true;
-    script.onload = () => setGReady(true);
-    script.onerror = () => console.warn('[GoogleLoginBtn] Google GSI script failed to load.');
-    document.head.appendChild(script);
-  }, []);
-
-  useEffect(() => {
-    if (!gReady || !window.google || !btnRef.current) return;
-
-    const client_id = import.meta.env.VITE_GOOGLE_CLIENT_ID || "422628535108-fh5i5dudbqiajhr7uo6ocg12qit83qb1.apps.googleusercontent.com";
-
-    const handleCredential = (response) => {
-      try {
-        const token = response.credential;
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        const session = {
-          email: payload.email.toLowerCase(),
-          name: payload.name,
-          picture: payload.picture || null,
-          plan: "free",
-          token,
-        };
-        const users = getUsers();
-        if (!users[session.email]) {
-          users[session.email] = {
-            name: payload.name,
-            email: session.email,
-            passHash: "GOOGLE_AUTH",
-            plan: "free",
-            createdAt: new Date().toISOString(),
-            bio: "", phone: "", verified: true,
-            stats: { posts: 0, transcricoes: 0, mapas: 0, flashcards: 0, quiz: 0 },
-          };
-          saveUsers(users);
-        }
-        saveSession(session);
-        onLogin(session);
-      } catch (e) {
-        console.error('[GoogleLoginBtn] Token parse error:', e);
-        setErrors({ pass: 'Erro ao processar login com Google. Tente novamente.' });
-      }
-    };
-
-    try {
-      window.google.accounts.id.initialize({ client_id, callback: handleCredential });
-      window.google.accounts.id.renderButton(btnRef.current, {
-        theme: "filled_blue",
-        size: "large",
-        width: Math.min(btnRef.current.offsetWidth || 360, 400),
-        shape: "pill",
-        text: "continue_with",
-        logo_alignment: "left",
-      });
-    } catch (e) {
-      console.error('[GoogleLoginBtn] Init error:', e);
-    }
-  }, [gReady, onLogin]);
-
-  if (!gReady) return (
-    <div style={{ width: "100%", display: "flex", justifyContent: "center", alignItems: "center", height: 48, gap: 9, marginTop: 10 }}>
-      <Spin s={16} c={D.blue2} />
-      <span style={{ fontSize: 13, color: D.w2 }}>Carregando Google…</span>
-    </div>
-  );
-
-  return (
-    <div style={{ width: "100%", display: "flex", justifyContent: "center", marginTop: 10 }}>
-      <div ref={btnRef} style={{ width: "100%", maxWidth: 400, minHeight: 44 }} />
-    </div>
-  );
-};
 
 const AuthScreen = ({ onLogin }) => {
   /* ── state ── */
@@ -2317,6 +2280,69 @@ const AuthScreen = ({ onLogin }) => {
     phone:   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18"/></svg>,
   };
 
+  /* ── Input component ── */
+  const Inp = ({ label, icon, right, type, val, onChange, err, placeholder, autoComplete, hint }) => {
+    const [focused, setFocused] = useState(false);
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+        {(label || hint) && (
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            {label && <label style={{ fontSize: 12, fontWeight: 700, color: D.w2, letterSpacing: .4, textTransform: "uppercase" }}>{label}</label>}
+            {hint && <span style={{ fontSize: 11, color: D.w3 }}>{hint}</span>}
+          </div>
+        )}
+        <div style={{ position: "relative" }}>
+          {/* left icon */}
+          <div style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: focused ? D.blue2 : D.w3, transition: "color .18s", pointerEvents: "none", display: "flex" }}>
+            {icon}
+          </div>
+          <input
+            type={type || "text"} value={val}
+            onChange={e => { onChange(e.target.value); if (errors[autoComplete]) setErrors(p => { const n={...p}; delete n[autoComplete]; return n; }); }}
+            onKeyDown={e => e.key === "Enter" && submit()}
+            placeholder={placeholder}
+            autoComplete={autoComplete || "off"}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            style={{
+              width: "100%", background: D.s0,
+              border: `1.5px solid ${err ? D.rose + "90" : focused ? D.blueM : D.b0}`,
+              borderRadius: 14, color: D.w1, fontSize: 15, lineHeight: 1,
+              padding: `15px 46px 15px ${icon ? "46px" : "16px"}`,
+              outline: "none", transition: "border .18s, box-shadow .18s",
+              fontFamily: "Inter",
+              boxShadow: focused ? `0 0 0 3px ${err ? D.roseLo : D.blueLo}` : "none",
+            }}
+          />
+          {/* right slot */}
+          {right && <div style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", display: "flex", alignItems: "center" }}>{right}</div>}
+        </div>
+        {err && (
+          <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: D.rose, animation: "fadeIn .2s ease both" }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={D.rose} strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            {err}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  /* ── Eye button ── */
+  const Eye = ({ show, toggle }) => (
+    <button type="button" onClick={toggle} style={{ background: "none", border: "none", color: show ? D.blue2 : D.w3, cursor: "pointer", padding: 4, display: "flex", transition: "color .18s" }}>
+      {show ? I.eyeOff : I.eye}
+    </button>
+  );
+
+  /* ── Social btn ── */
+  const SocialBtn = ({ icon, label, onClick }) => (
+    <button onClick={onClick} style={{ flex: 1, padding: "12px 8px", borderRadius: 13, border: `1.5px solid ${D.b1}`, background: D.s0, color: D.w1, fontWeight: 700, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, transition: "all .18s", fontFamily: "Inter" }}
+      onMouseOver={e => { e.currentTarget.style.borderColor = D.b2; e.currentTarget.style.background = D.s2; }}
+      onMouseOut={e => { e.currentTarget.style.borderColor = D.b1; e.currentTarget.style.background = D.s0; }}>
+      {icon}{label}
+    </button>
+  );
+
   /* ── Config por page ── */
   const pageConfig = {
     login:    { title: "Bem-vindo de volta 👋", sub: "Entre na sua conta DVS" },
@@ -2414,7 +2440,7 @@ const AuthScreen = ({ onLogin }) => {
           </div>
 
           {/* step bar — register */}
-          {page === "register" && <StepBar step={step}  I={I} />}
+          {page === "register" && <StepBar />}
 
           {/* ── IA TIP ── */}
           {(aiTip || aiLoad) && (
@@ -2443,9 +2469,9 @@ const AuthScreen = ({ onLogin }) => {
           {/* LOGIN */}
           {page === "login" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <Inp  I={I} errors={errors} setErrors={setErrors} submit={submit} label="E-mail" icon={I.mail} type="email" val={email} onChange={setEmail} err={errors.email} placeholder="seu@email.com" autoComplete="email" />
-              <Inp  I={I} errors={errors} setErrors={setErrors} submit={submit} label="Senha" icon={I.lock} type={showPass ? "text" : "password"} val={pass} onChange={setPass} err={errors.pass} placeholder="Sua senha" autoComplete="current-password"
-                right={<Eye I={I}  show={showPass} toggle={() => setShowPass(v=>!v)} />} />
+              <Inp label="E-mail" icon={I.mail} type="email" val={email} onChange={setEmail} err={errors.email} placeholder="seu@email.com" autoComplete="email" />
+              <Inp label="Senha" icon={I.lock} type={showPass ? "text" : "password"} val={pass} onChange={setPass} err={errors.pass} placeholder="Sua senha" autoComplete="current-password"
+                right={<Eye show={showPass} toggle={() => setShowPass(v=>!v)} />} />
 
               {/* remember + forgot */}
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -2465,16 +2491,16 @@ const AuthScreen = ({ onLogin }) => {
           {/* REGISTER — step 1 */}
           {page === "register" && step === 1 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <Inp  I={I} errors={errors} setErrors={setErrors} submit={submit} label="Nome completo" icon={I.user} val={name} onChange={setName} err={errors.name} placeholder="Seu nome completo" autoComplete="name" />
-              <Inp  I={I} errors={errors} setErrors={setErrors} submit={submit} label="E-mail" icon={I.mail} type="email" val={email} onChange={setEmail} err={errors.email} placeholder="seu@email.com" autoComplete="email" />
+              <Inp label="Nome completo" icon={I.user} val={name} onChange={setName} err={errors.name} placeholder="Seu nome completo" autoComplete="name" />
+              <Inp label="E-mail" icon={I.mail} type="email" val={email} onChange={setEmail} err={errors.email} placeholder="seu@email.com" autoComplete="email" />
             </div>
           )}
 
           {/* REGISTER — step 2 */}
           {page === "register" && step === 2 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <Inp  I={I} errors={errors} setErrors={setErrors} submit={submit} label="Senha" icon={I.lock} type={showPass ? "text" : "password"} val={pass} onChange={setPass} err={errors.pass} placeholder="Mínimo 6 caracteres" autoComplete="new-password"
-                right={<Eye I={I}  show={showPass} toggle={() => setShowPass(v=>!v)} />} hint="Mín. 6 caracteres" />
+              <Inp label="Senha" icon={I.lock} type={showPass ? "text" : "password"} val={pass} onChange={setPass} err={errors.pass} placeholder="Mínimo 6 caracteres" autoComplete="new-password"
+                right={<Eye show={showPass} toggle={() => setShowPass(v=>!v)} />} hint="Mín. 6 caracteres" />
 
               {/* força da senha */}
               {pass.length > 0 && (
@@ -2494,8 +2520,8 @@ const AuthScreen = ({ onLogin }) => {
                 {I.wand} Sugerir senha forte automaticamente
               </button>
 
-              <Inp  I={I} errors={errors} setErrors={setErrors} submit={submit} label="Confirmar senha" icon={I.lock} type={showPass2 ? "text" : "password"} val={pass2} onChange={setPass2} err={errors.pass2} placeholder="Repita a senha" autoComplete="new-password"
-                right={<Eye I={I}  show={showPass2} toggle={() => setShowPass2(v=>!v)} />} />
+              <Inp label="Confirmar senha" icon={I.lock} type={showPass2 ? "text" : "password"} val={pass2} onChange={setPass2} err={errors.pass2} placeholder="Repita a senha" autoComplete="new-password"
+                right={<Eye show={showPass2} toggle={() => setShowPass2(v=>!v)} />} />
 
               {/* requisitos */}
               <div style={{ padding: "10px 13px", background: D.bg2, borderRadius: 11, border: `1px solid ${D.b0}` }}>
@@ -2565,7 +2591,7 @@ const AuthScreen = ({ onLogin }) => {
               <div style={{ padding: "12px 14px", background: D.s0, borderRadius: 12, fontSize: 13, color: D.w2, border: `1px solid ${D.b0}`, lineHeight: 1.6 }}>
                 Informe o e-mail da sua conta e enviaremos um código para redefinir sua senha com segurança.
               </div>
-              <Inp  I={I} errors={errors} setErrors={setErrors} submit={submit} label="E-mail cadastrado" icon={I.mail} type="email" val={email} onChange={setEmail} err={errors.email} placeholder="seu@email.com" autoComplete="email" />
+              <Inp label="E-mail cadastrado" icon={I.mail} type="email" val={email} onChange={setEmail} err={errors.email} placeholder="seu@email.com" autoComplete="email" />
             </div>
           )}
 
@@ -2575,13 +2601,13 @@ const AuthScreen = ({ onLogin }) => {
               <div style={{ padding: "12px 14px", background: D.blueLo, borderRadius: 12, fontSize: 13, color: D.blue3, border: `1px solid ${D.blueM}`, lineHeight: 1.5 }}>
                 📧 Um código foi enviado para <strong>{email}</strong>
               </div>
-              <Inp  I={I} errors={errors} setErrors={setErrors} submit={submit} label="Código de recuperação" icon={I.key} val={resetCode} onChange={setResetCode} err={errors.resetCode} placeholder="000000" autoComplete="one-time-code" />
+              <Inp label="Código de recuperação" icon={I.key} val={resetCode} onChange={setResetCode} err={errors.resetCode} placeholder="000000" autoComplete="one-time-code" />
               {/* demo helper */}
               <div style={{ fontSize: 12, color: D.amber, cursor: "pointer", textDecoration: "underline" }} onClick={() => setResetCode(generatedCode)}>
                 Preencher código de demo: {generatedCode}
               </div>
-              <Inp  I={I} errors={errors} setErrors={setErrors} submit={submit} label="Nova senha" icon={I.lock} type={showNPass ? "text" : "password"} val={newPass} onChange={setNewPass} err={errors.newPass} placeholder="Mínimo 6 caracteres" autoComplete="new-password"
-                right={<Eye I={I}  show={showNPass} toggle={() => setShowNPass(v=>!v)} />} />
+              <Inp label="Nova senha" icon={I.lock} type={showNPass ? "text" : "password"} val={newPass} onChange={setNewPass} err={errors.newPass} placeholder="Mínimo 6 caracteres" autoComplete="new-password"
+                right={<Eye show={showNPass} toggle={() => setShowNPass(v=>!v)} />} />
               {newPass.length > 0 && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 5, animation: "fadeIn .2s both" }}>
                   <div style={{ display: "flex", gap: 4 }}>
@@ -2617,12 +2643,30 @@ const AuthScreen = ({ onLogin }) => {
           <div className="fu d3" style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 16 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <div style={{ flex: 1, height: 1, background: D.b0 }} />
-              <span style={{ fontSize: 11, fontWeight: 800, color: D.w3, whiteSpace: "nowrap", letterSpacing: 1 }}>OU CONTINUE COM</span>
+              <span style={{ fontSize: 12, color: D.w3, whiteSpace: "nowrap" }}>ou entre com</span>
               <div style={{ flex: 1, height: 1, background: D.b0 }} />
             </div>
-            <GoogleLoginBtn onLogin={onLogin} setErrors={setErrors} D={D} />
-            <div style={{ textAlign: "center", fontSize: 11, color: D.w3, marginTop: 4 }}>
-              Ao continuar, você concorda com nossos Termos de Uso.
+            <div style={{ display: "flex", gap: 8 }}>
+              <SocialBtn
+                icon={<svg width="18" height="18" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>}
+                label="Google"
+                onClick={() => { setErrors({ email: "Login com Google em breve." }); }}
+              />
+              <SocialBtn
+                icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="#fff"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>}
+                label="Apple"
+                onClick={() => { setErrors({ email: "Login com Apple em breve." }); }}
+              />
+              <SocialBtn
+                icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="#1877F2"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>}
+                label="Facebook"
+                onClick={() => { setErrors({ email: "Login com Facebook em breve." }); }}
+              />
+            </div>
+            {/* security note */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontSize: 12, color: D.w3, padding: "4px 0" }}>
+              {I.shield}
+              <span>Dados protegidos com criptografia</span>
             </div>
           </div>
         )}
@@ -2631,9 +2675,6 @@ const AuthScreen = ({ onLogin }) => {
   );
 };
 
-/* ═══════════════════════════════════════════════
-   PERFIL  (logado)
-═══════════════════════════════════════════════ */
 const Perfil = ({ session, plan, onLogout, onUpdateSession, toast }) => {
   const [subpage, setSubpage] = useState("main"); // main | edit | security | notifications
   const [editName,  setEditName]  = useState(session.name);
@@ -2650,7 +2691,7 @@ const Perfil = ({ session, plan, onLogout, onUpdateSession, toast }) => {
 
   const [notifs, setNotifs] = useState({ posts: true, estudos: true, promo: false, news: true });
 
-  const pN  = { free: "Gratuito", social: "Social Premium", student: "Estudante Premium", full: "Completo" };
+  const pN  = { free: "Gratuito", social: "Social Premium", student: "Estudante Premium", full: "Plano Completo" };
   const pC  = { free: D.w2, social: D.blue2, student: D.mint, full: D.amber };
   const pBg = { free: D.gDark, social: D.gBlue, student: D.gMint, full: D.gAmber };
   const pLimits = {
@@ -2923,9 +2964,6 @@ const Perfil = ({ session, plan, onLogout, onUpdateSession, toast }) => {
   );
 };
 
-/* ═══════════════════════════════════════════════
-   APP ROOT  (auth gate)
-═══════════════════════════════════════════════ */
 export default function AppWrapper() {
   return (
     <ErrorBoundary>
@@ -2935,13 +2973,20 @@ export default function AppWrapper() {
 }
 
 function App() {
-  const [session, setSession] = useState(() => getSession());
+  const [session, setSession] = useState(null);
   const [nav, setNav]         = useState("criador");
-  const [plan, setPlan]       = useState(() => {
-    const s = getSession();
-    if (!s) return "free";
-    try { return getUsers()[s.email]?.plan || "free"; } catch { return "free"; }
-  });
+  const [plan, setPlan]       = useState("free");
+  const [loadingAuth, setLoadingAuth] = useState(true);
+
+  useEffect(() => {
+    // Load session from localStorage
+    const sess = getSession();
+    if (sess) {
+      setSession(sess);
+      try { const u = getUsers()[sess.email]; if (u?.plan) setPlan(u.plan); } catch {}
+    }
+    setLoadingAuth(false);
+  }, []);
   const [toasts, setToasts] = useState([]);
 
   const toast = useCallback((msg, tp = "info") => {
@@ -2973,7 +3018,7 @@ function App() {
   }, [session]);
 
   const pCols = { free: D.w3, social: D.blue2, student: D.mint, full: D.amber };
-  const pLbls = { free: "Grátis", social: "Social Pro", student: "Student Pro", full: "Completo" };
+  const pLbls = { free: "Gratuito", social: "Social Premium", student: "Estudante Premium", full: "Plano Completo" };
 
   const NAV = [
     { id: "criador",   l: "Criador",   e: "✨" },
@@ -2983,6 +3028,8 @@ function App() {
   ];
 
   /* ── not logged in → show auth ── */
+  if (loadingAuth) return <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: D.bg }}><Spin s={40} c={D.blue} /></div>;
+
   if (!session) return (
     <>
       <style>{CSS}</style>
@@ -3020,8 +3067,8 @@ function App() {
 
           {/* CONTENT */}
           <main style={{ flex:1, overflowY:"auto", paddingBottom:72 }}>
-            {nav === "criador"   && <Criador   toast={toast} />}
-            {nav === "estudante" && <Estudante toast={toast} />}
+            {nav === "criador"   && <Criador   toast={toast} session={session} plan={plan} />}
+            {nav === "estudante" && <Estudante toast={toast} session={session} plan={plan} />}
             {nav === "planos"    && <Planos    plan={plan} setPlan={handleSetPlan} toast={toast} />}
             {nav === "perfil"    && <Perfil    session={session} plan={plan} onLogout={handleLogout} onUpdateSession={handleUpdateSession} toast={toast} />}
           </main>

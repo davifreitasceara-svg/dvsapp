@@ -1,39 +1,144 @@
 const fs = require('fs');
-const path = 'c:/Users/PC GAMER/Desktop/vai que ne/src/App.jsx';
-let content = fs.readFileSync(path, 'utf8');
+const path = require('path');
 
-// 1. Add sticker
-content = content.replace(
-  /(\{\s*\/\*\s*overlays\s*\*\/\s*\})/g,
-  `{music && (
-              <div style={{ position: "absolute", top: 80, left: "50%", transform: "translateX(-50%)", background: "rgba(0,0,0,0.65)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", padding: "8px 14px", borderRadius: 14, display: "flex", alignItems: "center", gap: 10, color: "#fff", border: "1px solid rgba(255,255,255,0.15)", boxShadow: "0 4px 16px rgba(0,0,0,0.4)" }}>
-                <div style={{ width: 28, height: 28, borderRadius: 6, background: "linear-gradient(45deg, #f09433, #bc1888)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>🎵</div>
-                <div style={{ display: "flex", flexDirection: "column", maxWidth: 180 }}>
-                  <span style={{ fontSize: 13, fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{music.nome}</span>
-                  <span style={{ fontSize: 11, color: "rgba(255,255,255,0.8)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{music.artista}</span>
-                </div>
-              </div>
-            )}
-            
-            $1`
-);
+const filePath = path.join('c:', 'Users', 'PC GAMER', 'Desktop', 'vai que ne', 'src', 'App.jsx');
 
-// 2. Vertical Audio string
-content = content.replace(
-  /🎵 <span>Áudio original de DVS<\/span>/g,
-  `🎵 <span>{music ? \`\${music.nome} • \${music.artista}\` : "Áudio original de DVS"}</span>`
-);
+let content = fs.readFileSync(filePath, 'utf8');
 
-// 3. Feed subtitle string
-content = content.replace(
-  /<div style={{ fontSize: 14, fontWeight: 700 }}>DVS_EduCreator<\/div>\s*<\/div>\s*<div style={{ width: "100%", background: "#111"/g,
-  `<div style={{ display: "flex", flexDirection: "column" }}>
-                <span style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>DVS_EduCreator</span>
-                {music && <span style={{ fontSize: 11, fontWeight: 500, color: "#aaa" }}>{music.nome}</span>}
-              </div>
+// 1. Fix Estudante Footer
+const brokenFooterStart = '{rend()}\\n            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 4 }}>\\n      </div>\\n    </div>\\n  );\\n};';
+// Wait, the markers in JS need to match the actual file content which might have different whitespace.
+
+// Let's use a simpler replacement for the footer.
+const oldFooter = `            {rend()}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 4 }}>
+      </div>
+    </div>
+  );
+};`;
+
+const newFooter = `            {rend()}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 4 }}>
+              <button className="btn ghost sm" onClick={() => { toast("📄 Gerando PDF...", "info"); setTimeout(() => toast("✅ PDF gerado!", "ok"), 2000); }}>📄 PDF</button>
+              <button className="btn ghost sm" onClick={() => { navigator.clipboard.writeText(JSON.stringify(res, null, 2)); toast("Copiado!", "ok"); }}>📋 Copiar</button>
+              <button className="btn ghost sm" onClick={() => { setRes(null); gen(rtype); }}>↺ Refazer</button>
             </div>
-            <div style={{ width: "100%", background: "#111"`
-);
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};`;
 
-fs.writeFileSync(path, content, 'utf8');
-console.log("Done");
+if (content.includes(oldFooter)) {
+    content = content.replace(oldFooter, newFooter);
+}
+
+// 2. Update startCreate usage logic
+const oldStartCreateCheck = `    if (plan === "free" || plan === "student") {
+      const today = new Date().toISOString().split('T')[0];
+      const { data: profile } = await supabase.from('profiles').select('posts_used, last_usage_reset').eq('id', session.id).single();
+      
+      if (profile) {
+        if (profile.last_usage_reset !== today) {
+           await supabase.from('profiles').update({ posts_used: 0, last_usage_reset: today }).eq('id', session.id);
+           currentUsage = 0;
+        } else {
+           currentUsage = profile.posts_used;
+        }
+      }
+
+      if (currentUsage >= 5) {
+        toast("Limite diário de 5 posts atingido. Faça upgrade para o Social Premium! 💎", "error");
+        return;
+      }
+    }`;
+
+const newStartCreateCheck = `    const limits = { free: 3, social: 5, student: 10, full: Infinity };
+    const limit = limits[plan] || 3;
+
+    if (plan !== "full") {
+      const today = new Date().toISOString().split('T')[0];
+      const { data: profile } = await supabase.from('profiles').select('posts_used, last_usage_reset').eq('id', session.id).single();
+      
+      if (profile) {
+        if (profile.last_usage_reset !== today) {
+           await supabase.from('profiles').update({ posts_used: 0, last_usage_reset: today }).eq('id', session.id);
+           currentUsage = 0;
+        } else {
+           currentUsage = profile.posts_used;
+        }
+      }
+
+      if (currentUsage >= limit) {
+        toast(\`Limite diário de \${limit} posts atingido. Faça upgrade para o plano superior! 💎\`, "error");
+        return;
+      }
+    }`;
+
+// Use a more robust search for startCreate check
+const startCreateCheckMarker = 'if (plan === "free" || plan === "student") {';
+if (content.includes(startCreateCheckMarker)) {
+    const startIdx = content.indexOf(startCreateCheckMarker);
+    const endIdx = content.indexOf('}', content.indexOf('if (currentUsage >= 5)', startIdx)) + 6; // +6 to catch the outer closing brace
+    // Actually, let's just find the outer closing brace more carefully.
+    let braceCount = 0;
+    let foundEnd = -1;
+    for (let i = startIdx; i < content.length; i++) {
+        if (content[i] === '{') braceCount++;
+        else if (content[i] === '}') {
+            braceCount--;
+            if (braceCount === 0) {
+                foundEnd = i + 1;
+                break;
+            }
+        }
+    }
+    if (foundEnd !== -1) {
+        content = content.substring(0, startIdx) + newStartCreateCheck + content.substring(foundEnd);
+    }
+}
+
+// 3. Update gen usage logic
+const genCheckMarker = 'if (plan === "free" || plan === "social") {';
+const newGenCheck = `    const limits = { free: 3, social: 5, student: 10, full: Infinity };
+    const limit = limits[plan] || 3;
+
+    if (plan !== "full") {
+       const { data: profile } = await supabase.from('profiles').select('estudos_used').eq('id', session.id).single();
+       currentStudyUsage = profile?.estudos_used || 0;
+       if (currentStudyUsage >= limit) {
+          toast(\`Limite de \${limit} estudos atingido. Faça upgrade para o plano superior! 🎓\`, "error");
+          return;
+       }
+    }`;
+
+if (content.includes(genCheckMarker)) {
+    const startIdx = content.indexOf(genCheckMarker);
+    let braceCount = 0;
+    let foundEnd = -1;
+    for (let i = startIdx; i < content.length; i++) {
+        if (content[i] === '{') braceCount++;
+        else if (content[i] === '}') {
+            braceCount--;
+            if (braceCount === 0) {
+                foundEnd = i + 1;
+                break;
+            }
+        }
+    }
+    if (foundEnd !== -1) {
+        content = content.substring(0, startIdx) + newGenCheck + content.substring(foundEnd);
+    }
+}
+
+// 4. Update supabase update logic for studies count
+content = content.replace('if (plan === "free" || plan === "social") {', 'if (plan !== "full") {');
+content = content.replace('if (plan === "free" || plan === "student") {', 'if (plan !== "full") {');
+
+// 5. Fix App props passing
+content = content.replace('{nav === "criador"   && <Criador   toast={toast} />}', '{nav === "criador"   && <Criador   toast={toast} session={session} plan={plan} />}');
+content = content.replace('{nav === "estudante" && <Estudante toast={toast} />}', '{nav === "estudante" && <Estudante toast={toast} session={session} plan={plan} />}');
+
+fs.writeFileSync(filePath, content, 'utf8');
+console.log('SUCCESS');
