@@ -1,0 +1,21 @@
+{
+  "name": "DVS EduCreator",
+  "short_name": "DVS App",
+  "description": "IA para criar conteúdo viral e estudar",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#020B1A",
+  "theme_color": "#020B1A",
+  "icons": [
+    {
+      "src": "src/assets/logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "src/assets/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
