@@ -1168,7 +1168,7 @@ ${jsonTpl}`,
            <div style={{ position: "absolute", inset: 0, borderRadius: "50%", border: "4px solid " + D.blueLo, borderTopColor: D.blue2, animation: "spinA 1s linear infinite" }} />
            <div style={{ position: "absolute", inset: 15, borderRadius: "50%", border: "4px solid " + D.roseLo, borderBottomColor: D.rose, animation: "spinA 2s linear reverse infinite" }} />
            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", padding: 30 }}>
-               <img src="/src/assets/logo.png" style={{ width: "100%", height: "100%", objectFit: "contain" }} alt="Logo" />
+               <img src="/logo.png" style={{ width: "100%", height: "100%", objectFit: "contain" }} alt="Logo" />
            </div>
         </div>
         <div style={{ textAlign: "center" }}>
@@ -1245,7 +1245,7 @@ ${jsonTpl}`,
                   <div style={{ position: "absolute", inset: 0, padding: 20, display: "flex", flexDirection: "column", justifyContent: "space-between", pointerEvents: "none", background: "linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, transparent 20%, transparent 80%, rgba(0,0,0,0.6) 100%)" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                       <div style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)", padding: "6px 10px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", gap: 6 }}>
-                        <img src="/src/assets/logo.png" style={{ width: 14, height: 14, objectFit: "contain" }} alt="" />
+                        <img src="/logo.png" style={{ width: 14, height: 14, objectFit: "contain" }} alt="" />
                         <div style={{ fontSize: 10, fontWeight: 800, color: "#fff", letterSpacing: 1 }}>DVSCREATOR</div>
                       </div>
                       <ScoreRing score={result?.score} />
@@ -1381,7 +1381,7 @@ ${jsonTpl}`,
         WebkitTapHighlightColor: "transparent",
       }}>
                 <div style={{ width: 68, height: 68, borderRadius: 18, overflow: 'hidden', border: `1px solid ${D.blueM}`, display: "flex", alignItems: "center", justifyContent: "center", animation: "float2 3.5s ease-in-out infinite", background: D.bg3 }}>
-          <img src="/src/assets/logo.png" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Logo" />
+          <img src="/logo.png" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Logo" />
         </div>
         <div style={{ textAlign: "center" }}>
           <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 17, marginBottom: 5 }}>Envie sua foto ou vídeo</div>
@@ -1453,8 +1453,8 @@ const Planos = ({ plan, setPlan, toast }) => {
         <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 24, marginBottom: 4 }}>Planos & Preços</div>
         <div style={{ fontSize: 14, color: D.w2 }}>Escolha o plano ideal para você</div>
       </div>
-      <div className="card fu d1" style={{ padding: 5, display: "flex", gap: 3 }}>
-        {["Mensal", "Anual  20%"].map((l, i) => <button key={i} onClick={() => setAnn(i === 1)} style={{ flex: 1, padding: "10px 4px", borderRadius: 11, border: "none", fontWeight: 700, fontSize: 13, cursor: "pointer", transition: "all .15s", background: ann === (i === 1) ? D.blue : "transparent", color: ann === (i === 1) ? "#fff" : D.w2, fontFamily: "Inter" }}>{l}</button>)}
+      <div className="card fu d1" style={{ padding: 5, display: "flex", gap: 3, justifyContent: "center" }}>
+        <button style={{ flex: 1, padding: "10px 4px", borderRadius: 11, border: "none", fontWeight: 700, fontSize: 13, background: D.blue, color: "#fff", fontFamily: "Inter" }}>Mensal</button>
       </div>
       {PL.map((p, idx) => {
         const price = ann && p.price > 0 ? Math.round(p.price * .8) : p.price; const active = plan === p.id;
@@ -2325,7 +2325,7 @@ const AuthScreen = ({ onLogin }) => {
         <div className="fu" style={{ textAlign: "center", marginBottom: 24 }}>
           <div style={{ position: "relative", display: "inline-block", marginBottom: 14 }}>
             <div style={{ width: 84, height: 84, borderRadius: 24, overflow: 'hidden', boxShadow: '0px 8px 24px rgba(0,0,0,0.5)', border: `2px solid ${D.b1}` }}>
-              <img src="/src/assets/logo.png" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="DVS Logo" />
+              <img src="/logo.png" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="DVS Logo" />
             </div>
             {/* verified badge */}
             <div style={{ position: "absolute", bottom: -2, right: -2, width: 24, height: 24, borderRadius: "50%", background: D.gMint, border: `2px solid ${D.bg}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}></div>
@@ -2788,7 +2788,7 @@ function App() {
         <div style={{ width: "100%", maxWidth: 500, display: "flex", flexDirection: "column", minHeight: "100vh" }}>
           <header style={{ position:"sticky", top:0, zIndex:400, background:`${D.bg}f2`, backdropFilter:"blur(20px)", borderBottom:`1px solid ${D.b0}`, padding:"12px 16px 10px", display:"flex", alignItems:"center", gap:12 }}>
             <div style={{ width:38, height:38, borderRadius:10, overflow: 'hidden', flexShrink:0, boxShadow:"0 0 16px rgba(37,99,235,.3)" }}>
-              <img src="/src/assets/logo.png" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="DVS Logo" />
+              <img src="/logo.png" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="DVS Logo" />
             </div>
             <div>
               <div style={{ fontFamily:"'Sora',sans-serif", fontWeight:800, fontSize:16, letterSpacing:"-.2px", lineHeight:1.2 }}>DVSCREATOR</div>

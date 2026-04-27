@@ -645,9 +645,7 @@ const MainLayout = () => {
               <div style={{ position: 'relative', zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
                 {/* Brand Circle Logo */}
                 <div className="hero-v2-logo">
-                  <div style={{ width: '48px', height: '48px', background: 'linear-gradient(135deg, #7c3aed, #2563eb)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
-                    <Sparkles size={24} />
-                  </div>
+                  <img src="/logo.png" style={{ width: '100%', height: '100%', objectFit: 'contain' }} alt="DVS Logo" />
                 </div>
 
                 <span style={{ fontSize: '0.85rem', fontWeight: '800', opacity: 0.9, letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '8px' }}>Evolua seu Estudo</span>
