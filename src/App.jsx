@@ -1941,23 +1941,24 @@ function gerarSenhaForte() {
 }
 
 /* For a da senha */
+/* Força da senha */
 function senhaForte(p) {
   if (!p) return { score: 0, label: "", color: "" };
   let s = 0;
-  if (p.length >= 6)  s++;
-  if (p.length >= 10) s++;
-  if (/[A-Z]/.test(p) && /[a-z]/.test(p)) s++;
-  if (/[0-9]/.test(p)) s++;
-  if (/[^a-zA-Z0-9]/.test(p)) s++;
+  if (p.length >= 8) s++; // Mínimo 8
+  if (/[A-Z]/.test(p) && /[a-z]/.test(p)) s++; // Maiúsculas e minúsculas
+  if (/[0-9]/.test(p)) s++; // Números
+  if (/[^a-zA-Z0-9]/.test(p)) s++; // Símbolos
+  
   const score = Math.min(s, 4);
   const data = [
-    { label: "", color: D.b1 },
     { label: "Muito fraca", color: D.rose },
     { label: "Fraca",       color: "#fb923c" },
-    { label: "Boa",         color: D.amber },
-    { label: "Forte",       color: D.mint },
+    { label: "Média",       color: D.amber },
+    { label: "Boa",         color: "#84cc16" },
+    { label: "Confiável",   color: D.mint },
   ];
-  return { score, ...data[score] };
+  return { score, label: data[score].label, color: data[score].color };
 }
 
 /*    */
@@ -2156,12 +2157,13 @@ const AuthScreen = ({ onLogin }) => {
         if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) e.email = "E-mail inválido";
       }
       if (step === 2) {
-        if (pwd.score < 2) e.pass = "Crie uma senha mais forte";
-        if (pass !== pass2) e.pass2 = "As senhas n o coincidem";
+        if (pwd.score < 4) e.pass = "Crie uma senha confiável (mín. 8 caracteres, números e símbolos)";
+        if (pass !== pass2) e.pass2 = "As senhas não coincidem";
         if (!termsOk) e.terms = "Aceite os termos para continuar";
       }
       if (step === 3) {
-        if (code.trim() !== generatedCode) e.code = "Código incorreto. Verifique seu e-mail";
+        if (code.trim().length < 6) e.code = "Digite o código de 6 dígitos";
+        else if (code.trim() !== generatedCode) e.code = "Código incorreto. Verifique seu e-mail";
       }
     }
     if (page === "forgot") {
@@ -2211,15 +2213,24 @@ const AuthScreen = ({ onLogin }) => {
     /*  REGISTER  */
     if (page === "register") {
       if (step === 1) {
-        setStep(2); setLoading(false); return;
+        setLoadMsg("Verificando e-mail...");
+        try {
+          // Opcional: Verificar se e-mail já existe antes de prosseguir
+          // const { data: existing } = await supabase.from('profiles').select('id').eq('email', email.toLowerCase()).single();
+          setStep(2);
+        } catch(e) {}
+        setLoading(false); return;
       }
       if (step === 2) {
+        setLoadMsg("Enviando código...");
         const c = makeCode();
         setVerifyEmail(email);
+        console.log("DVS AUTH CODE:", c); // Log para desenvolvimento
+        // Aqui você conectaria seu serviço de e-mail (Resend, etc)
         setStep(3); setLoading(false); return;
       }
       if (step === 3) {
-        setLoadMsg("Criando conta... ");
+        setLoadMsg("Criando sua conta segura...");
         try {
           const { data, error } = await supabase.auth.signUp({
             email: email.toLowerCase(),
@@ -2230,7 +2241,13 @@ const AuthScreen = ({ onLogin }) => {
           });
 
           if (error) {
-            setErrors({ code: error.message });
+            // Se o e-mail já existir, o Supabase retorna erro dependendo da config
+            if (error.message.includes("already registered") || error.status === 422) {
+              setErrors({ email: "Este e-mail já está em uso." });
+              setStep(1);
+            } else {
+              setErrors({ code: error.message });
+            }
             setLoading(false); setLoadMsg(""); return;
           }
 
@@ -2243,7 +2260,7 @@ const AuthScreen = ({ onLogin }) => {
             saveSession(sess);
             onLogin(sess);
           } else {
-            setSuccessMsg("Verifique seu e-mail para confirmar a conta.");
+            setSuccessMsg("Conta criada! Verifique o link no seu e-mail para ativar.");
             setLoading(false);
           }
         } catch (e) {
@@ -2403,8 +2420,7 @@ const AuthScreen = ({ onLogin }) => {
                 right={<AuthEye show={showPass} toggle={() => setShowPass(v=>!v)} />}
                 hint={<span onClick={() => setPage("forgot")} style={{ cursor: "pointer", color: D.blue2, fontWeight: 700 }}>Esqueceu?</span>} />
               <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "2px 0" }}>
-                <div onClick={() => setRemember(!remember)} style={{ width: 18, height: 18, borderRadius: 5, border: `1.5px solid ${remember ? D.blue : D.b1}`, background: remember ? D.gBlue : D.s0, cursor: "pointer", transition: "all .18s", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}>
-                  {remember && ICONS.check}
+                <div onClick={() => setRemember(!remember)} style={{ width: 18, height: 18, borderRadius: 5, border: `1.5px solid ${remember ? D.blue : D.b1}`, background: remember ? D.gBlue : D.s0, cursor: "pointer", transition: "all .18s", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}>                  {remember && ICONS.check}
                 </div>
                 <span onClick={() => setRemember(!remember)} style={{ fontSize: 13, color: D.w2, cursor: "pointer", userSelect: "none" }}>Lembrar de mim</span>
               </div>
@@ -2422,11 +2438,8 @@ const AuthScreen = ({ onLogin }) => {
               )}
               {step === 2 && (
                 <>
-                  <AuthInput label="Senha segura" icon={ICONS.lock} type={showPass ? "text" : "password"} val={pass} onChange={setPass} err={errors.pass} placeholder="Mínimo 6 caracteres" autoComplete="new-password" onSubmit={submit} errors={errors} setErrors={setErrors}
-                    right={<AuthEye show={showPass} toggle={() => setShowPass(v=>!v)} />}
-                    hint={<span onClick={sugerirSenha} style={{ cursor: "pointer", color: D.blue2, fontWeight: 700 }}>Sugerir </span>} />
-                  <AuthInput label="Confirmar senha" icon={ICONS.lock} type={showPass2 ? "text" : "password"} val={pass2} onChange={setPass2} err={errors.pass2} placeholder="Repita a senha" autoComplete="new-password" onSubmit={submit} errors={errors} setErrors={setErrors}
-                    right={<AuthEye show={showPass2} toggle={() => setShowPass2(v=>!v)} />} />
+                  <AuthInput label="Crie sua senha confiável" icon={ICONS.lock} type={showPass ? "text" : "password"} val={pass} onChange={setPass} err={errors.pass} placeholder="Mín. 8 chars, números e símbolos" autoComplete="new-password" onSubmit={submit} errors={errors} setErrors={setErrors}
+                    right={<div style={{ display: "flex", alignItems: "center", gap: 8 }}><AuthEye show={showPass} toggle={() => setShowPass(v=>!v)} /><div onClick={sugerirSenha} style={{ cursor: "pointer", color: D.blue2, fontSize: 12, fontWeight: 700 }}>Sugerir</div></div>} />
                   
                   {pass.length > 0 && (
                     <div style={{ display: "flex", flexDirection: "column", gap: 5, animation: "fadeIn .2s both" }}>
@@ -2436,7 +2449,8 @@ const AuthScreen = ({ onLogin }) => {
                       <div style={{ fontSize: 12, color: senhaForte(pass).color, fontWeight: 700 }}>Senha {senhaForte(pass).label}</div>
                     </div>
                   )}
-
+                  <AuthInput label="Confirmar senha" icon={ICONS.lock} type={showPass2 ? "text" : "password"} val={pass2} onChange={setPass2} err={errors.pass2} placeholder="Repita a senha" autoComplete="new-password" onSubmit={submit} errors={errors} setErrors={setErrors}
+                    right={<AuthEye show={showPass2} toggle={() => setShowPass2(v=>!v)} />} />
                   <div style={{ display: "flex", gap: 10, alignItems: "flex-start", marginTop: 4 }}>
                     <div onClick={() => { setTermsOk(!termsOk); if (errors.terms) setErrors(p=>{const n={...p};delete n.terms;return n;}); }}
                       style={{ width: 18, height: 18, borderRadius: 5, border: `1.5px solid ${errors.terms ? D.rose : termsOk ? D.blue : D.b1}`, background: termsOk ? D.gBlue : D.s0, cursor: "pointer", flexShrink: 0, marginTop: 2, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}>
