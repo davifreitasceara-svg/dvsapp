@@ -2088,7 +2088,6 @@ const AuthScreen = ({ onLogin }) => {
   const [locked,    setLocked]    = useState(false);
   const [lockTimer, setLockTimer] = useState(0);
   const [verifyEmail, setVerifyEmail] = useState("");
-  const [generatedCode, setGeneratedCode] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
 
   const pwd = senhaForte(page === "reset" ? newPass : pass);
@@ -2137,12 +2136,7 @@ const AuthScreen = ({ onLogin }) => {
     return () => clearTimeout(t);
   }, [name, page]);
 
-  /*  gera código de verificao  */
-  const makeCode = () => {
-    const c = Math.floor(100000 + Math.random() * 900000).toString();
-    setGeneratedCode(c);
-    return c;
-  };
+
 
   /*  validate  */
   const validate = () => {
@@ -2170,8 +2164,8 @@ const AuthScreen = ({ onLogin }) => {
       if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) e.email = "E-mail inválido";
     }
     if (page === "reset") {
-      if (resetCode.trim() !== generatedCode) e.resetCode = "Código incorreto";
-      if (senhaForte(newPass).score < 2) e.newPass = "Crie uma senha mais forte";
+      if (resetCode.trim().length < 6) e.resetCode = "Digite o código";
+      if (senhaForte(newPass).score < 4) e.newPass = "Crie uma senha mais forte";
     }
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -2213,24 +2207,10 @@ const AuthScreen = ({ onLogin }) => {
     /*  REGISTER  */
     if (page === "register") {
       if (step === 1) {
-        setLoadMsg("Verificando e-mail...");
-        try {
-          // Opcional: Verificar se e-mail já existe antes de prosseguir
-          // const { data: existing } = await supabase.from('profiles').select('id').eq('email', email.toLowerCase()).single();
-          setStep(2);
-        } catch(e) {}
-        setLoading(false); return;
+        setStep(2); setLoading(false); return;
       }
       if (step === 2) {
-        setLoadMsg("Enviando código...");
-        const c = makeCode();
-        setVerifyEmail(email);
-        console.log("DVS AUTH CODE:", c); // Log para desenvolvimento
-        // Aqui você conectaria seu serviço de e-mail (Resend, etc)
-        setStep(3); setLoading(false); return;
-      }
-      if (step === 3) {
-        setLoadMsg("Criando sua conta segura...");
+        setLoadMsg("Enviando código para seu e-mail...");
         try {
           const { data, error } = await supabase.auth.signUp({
             email: email.toLowerCase(),
@@ -2241,13 +2221,33 @@ const AuthScreen = ({ onLogin }) => {
           });
 
           if (error) {
-            // Se o e-mail já existir, o Supabase retorna erro dependendo da config
             if (error.message.includes("already registered") || error.status === 422) {
               setErrors({ email: "Este e-mail já está em uso." });
               setStep(1);
             } else {
-              setErrors({ code: error.message });
+              setErrors({ pass: error.message });
             }
+            setLoading(false); setLoadMsg(""); return;
+          }
+
+          setVerifyEmail(email);
+          setStep(3); 
+        } catch (e) {
+          setErrors({ pass: "Erro ao iniciar cadastro." });
+        }
+        setLoading(false); setLoadMsg(""); return;
+      }
+      if (step === 3) {
+        setLoadMsg("Verificando código...");
+        try {
+          const { data, error } = await supabase.auth.verifyOtp({
+            email: email.toLowerCase(),
+            token: code,
+            type: 'signup'
+          });
+
+          if (error) {
+            setErrors({ code: "Código inválido ou expirado." });
             setLoading(false); setLoadMsg(""); return;
           }
 
@@ -2255,19 +2255,15 @@ const AuthScreen = ({ onLogin }) => {
             const sess = { 
                 id: data.user.id, 
                 email: data.user.email, 
-                name: name.trim() 
+                name: data.user.user_metadata?.full_name || name.trim() 
             };
             saveSession(sess);
             onLogin(sess);
-          } else {
-            setSuccessMsg("Conta criada! Verifique o link no seu e-mail para ativar.");
-            setLoading(false);
           }
         } catch (e) {
-          setErrors({ code: "Erro ao criar conta." });
-          setLoading(false); setLoadMsg("");
+          setErrors({ code: "Erro na verificação." });
         }
-        return;
+        setLoading(false); setLoadMsg(""); return;
       }
     }
 
@@ -2480,10 +2476,16 @@ const AuthScreen = ({ onLogin }) => {
                     />
                     {errors.code && <div style={{ fontSize: 12, color: D.rose, display: "flex", gap: 5 }}> {errors.code}</div>}
                   </div>
-                  <div style={{ padding: "9px 12px", background: D.amberLo, borderRadius: 10, fontSize: 12, color: D.amber, border: `1px solid ${D.amber}30`, lineHeight: 1.5, display: "flex", gap: 7, alignItems: "center" }}>
-                    {ICONS.key} <span>Código de demo: <strong onClick={() => setCode(generatedCode)} style={{ cursor: "pointer", textDecoration: "underline" }}>{generatedCode}</strong> (clique para preencher)</span>
+                  <div style={{ padding: "9px 12px", background: D.blueLo, borderRadius: 10, fontSize: 12, color: D.blue3, border: `1px solid ${D.blueM}`, lineHeight: 1.5, display: "flex", gap: 7, alignItems: "center" }}>
+                    {ICONS.mail} <span>Verifique sua caixa de entrada e spam.</span>
                   </div>
-                  <button className="btn ghost sm" style={{ alignSelf: "center", fontSize: 13 }} onClick={() => { const c = makeCode(); setGeneratedCode(c); toast?.("Novo código gerado!","ok"); }}>
+                  <button className="btn ghost sm" style={{ alignSelf: "center", fontSize: 13 }} onClick={async () => { 
+                    setLoading(true);
+                    const { error } = await supabase.auth.resend({ email: email.toLowerCase(), type: 'signup' });
+                    setLoading(false);
+                    if (error) toast?.("Erro ao reenviar: " + error.message, "error");
+                    else toast?.("Novo código enviado!", "ok");
+                  }}>
                     {ICONS.refresh} Reenviar código
                   </button>
                 </div>
@@ -2508,8 +2510,8 @@ const AuthScreen = ({ onLogin }) => {
                  Um código foi enviado para <strong>{email}</strong>
               </div>
               <AuthInput label="Código de recuperação" icon={ICONS.key} val={resetCode} onChange={setResetCode} err={errors.resetCode} placeholder="000000" autoComplete="one-time-code" onSubmit={submit} errors={errors} setErrors={setErrors} />
-              <div style={{ fontSize: 12, color: D.amber, cursor: "pointer", textDecoration: "underline" }} onClick={() => setResetCode(generatedCode)}>
-                Preencher código de demo: {generatedCode}
+              <div style={{ padding: "8px 12px", background: D.blueLo, borderRadius: 10, fontSize: 12, color: D.blue3, border: `1px solid ${D.blueM}`, lineHeight: 1.5 }}>
+                 Verifique o código enviado para seu e-mail.
               </div>
               <AuthInput label="Nova senha" icon={ICONS.lock} type={showNPass ? "text" : "password"} val={newPass} onChange={setNewPass} err={errors.newPass} placeholder="Mínimo 6 caracteres" autoComplete="new-password" onSubmit={submit} errors={errors} setErrors={setErrors}
                 right={<AuthEye show={showNPass} toggle={() => setShowNPass(v=>!v)} />} />
