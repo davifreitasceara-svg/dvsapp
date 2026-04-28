@@ -2152,12 +2152,11 @@ const AuthScreen = ({ onLogin }) => {
       }
       if (step === 2) {
         if (pwd.score < 4) e.pass = "Crie uma senha confiável (mín. 8 caracteres, números e símbolos)";
-        if (pass !== pass2) e.pass2 = "As senhas não coincidem";
+        if (pass.trim() !== pass2.trim()) e.pass2 = "As senhas não coincidem";
         if (!termsOk) e.terms = "Aceite os termos para continuar";
       }
       if (step === 3) {
         if (code.trim().length < 6) e.code = "Digite o código de 6 dígitos";
-        else if (code.trim() !== generatedCode) e.code = "Código incorreto. Verifique seu e-mail";
       }
     }
     if (page === "forgot") {
@@ -2434,9 +2433,12 @@ const AuthScreen = ({ onLogin }) => {
               )}
               {step === 2 && (
                 <>
-                  <AuthInput label="Crie sua senha confiável" icon={ICONS.lock} type={showPass ? "text" : "password"} val={pass} onChange={setPass} err={errors.pass} placeholder="Mín. 8 chars, números e símbolos" autoComplete="new-password" onSubmit={submit} errors={errors} setErrors={setErrors}
+                  <AuthInput label="Crie sua senha confiável" icon={ICONS.lock} type={showPass ? "text" : "password"} val={pass}
+                    onChange={(v) => { setPass(v); if (errors.pass) setErrors(p=>{const n={...p};delete n.pass;return n;}); }}
+                    err={errors.pass} placeholder="Mín. 8 chars, números e símbolos" autoComplete="new-password"
+                    onSubmit={submit} errors={errors} setErrors={setErrors}
                     right={<div style={{ display: "flex", alignItems: "center", gap: 8 }}><AuthEye show={showPass} toggle={() => setShowPass(v=>!v)} /><div onClick={sugerirSenha} style={{ cursor: "pointer", color: D.blue2, fontSize: 12, fontWeight: 700 }}>Sugerir</div></div>} />
-                  
+
                   {pass.length > 0 && (
                     <div style={{ display: "flex", flexDirection: "column", gap: 5, animation: "fadeIn .2s both" }}>
                       <div style={{ display: "flex", gap: 4 }}>
@@ -2445,8 +2447,13 @@ const AuthScreen = ({ onLogin }) => {
                       <div style={{ fontSize: 12, color: senhaForte(pass).color, fontWeight: 700 }}>Senha {senhaForte(pass).label}</div>
                     </div>
                   )}
-                  <AuthInput label="Confirmar senha" icon={ICONS.lock} type={showPass2 ? "text" : "password"} val={pass2} onChange={setPass2} err={errors.pass2} placeholder="Repita a senha" autoComplete="new-password" onSubmit={submit} errors={errors} setErrors={setErrors}
+
+                  <AuthInput label="Confirmar senha" icon={ICONS.lock} type={showPass2 ? "text" : "password"} val={pass2}
+                    onChange={(v) => { setPass2(v); if (errors.pass2) setErrors(p=>{const n={...p};delete n.pass2;return n;}); }}
+                    err={errors.pass2} placeholder="Repita a senha" autoComplete="new-password"
+                    onSubmit={submit} errors={errors} setErrors={setErrors}
                     right={<AuthEye show={showPass2} toggle={() => setShowPass2(v=>!v)} />} />
+
                   <div style={{ display: "flex", gap: 10, alignItems: "flex-start", marginTop: 4 }}>
                     <div onClick={() => { setTermsOk(!termsOk); if (errors.terms) setErrors(p=>{const n={...p};delete n.terms;return n;}); }}
                       style={{ width: 18, height: 18, borderRadius: 5, border: `1.5px solid ${errors.terms ? D.rose : termsOk ? D.blue : D.b1}`, background: termsOk ? D.gBlue : D.s0, cursor: "pointer", flexShrink: 0, marginTop: 2, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}>
