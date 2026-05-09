@@ -788,7 +788,7 @@ const PreviewMockup = ({ platform, type, fileURL, isImg, fCSS, caption, music, o
 };
 
 
-const Criador = ({ toast, session, plan }) => {
+const Criador = ({ toast, session, plan, setPostsUsed, songsChanged, setSongsChanged }) => {
   const [stage, setStage] = useState("home");
   const [file, setFile] = useState(null);
   const [fileURL, setFileURL] = useState(null);
@@ -806,8 +806,18 @@ const Criador = ({ toast, session, plan }) => {
 
   // MOCKUP STATE
   const [mock, setMock] = useState(null); // { platform, type }
-  const [songsChanged, setSongsChanged] = useState(0);
   const [postId, setPostId] = useState(null);
+  const [sharing, setSharing] = useState(false);
+  
+  const loadingSteps = ["Analisando m dia...", "Mapeando tend ncias...", "Aplicando estrat gia viral...", "Mixando SmartSound...", "Finalizando edi o..."];
+  const [loadStep, setLoadStep] = useState(0);
+  
+  useEffect(() => {
+    if (stage === "proc") {
+      const t = setInterval(() => setLoadStep(s => (s + 1) % loadingSteps.length), 2200);
+      return () => clearInterval(t);
+    }
+  }, [stage]);
 
   const ESTILOS = [
     { id: "viral", l: " Viral" }, { id: "pro", l: " Profissional" },
@@ -851,26 +861,25 @@ const Criador = ({ toast, session, plan }) => {
     if (!file) { toast("Envie uma foto ou v deo primeiro! ", "warn"); return; }
 
     // Database usage check
-    let currentUsage = 0;
-        const limits = { free: 3, social: 5, student: 10, full: Infinity };
+    const limits = { free: 3, social: 5, student: 10, full: Infinity };
     const limit = limits[plan] || 3;
 
     if (plan !== "full") {
       const today = new Date().toISOString().split('T')[0];
-      const { data: profile } = await supabase.from('profiles').select('posts_used, last_usage_reset').eq('id', session.id).single();
+      const { data: profile } = await supabase.from('profiles').select('posts_used, music_swaps_used, last_usage_reset').eq('id', session.id).single();
       
       if (profile) {
         if (profile.last_usage_reset !== today) {
-           await supabase.from('profiles').update({ posts_used: 0, last_usage_reset: today }).eq('id', session.id);
-           currentUsage = 0;
+           await supabase.from('profiles').update({ posts_used: 0, music_swaps_used: 0, last_usage_reset: today }).eq('id', session.id);
+           setPostsUsed(0);
+           setSongsChanged(0);
+           // Re-fetch current limits for the rest of the function
         } else {
-           currentUsage = profile.posts_used;
+           if (profile.posts_used >= limit) {
+             toast(`Limite diário de ${limit} posts atingido. Faça upgrade para o plano superior! 🚀`, "error");
+             return;
+           }
         }
-            }
-
-      if (currentUsage >= limit) {
-        toast(`Limite di rio de ${limit} posts atingido. Fa a upgrade para o plano superior! `, "error");
-        return;
       }
     }
 
@@ -903,25 +912,28 @@ const Criador = ({ toast, session, plan }) => {
       try {
         const b64 = await fileToBase64(file);
         const mt = file.type?.startsWith("image") ? file.type : "image/jpeg";
-        raw = await callAIVision(b64, mt,
-          `Você é um especialista em marketing viral brasileiro. ANALISE ESTA IMAGEM COM ATENÇÃO.
+        const visionPrompt = plan === "free" 
+          ? "Você é um especialista em marketing. Analise esta imagem de forma direta e crie uma legenda viral simples."
+          : plan === "social"
+          ? "Você é um especialista em marketing viral. Analise esta imagem com foco em engajamento e sugira músicas que estão em alta no momento."
+          : "Você é um estrategista de conteúdo viral de elite. Faça uma análise PROFUNDA desta imagem (IA Vision Profissional), identifique gatilhos psicológicos, tendências de nicho e crie uma estratégia completa de postagem.";
 
+        raw = await callAIVision(b64, mt,
+          `${visionPrompt}
+          
 PASSO 1 — ANALISE A IMAGEM:
 - O que aparece na foto? (pessoas, objetos, local, natureza, comida, produto, etc.)
 - Qual é a paleta de cores dominante? (cores quentes, frias, neutras, vibrantes)
 - Qual é o clima/sentimento? (alegre, romântico, agitado, sereno, elegante, divertido, etc.)
 - Qual é o contexto? (ao ar livre, interior, praia, cidade, academia, restaurante, etc.)
 
-PASSO 2 — BASEADO APENAS NO QUE VIU NA IMAGEM:
+PASSO 2 — BASEADO NO QUE VIU NA IMAGEM:
 - Escreva a legenda descrevendo ESTE conteúdo específico
-- Escolha músicas que COMBINAM com a vibe visual desta foto (não genéricas)
+- Escolha músicas que COMBINAM com a vibe visual desta foto
 - Sugira hashtags específicas para o que aparece na imagem
 
 Tema adicional do usuário: "${topic || 'nenhum'}"
 Estilo desejado: "${estilo}"
-
-IMPORTANTE: A legenda e músicas devem ser 100% baseadas no que você VÊ nesta imagem.
-Se for uma praia → música de verão/reggae. Se for academia → música de treino/rap. Se for comida → música animada/brasileira. Etc.
 
 Retorne APENAS este JSON sem markdown:
 ${jsonTpl}`,
@@ -981,7 +993,10 @@ ${jsonTpl}`,
     const { data: postData } = await supabase.from('posts').insert([{ user_id: session.id, content: p }]).select();
     if (postData?.[0]) setPostId(postData[0].id);
     if (plan !== "full") {
-      await supabase.from('profiles').update({ posts_used: currentUsage + 1 }).eq('id', session.id);
+      const { data: profile } = await supabase.from('profiles').select('posts_used').eq('id', session.id).single();
+      const newUsage = (profile?.posts_used || 0) + 1;
+      await supabase.from('profiles').update({ posts_used: newUsage }).eq('id', session.id);
+      setPostsUsed(newUsage);
     }
   };
 
@@ -995,155 +1010,150 @@ ${jsonTpl}`,
   
   
     const compartilharRede = async (rede) => {
+    if (sharing) return;
+    setSharing(true);
     if (postId) {
       try { await supabase.from("posts").update({ content: { ...result, caption, filters, music: selMusic } }).eq("id", postId); } catch(e) {}
     }
 
-    toast("Preparando conteúdo...", "info");
+    toast("🚀 Preparando vídeo viral...", "info");
     const text = caption;
-    try { await navigator.clipboard.writeText(text); } catch(e) {}
+    try { 
+      await navigator.clipboard.writeText(text); 
+      toast("📝 Legenda copiada! Cole no " + rede.toUpperCase(), "ok");
+    } catch(e) {
+      console.warn("Clipboard failed", e);
+    }
 
     let blob = null;
-    let dataUrl = null;
     if (isImg) {
       try {
         const el = document.getElementById("preview-to-export");
         if (el) {
           const canvas = await html2canvas(el, { useCORS: true, scale: 2, backgroundColor: D.bg2 });
-          dataUrl = canvas.toDataURL("image/png");
           blob = await new Promise(res => canvas.toBlob(res, "image/png"));
         }
-      } catch(e) {}
+      } catch(e) { console.error("Canvas failed", e); }
     }
 
-    let fileToShare = blob ? new File([blob], "dvs-post.png", { type: "image/png" }) : null;
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    // Se não for imagem ou o canvas falhou, tenta usar o arquivo original se existir
+    let fileToShare = blob 
+      ? new File([blob], "EduCreator-Post.png", { type: "image/png" }) 
+      : (file ? new File([file], file.name, { type: file.type }) : null);
 
-    // Se houver música selecionada, gerar vídeo
     const activeMusic = selMusic || result?.musicas?.[0];
     if (blob && activeMusic && activeMusic.previewUrl) {
-      toast("Gerando vídeo com música... (Isso pode demorar alguns segundos)", "info");
+      toast("🎵 Mixando áudio viral...", "info");
       try {
-        const videoBlob = await generateVideo(blob, activeMusic.previewUrl, (prog) => {
-          // Progress could be handled here if we want to update state, but for now a toast is enough
-        });
-        fileToShare = new File([videoBlob], "dvs-video.mp4", { type: "video/mp4" });
-        toast("Vídeo gerado!", "ok");
+        // Criar uma promessa que rejeita após 12 segundos
+        const timeout = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error("Timeout")), 12000)
+        );
+        
+        const videoBlob = await Promise.race([
+          generateVideo(blob, activeMusic.previewUrl),
+          timeout
+        ]);
+
+        if (videoBlob) {
+          fileToShare = new File([videoBlob], "EduCreator-Viral.mp4", { type: "video/mp4" });
+          toast("✅ Vídeo pronto!", "ok");
+        }
       } catch (err) {
-        console.error("Video gen failed", err);
-        toast("Falha ao gerar vídeo com música. Compartilhando imagem...", "err");
+        console.warn("Video generation timed out or failed", err);
+        toast("⚠️ Processamento lento. Enviando imagem...", "warn");
+        // fileToShare continua como a imagem (que foi definida acima)
       }
     }
 
-    let shareAttempted = false;
-    let sharedSuccessfully = false;
+    if (!fileToShare) {
+      toast("❌ Erro: Nenhum arquivo para compartilhar.", "error");
+      setSharing(false);
+      return;
+    }
 
+    let shareAttempted = false;
     if (fileToShare && navigator.canShare && navigator.canShare({ files: [fileToShare] })) {
       shareAttempted = true;
       try {
-        toast("Selecione o " + rede + " no menu que vai abrir!", "ok");
-        await navigator.share({ files: [fileToShare], title: "DVSCREATOR", text });
-        sharedSuccessfully = true;
+        await navigator.share({ 
+          files: [fileToShare], 
+          title: "EduCreator Viral", 
+          text: text 
+        });
       } catch(err) {
-        // Usuário cancelou ou o navegador bloqueou
-        console.warn("Share cancelled or failed", err);
-        return; // Aborta o processo, não tenta abrir a rede social forçadamente
+        if (err.name !== 'AbortError') toast("Falha no compartilhamento nativo.", "error");
+        return;
       }
     }
 
     if (!shareAttempted) {
-      // Fallback para computadores ou navegadores que não suportam Web Share de arquivos
-      if (fileToShare) {
-        const url = URL.createObjectURL(fileToShare);
-        const link = document.createElement("a");
-        link.download = fileToShare.name;
-        link.href = url;
-        link.click();
-        URL.revokeObjectURL(url);
-        toast("Arquivo salvo! Cole a legenda no " + rede + ".", "ok");
-      }
-
-      setTimeout(() => {
-        const isMobileDevice = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-        
-        const safeDeepLink = (schema, fallback) => {
-          if (!isMobileDevice) {
-            window.open(fallback, "_blank");
-            return;
-          }
-          const start = Date.now();
-          setTimeout(() => {
-            if (Date.now() - start < 1500) {
-              window.open(fallback, "_blank");
-            }
-          }, 1000);
-          
-          if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
-            window.location.href = schema;
-          } else {
-            const iframe = document.createElement("iframe");
-            iframe.style.display = "none";
-            iframe.src = schema;
-            document.body.appendChild(iframe);
-            setTimeout(() => document.body.removeChild(iframe), 1500);
-          }
-        };
-
-        if (rede === 'instagram') safeDeepLink("instagram://camera", "https://www.instagram.com/");
-        else if (rede === 'tiktok') safeDeepLink("snssdk1233://", "https://www.tiktok.com/upload");
-        else if (rede === 'facebook') window.open("https://www.facebook.com/", "_blank");
-        else if (rede === 'telegram') window.open("https://t.me/share/url?url=" + encodeURIComponent(window.location.href) + "&text=" + encodeURIComponent(text), "_blank");
-      }, 1500);
+      toast("Seu navegador não permite o compartilhamento direto de arquivos.", "warn");
     }
+    setSharing(false);
   };
 
   const compartilharDireto = async () => {
     if (postId) {
       try { await supabase.from('posts').update({ content: { ...result, caption, filters } }).eq('id', postId); } catch(e) {}
     }
-    if (!isImg) {
-      // Fallback para v deo (n o tem como processar filtro no browser f cil)
-      if (navigator.share) {
-        try {
-          await navigator.share({ title: 'DVSCREATOR', text: caption, url: fileURL });
-          return;
-        } catch(e) {}
+
+    const m = selMusic || result?.musicas?.[0];
+    
+    if (m?.previewUrl) {
+      toast("🚀 Gerando vídeo com música...");
+      try {
+        const el = document.getElementById('preview-to-export');
+        if (!el) return;
+        const canvas = await html2canvas(el, { useCORS: true, scale: 2, backgroundColor: D.bg2 });
+        
+        canvas.toBlob(async (blob) => {
+          try {
+            const videoBlob = await generateVideo(blob, m.previewUrl, (p) => {
+               // Optional: update toast or progress bar
+            });
+            const fileToShare = new File([videoBlob], 'dvs-viral.mp4', { type: 'video/mp4' });
+            
+            if (navigator.share) {
+              await navigator.share({
+                files: [fileToShare],
+                title: 'EduCreator',
+                text: caption
+              });
+              toast("🔥 Compartilhado com sucesso!");
+            } else {
+               toast("Seu navegador não suporta compartilhamento de vídeo.");
+            }
+          } catch (err) {
+            toast("Erro ao gerar vídeo: " + err.message);
+          }
+        }, 'image/png');
+        return;
+      } catch (e) {
+        toast("Erro: " + e.message);
+        return;
       }
-      toast("Compartilhamento nativo n o disponível. Use os bot es abaixo.");
-      return;
     }
 
-    toast(" Preparando m dia editada...");
-    try {
-      const el = document.getElementById('preview-to-export');
-      if (!el) return;
-      const canvas = await html2canvas(el, { useCORS: true, scale: (plan === "social" || plan === "full") ? 3 : 1, backgroundColor: D.bg2 });
-      
-      canvas.toBlob(async (blob) => {
-        const fileToShare = new File([blob], 'dvs-viral.png', { type: 'image/png' });
-        
-        if (navigator.canShare && navigator.canShare({ files: [fileToShare] })) {
-          try {
-            await navigator.share({
-              files: [fileToShare],
-              title: 'DVSCREATOR',
-              text: caption
-            });
-            toast(" Enviado com sucesso!");
-          } catch (err) {
-            if (err.name !== 'AbortError') toast("Erro ao compartilhar: " + err.message);
-          }
+    // Caso não tenha música, compartilha imagem/vídeo original
+    if (navigator.share) {
+      try {
+        const el = document.getElementById('preview-to-export');
+        if (el && isImg) {
+           const canvas = await html2canvas(el, { useCORS: true, scale: 2 });
+           canvas.toBlob(async (blob) => {
+             const fileToShare = new File([blob], 'dvs-viral.png', { type: 'image/png' });
+             await navigator.share({ files: [fileToShare], title: 'EduCreator', text: caption });
+           });
         } else {
-          // Fallback: Download
-          const link = document.createElement('a');
-          link.download = 'dvs-viral.png';
-          link.href = canvas.toDataURL('image/png');
-          link.click();
-          toast(" Seu navegador n o suporta envio direto. Imagem salva!");
+           await navigator.share({ title: 'EduCreator', text: caption, url: fileURL });
         }
-      }, 'image/png');
-    } catch (e) {
-      toast("Erro ao gerar arte: " + e.message);
+        toast("Enviado!");
+      } catch(e) {
+        if (e.name !== 'AbortError') toast("Use os botões de rede social abaixo.");
+      }
+    } else {
+      toast("Compartilhamento nativo indisponível.");
     }
   };
   const fCSS = `brightness(${filters.brightness}%) contrast(${filters.contrast}%) saturate(${filters.saturate}%) sepia(${filters.sepia || 0}%) hue-rotate(${filters.hue || 0}deg)`;
@@ -1163,16 +1173,15 @@ ${jsonTpl}`,
 
   if (stage === "proc") {
     return (
-      <div style={{ position: "fixed", inset: 0, zIndex: 10000, background: "rgba(5, 7, 9, 0.95)", backdropFilter: "blur(20px)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 24 }}>
-        <div style={{ position: "relative", width: 120, height: 120 }}>
-           <div style={{ position: "absolute", inset: 0, borderRadius: "50%", border: "4px solid " + D.blueLo, borderTopColor: D.blue2, animation: "spinA 1s linear infinite" }} />
-           <div style={{ position: "absolute", inset: 15, borderRadius: "50%", border: "4px solid " + D.roseLo, borderBottomColor: D.rose, animation: "spinA 2s linear reverse infinite" }} />
-           <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", padding: 30 }}>
-               <img src="/logo.png" style={{ width: "100%", height: "100%", objectFit: "contain" }} alt="Logo" />
+      <div style={{ padding: "60px 20px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "70vh" }}>
+        <div style={{ position: "relative", width: 100, height: 100, marginBottom: 40 }}>
+           <div style={{ position: "absolute", inset: 0, borderRadius: 28, background: `linear-gradient(135deg, ${D.blue}, ${D.mint})`, opacity: 0.2, animation: "pulse 2s infinite" }} />
+           <div style={{ position: "absolute", inset: 10, borderRadius: 20, background: D.s2, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 40, boxShadow: `0 0 30px ${D.blueLo}` }}>
+             🤖
            </div>
         </div>
         <div style={{ textAlign: "center" }}>
-          <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 20, color: "#fff", marginBottom: 8 }}>{(isImg ? SI : SV)[cur] || "Analisando..."}</div>
+          <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 20, color: "#fff", marginBottom: 8 }}>{loadingSteps[loadStep]}</div>
           <div style={{ width: 240, height: 6, background: "rgba(255,255,255,0.1)", borderRadius: 99, overflow: "hidden" }}>
             <div style={{ width: pct + "%", height: "100%", background: D.gBlue, transition: "width .3s" }} />
           </div>
@@ -1228,7 +1237,7 @@ ${jsonTpl}`,
             <button className="btn ghost xs" onClick={() => {
               setStage("home"); setResult(null); setFile(null); setFileURL(null);
               setTopic(""); setFiltName(null); setFilters(FPRESET.Original);
-              setSongsChanged(0); setPostId(null); setSelMusic(null);
+              setPostId(null); setSelMusic(null);
             }}>+ Novo</button>
           </div>
 
@@ -1242,36 +1251,6 @@ ${jsonTpl}`,
                   ) : (
                     <video src={fileURL} autoPlay muted loop playsInline style={{ width: "100%", height: "auto", display: "block" }} />
                   )}
-                  <div style={{ position: "absolute", inset: 0, padding: 20, display: "flex", flexDirection: "column", justifyContent: "space-between", pointerEvents: "none", background: "linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, transparent 20%, transparent 80%, rgba(0,0,0,0.6) 100%)" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                      <div style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)", padding: "6px 10px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", gap: 6 }}>
-                        <img src="/logo.png" style={{ width: 14, height: 14, objectFit: "contain" }} alt="" />
-                        <div style={{ fontSize: 10, fontWeight: 800, color: "#fff", letterSpacing: 1 }}>DVSCREATOR</div>
-                      </div>
-                      <ScoreRing score={result?.score} />
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                      {(selMusic || result?.musicas?.[0]) && (function() {
-                        const m = selMusic || result.musicas[0];
-                        const mName = m.trackName || m.nome || "";
-                        const mArtist = m.artistName || m.artista || "";
-                        return (
-                          <div style={{ alignSelf: "flex-start", background: "rgba(0,0,0,0.6)", backdropFilter: "blur(12px)", padding: "8px 14px", borderRadius: 14, display: "flex", alignItems: "center", gap: 10, border: "1px solid rgba(255,255,255,0.2)" }}>
-                            <div style={{ width: 24, height: 24, borderRadius: 6, background: D.gBlue, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>🎵</div>
-                            <div style={{ display: "flex", flexDirection: "column" }}>
-                              <span style={{ fontSize: 12, fontWeight: 800, color: "#fff" }}>{mName}</span>
-                              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.7)" }}>{mArtist}</span>
-                            </div>
-                          </div>
-                        );
-                      })()}
-                      <div style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(10px)", padding: "12px 16px", borderRadius: 16, border: "1px solid rgba(255,255,255,0.1)", maxWidth: "85%" }}>
-                        <div style={{ fontSize: 13, color: "#fff", lineHeight: 1.4, fontWeight: 500, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-                          {caption.split("\n")[0]}...
-                        </div>
-                      </div>
-                    </div>
-                  </div>
                 </div>
               ) : <div style={{ color: D.w3 }}>Sem prévia</div>}
             </div>
@@ -1320,30 +1299,37 @@ ${jsonTpl}`,
           <SmartSoundPlayer musicas={result?.musicas} toast={toast} plan={plan} songsChanged={songsChanged} setSongsChanged={setSongsChanged} onSelect={setSelMusic} />
 
           {/* Turbinar */}
-          <button className="btn rose lg" style={{ width: "100%" }} onClick={viral} disabled={vLoad}>
-            {vLoad ? <Spin s={18} /> : "TURBINAR PARA VIRALIZAR"}
-          </button>
 
-          {/* Compartilhar */}
-          <div style={{ background: D.s0, borderRadius: 20, padding: 20, border: "1px solid " + D.b1 }}>
-            <div style={{ fontSize: 11, fontWeight: 900, color: D.blue2, textAlign: "center", marginBottom: 16, letterSpacing: 2 }}>COMPARTILHAR NAS REDES</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
-              {REDES.map(function(net) {
-                return (
-                  <button key={net.id}
-                    onClick={function() { compartilharRede(net.id); }}
-                    style={{ display: "flex", alignItems: "center", gap: 10, padding: "13px 14px", background: net.grad, color: "#fff", border: "none", borderRadius: 14, fontWeight: 800, fontSize: 13, cursor: "pointer", boxShadow: "0 4px 16px " + net.color + "40", transition: "transform .15s" }}
-                  >
-                    <span style={{ fontSize: 18 }}>{net.icon}</span>
-                    <span>{net.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-              <button className="btn ghost xs" onClick={function() { setMock({ platform: "insta", type: "reels" }); }} style={{ fontSize: 10 }}>👁️ Preview</button>
-              <button className="btn ghost xs" onClick={function() { navigator.clipboard.writeText(caption); toast("Copiado!", "ok"); }} style={{ fontSize: 10 }}>📋 Copiar</button>
-              <button className="btn ghost xs" onClick={compartilharDireto} style={{ fontSize: 10 }}>📤 Nativo</button>
+          <div style={{ background: D.s0, borderRadius: 24, padding: "24px 20px", border: "1px solid " + D.b1, textAlign: "center" }}>
+              <button 
+                onClick={() => compartilharRede("Geral")}
+                disabled={sharing}
+                style={{ 
+                  width: "100%", 
+                  padding: "16px 0", 
+                  background: sharing ? D.s3 : D.gBlue, 
+                  color: "#fff", 
+                  border: "none", 
+                  borderRadius: 16, 
+                  fontWeight: 800, 
+                  fontSize: 16, 
+                  fontFamily: "'Sora', sans-serif",
+                  cursor: sharing ? "wait" : "pointer", 
+                  boxShadow: sharing ? "none" : "0 10px 25px rgba(37, 99, 235, 0.4)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 12,
+                  transition: "transform 0.2s"
+                }}
+              >
+                <span>{sharing ? <Spin s={20} c="#fff" /> : "📤"}</span>
+                <span>{sharing ? "GERANDO VÍDEO..." : "COMPARTILHAR AGORA"}</span>
+              </button>
+            <div style={{ marginTop: 16, display: "flex", justifyContent: "center", gap: 15 }}>
+              <button onClick={() => setMock({ platform: "insta", type: "reels" })} style={{ background: "none", border: "none", color: D.blue2, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>👁️ Ver Preview</button>
+              <div style={{ width: 1, height: 12, background: D.b1 }}></div>
+              <button onClick={() => { navigator.clipboard.writeText(caption); toast("Legenda Copiada!", "ok"); }} style={{ background: "none", border: "none", color: D.w3, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>📋 Copiar Texto</button>
             </div>
           </div>
 
@@ -1380,8 +1366,15 @@ ${jsonTpl}`,
         transition: "border-color .18s, background .18s",
         WebkitTapHighlightColor: "transparent",
       }}>
-                <div style={{ width: 68, height: 68, borderRadius: 18, overflow: 'hidden', border: `1px solid ${D.blueM}`, display: "flex", alignItems: "center", justifyContent: "center", animation: "float2 3.5s ease-in-out infinite", background: D.bg3 }}>
-          <img src="/logo.png" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Logo" />
+                <div style={{ 
+          width: 72, height: 72, borderRadius: 20, overflow: 'hidden', 
+          border: `1.5px solid ${D.blueM}`, 
+          display: "flex", alignItems: "center", justifyContent: "center", 
+          animation: "float2 3.5s ease-in-out infinite", 
+          background: "rgba(255,255,255,0.05)",
+          boxShadow: `0 0 20px ${D.blueLo}`
+        }}>
+          <img src="/logo.png" style={{ width: '100%', height: '100%', objectFit: 'contain' }} alt="Logo" />
         </div>
         <div style={{ textAlign: "center" }}>
           <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 17, marginBottom: 5 }}>Envie sua foto ou vídeo</div>
@@ -1442,11 +1435,11 @@ ${jsonTpl}`,
 const Planos = ({ plan, setPlan, toast }) => {
   const [ann, setAnn] = useState(false);
     const PL = [
-    { id: "free", name: "Gratuito", price: 0, col: D.w2, grad: D.gDark, badge: null, feats: ["3 posts por dia", "3 trocas de música", "Marca d'água DVS", "IA básica", "Transcrição simples"], miss: ["Mapas Mentais", "Slides IA", "Export HD", "Sem marca d'água"] },
-    { id: "social", name: "Social Premium", price: 10, col: D.blue2, grad: D.gBlue, badge: " MAIS POPULAR", link: "https://buy.stripe.com/test_dRm14m1KC9iLaHr6VF5sA04", feats: ["5 posts por dia", "5 estudos por dia", "Sem marca d'água", "SmartSound AI (músicas)", "Exportação HD", "Score Viral Avançado", "Legendas Otimizadas"], miss: ["Slides IA", "Mapas Mentais", "Quiz IA"] },
-    { id: "student", name: "Estudante Premium", price: 15, col: D.mint, grad: D.gMint, badge: " MELHOR CUSTO", link: "https://buy.stripe.com/test_6oUdR874W52veXHeo75sA03", feats: ["10 posts por dia", "10 estudos por dia", "Tudo do Social Premium", "Mapas Mentais IA", "Slides Profissionais", "Flashcards & Quiz", "Transcrição Avançada"], miss: ["Uso Ilimitado"] },
-    { id: "full", name: "Plano Completo", price: 20, col: D.amber, grad: D.gAmber, badge: " TUDO INCLUSO", link: "https://buy.stripe.com/test_5kQ6oG4WO9iLbLv93N5sA01", feats: ["Tudo Ilimitado", "IA Prioritária", "Sem marcas d'água", "Exportação 4K", "Suporte VIP 24/7", "Novas funções antecipadas"], miss: [] },
-  ];
+      { id: "free", name: "Gratuito", price: 0, col: D.w2, grad: D.gDark, badge: null, feats: ["3 posts por dia", "3 trocas de música", "IA Vision Básica", "Legendas Sugeridas", "Score Viral"], miss: ["Análise Profunda", "Músicas Ilimitadas", "Export HD", "Sem marca d'água"] },
+      { id: "social", name: "Social Premium", price: 10, col: D.blue2, grad: D.gBlue, badge: " MAIS POPULAR", link: "https://buy.stripe.com/test_dRm14m1KC9iLaHr6VF5sA04", feats: ["5 posts por dia", "10 trocas de música", "SmartSound AI (músicas)", "Exportação HD", "Score Viral Avançado", "Legendas Otimizadas"], miss: ["IA Vision Pro", "Trocas Ilimitadas"] },
+      { id: "student", name: "Criador Avançado", price: 15, col: D.mint, grad: D.gMint, badge: " MELHOR CUSTO", link: "https://buy.stripe.com/test_6oUdR874W52veXHeo75sA03", feats: ["10 posts por dia", "Trocas Ilimitadas", "Tudo do Social Premium", "IA Vision Profissional", "Filtros Exclusivos", "Sugestão de Trends", "Análise de Retenção"], miss: ["Uso Ilimitado"] },
+      { id: "full", name: "Plano Completo", price: 20, col: D.amber, grad: D.gAmber, badge: " TUDO INCLUSO", link: "https://buy.stripe.com/test_5kQ6oG4WO9iLbLv93N5sA01", feats: ["Tudo Ilimitado", "IA Prioritária", "Exportação 4K", "Suporte VIP 24/7", "Novas funções antecipadas"], miss: [] },
+    ];
   return (
     <div style={{ padding: "20px 16px", display: "flex", flexDirection: "column", gap: 18 }}>
       <div className="fu">
@@ -1477,7 +1470,7 @@ const Planos = ({ plan, setPlan, toast }) => {
                   window.open(p.link, "_blank");
                 }
               }} style={{ width: "100%", marginTop: 12, padding: "12px 0", borderRadius: 12, border: `1.5px solid ${active ? p.col : p.col + "40"}`, background: active ? p.grad : "transparent", color: active ? "#fff" : p.col, cursor: "pointer", fontWeight: 800, fontSize: 14, fontFamily: "'Sora',sans-serif", transition: "all .18s" }}>
-                {active ? " Plano Atual" : p.id === "free" ? "Usar Grátis" : "Assinar Agora"}
+                {active ? " Plano Atual" : p.id === "free" ? "Usar Grátis" : "Assine Já"}
               </button>
             </div>
           </div>
@@ -1521,14 +1514,19 @@ const SmartSoundPlayer = ({ musicas = [], toast, plan, songsChanged, setSongsCha
 
   //  Toca faixa 
   const playTrack = (t) => {
-    if (plan === "free" && songsChanged >= 3 && t !== track) {
-      toast("Limite de 3 trocas atingido no plano Gratuito!", "warn");
+    const limits = { free: 3, social: 10, student: Infinity, full: Infinity };
+    const limit = limits[plan] || 3;
+
+    if (plan !== "full" && songsChanged >= limit && t !== track) {
+      toast(`Limite de ${limit} trocas atingido no plano ${plan === 'free' ? 'Gratuito' : plan === 'social' ? 'Social' : 'Avançado'}!`, "warn");
       return;
     }
-    if (t !== track) setSongsChanged(prev => prev + 1);
-    if (plan === "student_old") { // Allowed for free now with limits
-      toast("O SmartSound AI   um recurso do Social Premium e Completo! ?", "warn");
-      return;
+    if (t !== track) {
+      setSongsChanged(prev => prev + 1);
+      // Persist to database
+      supabase.rpc('increment_music_usage', { user_id_param: session.id, limit_param: limit }).then(({ data, error }) => {
+        if (error) console.error("Error incrementing music usage:", error);
+      });
     }
     if (!t?.previewUrl) { toast("Pr via n o disponível para esta faixa.", "warn"); return; }
     const a = audioRef.current;
@@ -1584,8 +1582,9 @@ const SmartSoundPlayer = ({ musicas = [], toast, plan, songsChanged, setSongsCha
     if (!q.trim()) return;
     setSearching(true); setResults([]);
     try {
+      const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(q)}&media=music&limit=20&country=${country}&explicit=No`;
       const res = await fetch(
-        `https://itunes.apple.com/search?term=${encodeURIComponent(q)}&media=music&limit=20&country=${country}&explicit=No`,
+        `https://corsproxy.io/?${encodeURIComponent(itunesUrl)}`,
         { method: "GET" }
       );
       const data = await res.json();
@@ -1608,15 +1607,15 @@ APENAS o termo de busca, sem aspas, sem explicaes. M ximo 5 palavras.`,
     );
     const termo = raw?.trim() || `${m.nome} ${m.artista}`;
     try {
-      const res = await fetch(
-        `https://itunes.apple.com/search?term=${encodeURIComponent(termo)}&media=music&limit=5&country=br&explicit=No`
-      );
+      const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(termo)}&media=music&limit=5&country=br&explicit=No`;
+      const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(itunesUrl)}`);
       const data = await res.json();
       const tracks = (data.results || []).filter(r => r.previewUrl);
       if (tracks.length > 0) { playTrack(tracks[0]); }
       else {
         // fallback: busca direto pelo nome
-        const res2 = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(m.nome)}&media=music&limit=5&country=br`);
+        const itunesUrl2 = `https://itunes.apple.com/search?term=${encodeURIComponent(m.nome)}&media=music&limit=5&country=br`;
+        const res2 = await fetch(`https://corsproxy.io/?${encodeURIComponent(itunesUrl2)}`);
         const data2 = await res2.json();
         const t2 = (data2.results||[]).filter(r => r.previewUrl);
         if (t2.length > 0) playTrack(t2[0]);
@@ -2059,541 +2058,298 @@ const AuthStepBar = ({ step }) => (
   </div>
 );
 
-const AuthScreen = ({ onLogin }) => {
-  /*  state  */
-  const [page, setPage] = useState("login"); // login | register | forgot | reset | verify
-  const [step, setStep] = useState(1);       // register steps 1-3
+const AuthScreen = ({ onLogin, onResetMode }) => {
+  const [page, setPage] = useState("login"); // login | register | forgot | verify | reset
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [email, setEmail] = useState("");
+  const [pass, setPass] = useState("");
+  const [name, setName] = useState("");
+  const [otp, setOtp] = useState("");
+  const [showPass, setShowPass] = useState(false);
+  const [verifyType, setVerifyType] = useState("signup"); // signup | recovery
 
-  // form fields
-  const [name,       setName]       = useState("");
-  const [email,      setEmail]      = useState("");
-  const [pass,       setPass]       = useState("");
-  const [pass2,      setPass2]      = useState("");
-  const [code,       setCode]       = useState("");      // verificao email
-  const [resetCode,  setResetCode]  = useState("");
-  const [newPass,    setNewPass]    = useState("");
-  const [remember,   setRemember]   = useState(false);
-  const [termsOk,    setTermsOk]    = useState(false);
-
-  // ui state
-  const [showPass,  setShowPass]  = useState(false);
-  const [showPass2, setShowPass2] = useState(false);
-  const [showNPass, setShowNPass] = useState(false);
-  const [loading,   setLoading]   = useState(false);
-  const [loadMsg,   setLoadMsg]   = useState("");
-  const [errors,    setErrors]    = useState({});
-  const [aiTip,     setAiTip]     = useState("");
-  const [aiLoad,    setAiLoad]    = useState(false);
-  const [attempts,  setAttempts]  = useState(0);
-  const [locked,    setLocked]    = useState(false);
-  const [lockTimer, setLockTimer] = useState(0);
-  const [verifyEmail, setVerifyEmail] = useState("");
-  const [successMsg, setSuccessMsg] = useState("");
-
-  const pwd = senhaForte(page === "reset" ? newPass : pass);
-  const timerRef = useRef(null);
-
-  /*  lockout timer  */
-  useEffect(() => {
-    if (!locked) return;
-    let secs = 30;
-    setLockTimer(secs);
-    timerRef.current = setInterval(() => {
-      secs--;
-      setLockTimer(secs);
-      if (secs <= 0) { setLocked(false); clearInterval(timerRef.current); }
-    }, 1000);
-    return () => clearInterval(timerRef.current);
-  }, [locked]);
-
-  /*  IA tip  email  */
-  useEffect(() => {
-    if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/) || page !== "login") return;
-    const t = setTimeout(async () => {
-      setAiLoad(true);
-      const raw = await callAI(
-        `Usuário fazendo login com email "${email}". Baseado no domínio, crie mensagem de boas-vindas personalizada, calorosa, 1 frase, 1 emoji no início. Seja criativo e específico ao domínio.`,
-        "Apenas 1 frase curta personalizada."
-      );
-      if (raw?.trim()) setAiTip(raw.trim());
-      setAiLoad(false);
-    }, 400); // Reduzido de 1400ms para 400ms
-    return () => clearTimeout(t);
-  }, [email, page]);
-
-  /*  IA tip  nome  */
-  useEffect(() => {
-    if (!name.trim() || name.trim().length < 3 || page !== "register") return;
-    const t = setTimeout(async () => {
-      setAiLoad(true);
-      const raw = await callAI(
-        `Novo usuário chamado "${name.trim().split(" ")[0]}". Crie mensagem motivacional e calorosa de boas-vindas para o DVSCREATOR (app de conteúdo com IA). 1 emoji, 1 frase.`,
-        "Apenas 1 frase motivacional personalizada."
-      );
-      if (raw?.trim()) setAiTip(raw.trim());
-      setAiLoad(false);
-    }, 500); // Reduzido de 1600ms para 500ms
-    return () => clearTimeout(t);
-  }, [name, page]);
-
-
-
-  /*  validate  */
-  const validate = () => {
-    const e = {};
-    if (page === "login") {
-      if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) e.email = "E-mail inválido";
-      if (!pass.trim()) e.pass = "Informe sua senha";
-    }
-    if (page === "register") {
-      if (step === 1) {
-        if (!name.trim() || name.trim().length < 2) e.name = "Informe seu nome completo";
-        if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) e.email = "E-mail inválido";
+  const handleGoogleLogin = async () => {
+    setLoading(true); setError(""); setSuccess("");
+    // Ensure we use the current port for redirect
+    const origin = window.location.origin;
+    console.log("Iniciando login Google com redirect para:", origin);
+    
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { 
+        redirectTo: origin,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+        }
       }
-      if (step === 2) {
-        if (pwd.score < 4) e.pass = "Crie uma senha confiável (mín. 8 caracteres, números e símbolos)";
-        if (pass.trim() !== pass2.trim()) e.pass2 = "As senhas não coincidem";
-        if (!termsOk) e.terms = "Aceite os termos para continuar";
-      }
-      if (step === 3) {
-        if (code.trim().length < 6) e.code = "Digite o código de 6 dígitos";
-      }
-    }
-    if (page === "forgot") {
-      if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) e.email = "E-mail inválido";
-    }
-    if (page === "reset") {
-      if (resetCode.trim().length < 6) e.resetCode = "Digite o código";
-      if (senhaForte(newPass).score < 4) e.newPass = "Crie uma senha mais forte";
-    }
-    setErrors(e);
-    return Object.keys(e).length === 0;
+    });
+    if (error) { setError("Erro ao conectar: " + error.message); setLoading(false); }
   };
 
-  /*  submit  */
-  const submit = async () => {
-    if (!validate() || loading || locked) return;
-    setLoading(true);
-
-    /*  LOGIN  */
-    if (page === "login") {
-      setLoadMsg("Autenticando... ");
-      try {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: email.toLowerCase(),
-          password: pass,
-        });
-
-        if (error) {
-          setErrors({ pass: "E-mail ou senha incorretos." });
-          setLoading(false); setLoadMsg(""); return;
-        }
-
-        const sessionData = { 
-          id: data.user.id, 
-          email: data.user.email, 
-          name: data.user.user_metadata?.full_name || data.user.email 
-        };
-        saveSession(sessionData);
-        onLogin(sessionData);
-      } catch (e) {
-        setErrors({ pass: "Erro ao conectar ao servidor." });
-        setLoading(false); setLoadMsg("");
+  const handleEmailAuth = async () => {
+    setError(""); setSuccess("");
+    
+    if (page === "reset") {
+      if (pass.length < 6) { setError("A senha deve ter pelo menos 6 caracteres."); return; }
+      setLoading(true);
+      const { data, error } = await supabase.auth.updateUser({ password: pass });
+      if (error) { setError("Erro ao atualizar senha: " + error.message); setLoading(false); }
+      else {
+        setSuccess("Senha atualizada com sucesso!");
+        if (onResetMode) onResetMode(false);
+        onLogin({ id: data.user.id, email: data.user.email, name: data.user.user_metadata?.full_name || data.user.email });
       }
       return;
     }
 
-    /*  REGISTER  */
-    if (page === "register") {
-      if (step === 1) {
-        setStep(2); setLoading(false); return;
-      }
-      if (step === 2) {
-        setLoadMsg("Enviando código para seu e-mail...");
-        try {
-          const { data, error } = await supabase.auth.signUp({
-            email: email.toLowerCase(),
-            password: pass,
-            options: {
-              data: { full_name: name.trim() }
-            }
-          });
-
-          if (error) {
-            if (error.message.includes("already registered") || error.status === 422) {
-              setErrors({ email: "Este e-mail já está em uso." });
-              setStep(1);
-            } else {
-              setErrors({ pass: error.message });
-            }
-            setLoading(false); setLoadMsg(""); return;
-          }
-
-          setVerifyEmail(email);
-          setStep(3); 
-        } catch (e) {
-          setErrors({ pass: "Erro ao iniciar cadastro." });
-        }
-        setLoading(false); setLoadMsg(""); return;
-      }
-      if (step === 3) {
-        setLoadMsg("Verificando código...");
-        try {
-          const { data, error } = await supabase.auth.verifyOtp({
-            email: email.toLowerCase(),
-            token: code,
-            type: 'signup'
-          });
-
-          if (error) {
-            setErrors({ code: "Código inválido ou expirado." });
-            setLoading(false); setLoadMsg(""); return;
-          }
-
-          if (data.user) {
-            const sess = { 
-                id: data.user.id, 
-                email: data.user.email, 
-                name: data.user.user_metadata?.full_name || name.trim() 
-            };
-            saveSession(sess);
-            onLogin(sess);
-          }
-        } catch (e) {
-          setErrors({ code: "Erro na verificação." });
-        }
-        setLoading(false); setLoadMsg(""); return;
-      }
-    }
-
-    /*  FORGOT  */
-    if (page === "forgot") {
-      try {
-        const { error } = await supabase.auth.resetPasswordForEmail(email.toLowerCase());
-        if (error) {
-          setErrors({ email: error.message });
+    if (page === "verify") {
+      if (otp.length < 6) { setError("Digite o código de 6 dígitos."); return; }
+      setLoading(true);
+      const { data, error } = await supabase.auth.verifyOtp({
+        email, token: otp, type: verifyType
+      });
+      if (error) { setError("Código inválido ou expirado."); setLoading(false); }
+      else {
+        if (verifyType === "recovery") {
+          if (onResetMode) onResetMode(true);
+          setPage("reset");
+          setSuccess("Código confirmado! Defina sua nova senha.");
+          setPass(""); 
+          setLoading(false);
         } else {
-          setSuccessMsg("E-mail de recuperação enviado!");
+          onLogin({ id: data.user.id, email: data.user.email, name: data.user.user_metadata?.full_name || data.user.email });
         }
-      } catch (e) {
-        setErrors({ email: "Erro ao enviar e-mail." });
       }
-      setLoading(false); return;
+      return;
     }
 
-    /*  RESET  */
-    if (page === "reset") {
-       try {
-         const { error } = await supabase.auth.updateUser({ password: newPass });
-         if (error) {
-           setErrors({ newPass: error.message });
-         } else {
-           setSuccessMsg("Senha redefinida!");
-           setPage("login");
-         }
-       } catch (e) {
-         setErrors({ newPass: "Erro ao redefinir senha." });
-       }
-       setLoading(false); return;
+    if (page === "forgot") {
+      if (!email) { setError("Informe seu e-mail."); return; }
+      setLoading(true);
+      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      if (error) setError("Erro: " + error.message);
+      else {
+        setSuccess("Código de recuperação enviado!");
+        setVerifyType("recovery");
+        setPage("verify");
+      }
+      setLoading(false);
+      return;
     }
 
-    setLoading(false); setLoadMsg("");
+    if (!email || !pass) { setError("Preencha todos os campos."); return; }
+    setLoading(true);
+    
+    if (page === "register") {
+      if (!name) { setError("Informe seu nome."); setLoading(false); return; }
+      const { data, error } = await supabase.auth.signUp({
+        email, password: pass,
+        options: { data: { full_name: name } }
+      });
+      if (error) setError("Erro: " + error.message);
+      else {
+        setSuccess("Código de confirmação enviado para " + email);
+        setVerifyType("signup");
+        setPage("verify");
+      }
+    } else {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
+      if (error) {
+        if (error.message.includes("Email not confirmed")) {
+          setVerifyType("signup");
+          setPage("verify");
+          setSuccess("Sua conta ainda não foi confirmada. Digite o código enviado.");
+        } else {
+          setError("E-mail ou senha incorretos.");
+        }
+      }
+      else onLogin({ id: data.user.id, email: data.user.email, name: data.user.user_metadata?.full_name || data.user.email });
+    }
+    setLoading(false);
   };
 
-  /*  Gerar senha sugerida  */
-  const sugerirSenha = () => {
-    const s = gerarSenhaForte();
-    setPass(s); setPass2(s);
-    setShowPass(true); setShowPass2(true);
-  };
+  const btnGrad = "linear-gradient(90deg, #64b5f6 0%, #2196f3 50%, #1976d2 100%)";
+  const inputBg = "rgba(255, 255, 255, 0.05)";
 
-  /*  Config por page  */
-  const pageConfig = {
-    login:    { title: "Bem-vindo de volta 👋", sub: "Entre na sua conta DVS" },
-    register: {
-      title: step === 1 ? "Criar conta " : step === 2 ? "Escolha sua senha " : "Verificar e-mail ",
-      sub:   step === 1 ? "Preencha seus dados" : step === 2 ? "Crie uma senha forte e segura" : "Digite o código enviado",
-    },
-    forgot: { title: "Recuperar senha ", sub: "Enviaremos um código de recuperao" },
-    reset:  { title: "Redefinir senha ", sub: "C digo enviado para " + email },
-  };
-  const cfg = pageConfig[page] || pageConfig.login;
-
-
-  /*  RENDER  */
   return (
-    <div style={{ minHeight: "100vh", background: D.bg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "20px 16px", overflowY: "auto" }}>
+    <div style={{ minHeight: "100vh", background: "#02050a", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "20px 24px", position: "relative", overflow: "hidden", fontFamily: "'Sora', sans-serif" }}>
 
-      {/* BG ambient */}
-      <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, overflow: "hidden" }}>
-        <div style={{ position: "absolute", top: -160, left: -100, width: 420, height: 420, borderRadius: "50%", background: "radial-gradient(circle, rgba(37,99,235,.1) 0%, transparent 68%)" }} />
-        <div style={{ position: "absolute", bottom: -100, right: -80, width: 320, height: 320, borderRadius: "50%", background: "radial-gradient(circle, rgba(16,185,129,.07) 0%, transparent 68%)" }} />
-        <div style={{ position: "absolute", top: "40%", right: -60, width: 220, height: 220, borderRadius: "50%", background: "radial-gradient(circle, rgba(139,92,246,.06) 0%, transparent 68%)" }} />
-      </div>
+      <style>{`
+        @keyframes floatGlow {
+          0% { transform: translate(0, 0) scale(1); opacity: 0.25; }
+          33% { transform: translate(2%, 3%) scale(1.1); opacity: 0.35; }
+          66% { transform: translate(-1%, 2%) scale(0.95); opacity: 0.2; }
+          100% { transform: translate(0, 0) scale(1); opacity: 0.25; }
+        }
+        @keyframes floatGlow2 {
+          0% { transform: translate(0, 0) scale(1); opacity: 0.1; }
+          50% { transform: translate(-3%, -5%) scale(1.2); opacity: 0.15; }
+          100% { transform: translate(0, 0) scale(1); opacity: 0.1; }
+        }
+      `}</style>
 
-      <div style={{ width: "100%", maxWidth: 400, position: "relative", zIndex: 1, display: "flex", flexDirection: "column", gap: 0 }}>
+      {/* Floxly Top Glow - Animated */}
+      <div style={{ position: "absolute", top: "-15%", left: "15%", width: "70%", height: "40%", background: "radial-gradient(circle, rgba(37,99,235,0.4) 0%, transparent 70%)", filter: "blur(80px)", pointerEvents: "none", animation: "floatGlow 15s ease-in-out infinite" }} />
+      <div style={{ position: "absolute", bottom: "5%", right: "-10%", width: "40%", height: "40%", background: "radial-gradient(circle, rgba(6,182,212,0.2) 0%, transparent 70%)", filter: "blur(60px)", pointerEvents: "none", animation: "floatGlow2 20s ease-in-out infinite" }} />
 
-        {/*  LOGO  */}
-        <div className="fu" style={{ textAlign: "center", marginBottom: 24 }}>
-          <div style={{ position: "relative", display: "inline-block", marginBottom: 14 }}>
-            <div style={{ width: 84, height: 84, borderRadius: 24, overflow: 'hidden', boxShadow: '0px 8px 24px rgba(0,0,0,0.5)', border: `2px solid ${D.b1}` }}>
-              <img src="/logo.png" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="DVS Logo" />
-            </div>
-            {/* verified badge */}
-            <div style={{ position: "absolute", bottom: -2, right: -2, width: 24, height: 24, borderRadius: "50%", background: D.gMint, border: `2px solid ${D.bg}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}></div>
-          </div>
-          
-          {/* feature pills */}
-          <div style={{ display: "flex", gap: 6, justifyContent: "center", marginTop: 12, flexWrap: "wrap" }}>
-            {["🔥 Conteúdo viral", "📚 Modo estudo", " música real"].map((f, i) => (
-              <span key={i} style={{ fontSize: 11, fontWeight: 700, color: D.w3, background: D.s2, border: `1px solid ${D.b0}`, borderRadius: 99, padding: "4px 10px" }}>{f}</span>
-            ))}
-          </div>
+      <div style={{ width: "100%", maxWidth: 380, position: "relative", zIndex: 10, display: "flex", flexDirection: "column", height: "100%" }}>
+        
+        {/* LOGO SECTION - TRANSPARENT STYLE */}
+        <div style={{ textAlign: "center", marginBottom: 60, display: "flex", alignItems: "center", justifyContent: "center", gap: 12 }}>
+           <div style={{ width: 42, height: 42, display: "flex", alignItems: "center", justifyContent: "center" }}>
+             <img src="/logo.png" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+           </div>
+           <span style={{ fontSize: 26, fontWeight: 800, color: "#fff", letterSpacing: "-0.8px" }}>EduCreator</span>
         </div>
 
-        {/*  TABS login/register  */}
-        {(page === "login" || page === "register") && (
-          <div className="fu d1" style={{ display: "flex", background: D.s1, borderRadius: 14, padding: 4, marginBottom: 20, gap: 3, border: `1px solid ${D.b0}` }}>
-            {[["login", "Entrar"], ["register", "Criar conta"]].map(([p, l]) => (
-              <button key={p} onClick={() => { setPage(p); setStep(1); setErrors({}); setAiTip(""); setPass(""); setPass2(""); setCode(""); setTermsOk(false); setSuccessMsg(""); }}
-                style={{ flex: 1, padding: "11px 0", borderRadius: 11, border: "none", fontWeight: 700, fontSize: 14, cursor: "pointer", transition: "all .22s", fontFamily: "'Sora',sans-serif", background: page === p ? D.gBlue : "transparent", color: page === p ? "#fff" : D.w2, boxShadow: page === p ? "0 2px 14px rgba(37,99,235,.3)" : "none" }}>
-                {l}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/*  CARD  */}
-        <div id="auth-card" className="card auth-card fu d2" style={{ padding: "24px 22px", display: "flex", flexDirection: "column", gap: 18 }}>
-
-          {/* back btn (forgot/reset) */}
-          {(page === "forgot" || page === "reset") && (
-            <button onClick={() => { setPage("login"); setErrors({}); setLoadMsg(""); setCode(""); setResetCode(""); setNewPass(""); }} style={{ background: "none", border: "none", color: D.w2, fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, padding: 0, alignSelf: "flex-start" }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-              Voltar ao login
-            </button>
-          )}
-
-          {/* heading */}
-          <div>
-            <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 20, lineHeight: 1.25, marginBottom: 4 }}>{cfg.title}</div>
-            <div style={{ fontSize: 13, color: D.w2 }}>{cfg.sub}</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
+          
+          <div style={{ textAlign: "left" }}>
+            <h1 style={{ fontSize: 32, fontWeight: 700, color: "#fff", marginBottom: 12, letterSpacing: "-1px" }}>
+              {page === "login" ? "Hi There!" : page === "register" ? "Create an Account" : page === "verify" ? "Verify Code" : page === "reset" ? "Reset Password" : "Forgot Password"}
+            </h1>
+            <p style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", fontWeight: 500 }}>
+              {page === "verify" ? "Please enter the 6-digit code sent to your email." : "Please enter required details."}
+            </p>
           </div>
 
-          {/* step bar  register */}
-          {page === "register" && <AuthStepBar step={step} />}
-
-          {/*  IA TIP  */}
-          {(aiTip || aiLoad) && (
-            <div style={{ padding: "10px 14px", background: D.blueLo, borderRadius: 12, fontSize: 13, color: D.blue3, border: `1px solid ${D.blueM}`, display: "flex", gap: 8, alignItems: "center", lineHeight: 1.5, animation: "fadeIn .3s ease both" }}>
-              {aiLoad ? <Spin s={14} c={D.blue2} /> : <div style={{ color: D.blue2 }}>{ICONS.wand}</div>}
-              <span style={{ flex: 1 }}>{aiLoad ? "IA personalizando" : aiTip}</span>
-            </div>
-          )}
-
-          {/*  LOCKOUT  */}
-          {locked && (
-            <div style={{ padding: "12px 14px", background: D.roseLo, borderRadius: 12, fontSize: 13, color: D.rose, border: `1px solid ${D.rose}35`, display: "flex", gap: 8, alignItems: "center" }}>
-               Muitas tentativas. Aguarde {lockTimer}s antes de tentar novamente.
-            </div>
-          )}
-
-          {/*  SUCCESS MSG  */}
-          {successMsg && (
-            <div style={{ padding: "12px 14px", background: D.mintLo, borderRadius: 12, fontSize: 13, color: D.mint, border: `1px solid ${D.mint}35`, display: "flex", gap: 8, alignItems: "center", animation: "fadeIn .3s both" }}>
-              <div style={{ color: D.mint }}>{ICONS.check}</div> {successMsg}
-            </div>
-          )}
-
-          {/*  FORMS  */}
-
-          {/* LOGIN */}
-          {page === "login" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <AuthInput label="E-mail" icon={ICONS.mail} type="email" val={email} onChange={setEmail} err={errors.email} placeholder="seu@email.com" autoComplete="email" onSubmit={submit} errors={errors} setErrors={setErrors} />
-              <AuthInput label="Sua senha" icon={ICONS.lock} type={showPass ? "text" : "password"} val={pass} onChange={setPass} err={errors.pass} placeholder="••••••••" autoComplete="current-password" onSubmit={submit} errors={errors} setErrors={setErrors}
-                right={<AuthEye show={showPass} toggle={() => setShowPass(v=>!v)} />}
-                hint={<span onClick={() => setPage("forgot")} style={{ cursor: "pointer", color: D.blue2, fontWeight: 700 }}>Esqueceu?</span>} />
-              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "2px 0" }}>
-                <div onClick={() => setRemember(!remember)} style={{ width: 18, height: 18, borderRadius: 5, border: `1.5px solid ${remember ? D.blue : D.b1}`, background: remember ? D.gBlue : D.s0, cursor: "pointer", transition: "all .18s", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}>                  {remember && ICONS.check}
-                </div>
-                <span onClick={() => setRemember(!remember)} style={{ fontSize: 13, color: D.w2, cursor: "pointer", userSelect: "none" }}>Lembrar de mim</span>
+          <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+            
+            {/* Social Button - Google Only */}
+            {(page === "login" || page === "register") && (
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                <button 
+                  onClick={handleGoogleLogin} 
+                  style={{ height: 52, borderRadius: 18, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center", gap: 12, cursor: "pointer", color: "#fff", fontWeight: 600, fontSize: 14 }}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.47 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+                  Continue with Google
+                </button>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* REGISTER */}
-          {page === "register" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              {step === 1 && (
-                <>
-                  <AuthInput label="Nome completo" icon={ICONS.user} val={name} onChange={setName} err={errors.name} placeholder="Como quer ser chamado?" autoComplete="name" onSubmit={submit} errors={errors} setErrors={setErrors} />
-                  <AuthInput label="E-mail profissional" icon={ICONS.mail} type="email" val={email} onChange={setEmail} err={errors.email} placeholder="seu@email.com" autoComplete="email" onSubmit={submit} errors={errors} setErrors={setErrors} />
-                </>
+            {(page === "login" || page === "register") && (
+              <div style={{ display: "flex", alignItems: "center", gap: 15 }}>
+                <div style={{ flex: 1, height: "1px", background: "rgba(255,255,255,0.1)" }} />
+                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", fontWeight: 600 }}>Or</span>
+                <div style={{ flex: 1, height: "1px", background: "rgba(255,255,255,0.1)" }} />
+              </div>
+            )}
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              {error && (
+                <div style={{ padding: "14px", background: "rgba(244,63,94,0.1)", borderRadius: 16, color: "#fb7185", fontSize: 13, textAlign: "center", border: "1px solid rgba(244,63,94,0.2)" }}>
+                  {error}
+                </div>
               )}
-              {step === 2 && (
-                <>
-                  <AuthInput label="Crie sua senha confiável" icon={ICONS.lock} type={showPass ? "text" : "password"} val={pass}
-                    onChange={(v) => { setPass(v); if (errors.pass) setErrors(p=>{const n={...p};delete n.pass;return n;}); }}
-                    err={errors.pass} placeholder="Mín. 8 chars, números e símbolos" autoComplete="new-password"
-                    onSubmit={submit} errors={errors} setErrors={setErrors}
-                    right={<div style={{ display: "flex", alignItems: "center", gap: 8 }}><AuthEye show={showPass} toggle={() => setShowPass(v=>!v)} /><div onClick={sugerirSenha} style={{ cursor: "pointer", color: D.blue2, fontSize: 12, fontWeight: 700 }}>Sugerir</div></div>} />
+              {success && (
+                <div style={{ padding: "14px", background: "rgba(16,185,129,0.1)", borderRadius: 16, color: "#34d399", fontSize: 13, textAlign: "center", border: "1px solid rgba(16,185,129,0.2)" }}>
+                  {success}
+                </div>
+              )}
 
-                  {pass.length > 0 && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 5, animation: "fadeIn .2s both" }}>
-                      <div style={{ display: "flex", gap: 4 }}>
-                        {[1,2,3,4].map(i => { const ps = senhaForte(pass); return <div key={i} style={{ flex: 1, height: 4, borderRadius: 99, background: i <= ps.score ? ps.color : D.b1, transition: "background .25s" }} />; })}
-                      </div>
-                      <div style={{ fontSize: 12, color: senhaForte(pass).color, fontWeight: 700 }}>Senha {senhaForte(pass).label}</div>
+              {page === "verify" ? (
+                <div style={{ background: inputBg, borderRadius: 20, padding: "4px" }}>
+                  <input 
+                    type="number" value={otp} onChange={e => setOtp(e.target.value)} 
+                    placeholder="Enter Code"
+                    style={{ width: "100%", height: 56, background: "transparent", border: "none", outline: "none", color: "#fff", padding: "0 20px", fontSize: 16, fontWeight: 500 }}
+                  />
+                </div>
+              ) : (
+                <>
+                  {page === "register" && (
+                    <div style={{ background: inputBg, borderRadius: 20, padding: "4px" }}>
+                      <input 
+                        type="text" value={name} onChange={e => setName(e.target.value)} 
+                        placeholder="Full Name"
+                        style={{ width: "100%", height: 56, background: "transparent", border: "none", outline: "none", color: "#fff", padding: "0 20px", fontSize: 16, fontWeight: 500 }}
+                      />
                     </div>
                   )}
-
-                  <AuthInput label="Confirmar senha" icon={ICONS.lock} type={showPass2 ? "text" : "password"} val={pass2}
-                    onChange={(v) => { setPass2(v); if (errors.pass2) setErrors(p=>{const n={...p};delete n.pass2;return n;}); }}
-                    err={errors.pass2} placeholder="Repita a senha" autoComplete="new-password"
-                    onSubmit={submit} errors={errors} setErrors={setErrors}
-                    right={<AuthEye show={showPass2} toggle={() => setShowPass2(v=>!v)} />} />
-
-                  <div style={{ display: "flex", gap: 10, alignItems: "flex-start", marginTop: 4 }}>
-                    <div onClick={() => { setTermsOk(!termsOk); if (errors.terms) setErrors(p=>{const n={...p};delete n.terms;return n;}); }}
-                      style={{ width: 18, height: 18, borderRadius: 5, border: `1.5px solid ${errors.terms ? D.rose : termsOk ? D.blue : D.b1}`, background: termsOk ? D.gBlue : D.s0, cursor: "pointer", flexShrink: 0, marginTop: 2, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}>
-                      {termsOk && ICONS.check}
-                    </div>
-                    <div style={{ fontSize: 12, color: D.w2, lineHeight: 1.5 }}>
-                      Li e aceito os <span style={{ color: D.blue2, fontWeight: 700 }}>Termos de Uso</span> e a <span style={{ color: D.blue2, fontWeight: 700 }}>Política de Privacidade</span> do DVSCREATOR
-                    </div>
+                  <div style={{ background: inputBg, borderRadius: 20, padding: "4px" }}>
+                    <input 
+                      type="email" value={email} onChange={setEmail ? (e => setEmail(e.target.value)) : undefined} 
+                      placeholder="Email address"
+                      style={{ width: "100%", height: 56, background: "transparent", border: "none", outline: "none", color: "#fff", padding: "0 20px", fontSize: 16, fontWeight: 500 }}
+                    />
                   </div>
-                  {errors.terms && <div style={{ fontSize: 12, color: D.rose, marginTop: -4 }}> {errors.terms}</div>}
+                  {page !== "forgot" && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      <div style={{ background: inputBg, borderRadius: 20, padding: "4px", display: "flex", alignItems: "center" }}>
+                        <input 
+                          type={showPass ? "text" : "password"} value={pass} onChange={e => setPass(e.target.value)} 
+                          placeholder={page === "reset" ? "New Password" : "Password"}
+                          style={{ flex: 1, height: 56, background: "transparent", border: "none", outline: "none", color: "#fff", padding: "0 20px", fontSize: 16, fontWeight: 500 }}
+                        />
+                        <button onClick={() => setShowPass(!showPass)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", padding: "0 15px", cursor: "pointer" }}>
+                          {showPass ? "Hide" : "Show"}
+                        </button>
+                      </div>
+                      {page === "login" && (
+                        <span 
+                          onClick={() => setPage("forgot")} 
+                          style={{ alignSelf: "flex-end", fontSize: 13, color: "#fff", cursor: "pointer", fontWeight: 700 }}
+                        >
+                          Forgot Password?
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </>
               )}
-              {step === 3 && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                  <div style={{ padding: "12px 14px", background: D.blueLo, borderRadius: 12, fontSize: 13, color: D.blue3, border: `1px solid ${D.blueM}`, lineHeight: 1.5, textAlign: "center" }}>
-                    Enviamos um código de 6 dígitos para:<br/>
-                    <strong style={{ color: D.blue3 }}>{verifyEmail}</strong>
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    <label style={{ fontSize: 12, fontWeight: 700, color: D.w2, letterSpacing: .4, textTransform: "uppercase" }}>Código de verificação</label>
-                    <input
-                      type="text" maxLength={6} value={code} onChange={e => { setCode(e.target.value.replace(/\D/g, "").slice(0,6)); if(errors.code) setErrors(p=>{const n={...p};delete n.code;return n;}); }}
-                      placeholder="000000"
-                      style={{ letterSpacing: "0.35em", textAlign: "center", fontSize: 24, fontWeight: 800, background: D.s0, border: `1.5px solid ${errors.code ? D.rose+"90" : D.b0}`, borderRadius: 14, color: D.w1, padding: "16px 20px", outline: "none", width: "100%", fontFamily: "Inter", transition: "border .18s, box-shadow .18s" }}
-                      onFocus={e => { e.target.style.borderColor = D.blueM; e.target.style.boxShadow = `0 0 0 3px ${D.blueLo}`; }}
-                      onBlur={e => { e.target.style.borderColor = errors.code ? D.rose+"90" : D.b0; e.target.style.boxShadow = "none"; }}
-                    />
-                    {errors.code && <div style={{ fontSize: 12, color: D.rose, display: "flex", gap: 5 }}> {errors.code}</div>}
-                  </div>
-                  <div style={{ padding: "9px 12px", background: D.blueLo, borderRadius: 10, fontSize: 12, color: D.blue3, border: `1px solid ${D.blueM}`, lineHeight: 1.5, display: "flex", gap: 7, alignItems: "center" }}>
-                    {ICONS.mail} <span>Verifique sua caixa de entrada e spam.</span>
-                  </div>
-                  <button className="btn ghost sm" style={{ alignSelf: "center", fontSize: 13 }} onClick={async () => { 
-                    setLoading(true);
-                    const { error } = await supabase.auth.resend({ email: email.toLowerCase(), type: 'signup' });
-                    setLoading(false);
-                    if (error) toast?.("Erro ao reenviar: " + error.message, "error");
-                    else toast?.("Novo código enviado!", "ok");
-                  }}>
-                    {ICONS.refresh} Reenviar código
-                  </button>
-                </div>
-              )}
             </div>
-          )}
 
-          {/* FORGOT */}
-          {page === "forgot" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <div style={{ padding: "12px 14px", background: D.s0, borderRadius: 12, fontSize: 13, color: D.w2, border: `1px solid ${D.b0}`, lineHeight: 1.6 }}>
-                Informe o e-mail da sua conta e enviaremos um código para redefinir sua senha com segurança.
-              </div>
-              <AuthInput label="E-mail cadastrado" icon={ICONS.mail} type="email" val={email} onChange={setEmail} err={errors.email} placeholder="seu@email.com" autoComplete="email" onSubmit={submit} errors={errors} setErrors={setErrors} />
-            </div>
-          )}
-
-          {/* RESET */}
-          {page === "reset" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <div style={{ padding: "12px 14px", background: D.blueLo, borderRadius: 12, fontSize: 13, color: D.blue3, border: `1px solid ${D.blueM}`, lineHeight: 1.5 }}>
-                 Um código foi enviado para <strong>{email}</strong>
-              </div>
-              <AuthInput label="Código de recuperação" icon={ICONS.key} val={resetCode} onChange={setResetCode} err={errors.resetCode} placeholder="000000" autoComplete="one-time-code" onSubmit={submit} errors={errors} setErrors={setErrors} />
-              <div style={{ padding: "8px 12px", background: D.blueLo, borderRadius: 10, fontSize: 12, color: D.blue3, border: `1px solid ${D.blueM}`, lineHeight: 1.5 }}>
-                 Verifique o código enviado para seu e-mail.
-              </div>
-              <AuthInput label="Nova senha" icon={ICONS.lock} type={showNPass ? "text" : "password"} val={newPass} onChange={setNewPass} err={errors.newPass} placeholder="Mínimo 6 caracteres" autoComplete="new-password" onSubmit={submit} errors={errors} setErrors={setErrors}
-                right={<AuthEye show={showNPass} toggle={() => setShowNPass(v=>!v)} />} />
-              {newPass.length > 0 && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 5, animation: "fadeIn .2s both" }}>
-                  <div style={{ display: "flex", gap: 4 }}>
-                    {[1,2,3,4].map(i => { const ps = senhaForte(newPass); return <div key={i} style={{ flex: 1, height: 4, borderRadius: 99, background: i <= ps.score ? ps.color : D.b1, transition: "background .25s" }} />; })}
-                  </div>
-                  <div style={{ fontSize: 12, color: senhaForte(newPass).color, fontWeight: 700 }}>Senha {senhaForte(newPass).label}</div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/*  SUBMIT BUTTON  */}
-          <button
-            onClick={submit} disabled={loading || locked}
-            style={{ width: "100%", padding: "15px 0", borderRadius: 14, background: D.gBlue, border: "none", color: "#fff", fontWeight: 800, fontSize: 15, fontFamily: "'Sora',sans-serif", cursor: loading || locked ? "not-allowed" : "pointer", opacity: locked ? .5 : 1, transition: "all .18s", boxShadow: "0 4px 20px rgba(37,99,235,.32)", display: "flex", alignItems: "center", justifyContent: "center", gap: 9 }}
-            onMouseOver={e => { if (!loading && !locked) e.currentTarget.style.boxShadow = "0 8px 28px rgba(37,99,235,.45)"; }}
-            onMouseOut={e => { e.currentTarget.style.boxShadow = "0 4px 20px rgba(37,99,235,.32)"; }}>
-            {loading
-              ? <><Spin s={18} c="#fff" /><span>{loadMsg || "Processando"}</span></>
-              : <><span>{page === "login" ? "Entrar na conta" : page === "forgot" ? "Enviar código" : page === "reset" ? "Redefinir senha" : step === 1 ? "Continuar" : step === 2 ? "Criar conta" : "Verificar e-mail"}</span>{ICONS.arrow}</>}
-          </button>
-
-          {/* back  register step 2/3 */}
-          {page === "register" && step > 1 && (
-            <button onClick={() => { setStep(s => s - 1); setErrors({}); }} style={{ background: "none", border: "none", color: D.w2, fontSize: 13, fontWeight: 700, cursor: "pointer", textAlign: "center", padding: "4px 0", fontFamily: "Inter" }}>
-               Voltar
+            <button 
+              onClick={handleEmailAuth} 
+              disabled={loading}
+              style={{ width: "100%", height: 60, borderRadius: 20, background: btnGrad, border: "none", color: "#fff", fontSize: 16, fontWeight: 700, cursor: loading ? "wait" : "pointer", boxShadow: "0 10px 20px rgba(33, 150, 243, 0.3)", transition: "all 0.2s" }}
+              onMouseOver={e => e.currentTarget.style.transform = "translateY(-2px)"}
+              onMouseOut={e => e.currentTarget.style.transform = "translateY(0)"}
+            >
+              {loading ? <Spin s={20} c="#fff" /> : (page === "login" ? "Log In" : page === "register" ? "Continue" : page === "verify" ? "Verify Code" : page === "reset" ? "Save Password" : "Send Code")}
             </button>
-          )}
+          </div>
+
+          <div style={{ textAlign: "center", marginTop: 10 }}>
+             <p style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", fontWeight: 500 }}>
+               <span>{page === "login" ? "Create an account? " : page === "register" ? "Have an account? " : ""}</span>
+               <span 
+                 onClick={() => setPage(page === "login" ? "register" : "login")} 
+                 style={{ color: "#fff", fontWeight: 700, cursor: "pointer" }}
+               >
+                 {page === "login" ? "Sign Up" : "Log In"}
+               </span>
+             </p>
+          </div>
         </div>
 
-        {/*  SOCIAL LOGIN  */}
-        {(page === "login" || page === "register") && (
-          <div className="fu d3" style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 16 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <div style={{ flex: 1, height: 1, background: D.b0 }} />
-              <span style={{ fontSize: 12, color: D.w3, whiteSpace: "nowrap" }}>ou entre com</span>
-              <div style={{ flex: 1, height: 1, background: D.b0 }} />
-            </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <AuthSocialBtn
-                icon={<svg width="18" height="18" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.47 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>}
-                label="Google"
-                onClick={async () => {
-                  setLoading(true);
-                  if (typeof supabase !== 'undefined') {
-                    const { error } = await supabase.auth.signInWithOAuth({
-                      provider: 'google',
-                      options: { redirectTo: window.location.origin }
-                    });
-                    if (error) { setErrors({ email: "Erro: " + error.message }); setLoading(false); }
-                  } else {
-                    setErrors({ email: "Supabase não configurado." });
-                    setLoading(false);
-                  }
-                }}
-              />
-            </div>
-          </div>
-        )}
+        <div style={{ marginTop: "auto", paddingBottom: 20, textAlign: "center" }}>
+          <p style={{ fontSize: 12, color: "rgba(255,255,255,0.25)", fontWeight: 500 }}>
+             <span style={{ textDecoration: "underline", cursor: "pointer" }}>Terms of Service</span> | <span style={{ textDecoration: "underline", cursor: "pointer" }}>Privacy Policy</span>
+          </p>
+        </div>
+
       </div>
     </div>
   );
 };
 
-const Perfil = ({ session, plan, postsUsed, onLogout, onUpdateSession, toast, onResetData }) => {
+
+
+const Perfil = ({ session, plan, postsUsed, songsChanged, onLogout, onUpdateSession, toast, onResetData }) => {
   const [subpage, setSubpage] = useState("main");
   const [editName,  setEditName]  = useState(session?.name || "");
   const [editBio,   setEditBio]   = useState(session?.bio || "");
   const [editPhone, setEditPhone] = useState(session?.phone || "");
+  const [editAvatar, setEditAvatar] = useState(session?.avatar_url || "");
   const [saving,    setSaving]    = useState(false);
+  const [uploading, setUploading] = useState(false);
 
-  const pN  = { free: "Gratuito", social: "Social Premium", student: "Estudante Premium", full: "Plano Completo" };
+  const pN  = { free: "Gratuito", social: "Social Premium", student: "Criador Avançado", full: "Plano Completo" };
   const pBg = { free: D.gDark, social: D.gBlue, student: D.gMint, full: D.gAmber };
   const pLimits = {
     free:    { posts: 3 },
@@ -2605,22 +2361,59 @@ const Perfil = ({ session, plan, postsUsed, onLogout, onUpdateSession, toast, on
   
   const stats = [
     { l: "Posts Criados", v: postsUsed || 0, c: D.blue2, e: "📸" },
-    { l: "Uso Diário", v: `${postsUsed || 0}/${lim.posts === Infinity ? '∞' : lim.posts}`, c: D.mint, e: "⚡" },
+    { l: "Trocas Músicas", v: songsChanged || 0, c: D.mint, e: "🎵" },
     { l: "Plano", v: pN[plan], c: D.amber, e: "💎" },
   ];
+
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { toast("A imagem deve ter no máximo 2MB", "warn"); return; }
+    
+    setUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random()}.${fileExt}`;
+      const filePath = `${session.id}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+      setEditAvatar(data.publicUrl);
+      toast("Foto carregada! Salve para confirmar.", "ok");
+    } catch (e) {
+      toast("Erro no upload: " + e.message, "error");
+    }
+    setUploading(false);
+  };
 
   const saveProfile = async () => {
     if (!editName.trim()) return;
     setSaving(true);
     try {
         if (session?.id) {
-            await supabase.from('profiles').update({ full_name: editName }).eq('id', session.id);
+            const { error } = await supabase.from('profiles').update({ 
+              full_name: editName.trim(), 
+              bio: editBio, 
+              phone: editPhone,
+              avatar_url: editAvatar
+            }).eq('id', session.id);
+            
+            if (error) throw error;
+
+            await supabase.auth.updateUser({
+              data: { full_name: editName.trim(), avatar_url: editAvatar }
+            });
         }
-        const newSession = { ...session, name: editName.trim(), bio: editBio, phone: editPhone };
+        const newSession = { ...session, name: editName.trim(), bio: editBio, phone: editPhone, avatar_url: editAvatar };
         saveSession(newSession); onUpdateSession(newSession);
         toast(" Perfil atualizado!", "ok"); setSubpage("main");
     } catch(e) {
-        toast("Erro ao salvar perfil", "error");
+        toast("Erro ao salvar perfil: " + e.message, "error");
     }
     setSaving(false);
   };
@@ -2634,6 +2427,21 @@ const Perfil = ({ session, plan, postsUsed, onLogout, onUpdateSession, toast, on
         <button className="btn ghost xs" onClick={() => setSubpage("main")} style={{ padding: 8 }}>⬅️</button>
         <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 20 }}>Editar Perfil</div>
       </div>
+
+      <div style={{ alignSelf: "center", position: "relative", marginBottom: 10 }}>
+        <div style={{ width: 100, height: 100, borderRadius: "50%", background: avatarGrad, border: `3px solid ${D.b2}`, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          {editAvatar ? (
+            <img src={editAvatar} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          ) : (
+            <span style={{ fontSize: 32, fontWeight: 900, color: "#fff" }}>{initials}</span>
+          )}
+        </div>
+        <label style={{ position: "absolute", bottom: 0, right: 0, width: 34, height: 34, borderRadius: "50%", background: D.blue2, border: `2px solid ${D.bg}`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", boxShadow: "0 4px 12px rgba(0,0,0,0.3)" }}>
+          <span>{uploading ? <Spin s={14} c="#fff" /> : "📷"}</span>
+          <input type="file" accept="image/*" onChange={handleAvatarUpload} style={{ display: "none" }} />
+        </label>
+      </div>
+
       <div className="card" style={{ padding: 18, display: "flex", flexDirection: "column", gap: 14 }}>
         <Field label="Nome completo" icon="" value={editName} onChange={e => setEditName(e.target.value)} placeholder="Seu nome" />
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -2652,12 +2460,20 @@ const Perfil = ({ session, plan, postsUsed, onLogout, onUpdateSession, toast, on
     <div className="fi" style={{ display: "flex", flexDirection: "column" }}>
       <div style={{ background: `linear-gradient(180deg,${D.s2} 0%,${D.bg} 100%)`, padding: "28px 20px 20px", display: "flex", flexDirection: "column", gap: 16 }}>
         <div style={{ display: "flex", gap: 16, alignItems: "flex-end" }}>
-          <div style={{ width: 78, height: 78, borderRadius: "50%", background: avatarGrad, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, fontWeight: 900, color: "#fff", fontFamily: "'Sora',sans-serif", border: `3px solid ${D.b2}` }}>{initials}</div>
+          <div style={{ width: 78, height: 78, borderRadius: "50%", background: avatarGrad, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, fontWeight: 900, color: "#fff", fontFamily: "'Sora',sans-serif", border: `3px solid ${D.b2}`, overflow: "hidden" }}>
+            {session?.avatar_url ? <img src={session.avatar_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : initials}
+          </div>
           <div style={{ flex: 1 }}>
             <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 20 }}>{session?.name}</div>
             <div style={{ fontSize: 13, color: D.w2 }}>{session?.email}</div>
+            {session?.bio && (
+              <div style={{ fontSize: 13, color: D.w3, marginTop: 4, lineHeight: 1.4, maxWidth: 280 }}>{session.bio}</div>
+            )}
+            {session?.phone && (
+              <div style={{ fontSize: 12, color: D.blue2, marginTop: 4, fontWeight: 600 }}>📞 {session.phone}</div>
+            )}
           </div>
-          <button className="btn ghost xs" onClick={() => setSubpage("edit")}>Editar</button>
+          <button className="btn ghost xs" onClick={() => setSubpage("edit")} style={{ alignSelf: "flex-start" }}>Editar</button>
         </div>
         <div style={{ display: "flex", gap: 10, alignItems: "center", padding: "12px 16px", background: pBg[plan] || D.gDark, borderRadius: 14 }}>
           <div style={{ flex: 1 }}>
@@ -2683,7 +2499,6 @@ const Perfil = ({ session, plan, postsUsed, onLogout, onUpdateSession, toast, on
         <div className="card" style={{ overflow: "hidden" }}>
           {[
             { e:"✏️", l:"Editar perfil", d:"Nome, bio e telefone", fn:()=>setSubpage("edit") },
-            { e:"🧹", l:"Reiniciar conta", d:"Apagar posts e zerar uso", fn:onResetData, danger:true },
             { e:"🚪", l:"Sair da conta", d:"", fn:onLogout, danger:true },
           ].map(({ e, l, d, fn, danger }, i, arr) => (
             <button key={i} className="btn ghost" onClick={fn}
@@ -2715,14 +2530,24 @@ function App() {
   const [plan, setPlan]       = useState("free");
   const [loadingAuth, setLoadingAuth] = useState(true);
   const [postsUsed, setPostsUsed] = useState(0);
+  const [songsChanged, setSongsChanged] = useState(0);
 
   const fetchProfile = useCallback(async (userId) => {
     if (!userId) return;
     try {
-        const { data } = await supabase.from('profiles').select('posts_used, plan').eq('id', userId).single();
+        const { data } = await supabase.from('profiles').select('posts_used, music_swaps_used, plan, full_name, bio, phone, avatar_url').eq('id', userId).single();
         if (data) {
           setPostsUsed(data.posts_used || 0);
+          setSongsChanged(data.music_swaps_used || 0);
           if (data.plan) setPlan(data.plan);
+          
+          setSession(prev => ({
+            ...prev,
+            name: data.full_name || prev?.name,
+            bio: data.bio || "",
+            phone: data.phone || "",
+            avatar_url: data.avatar_url || ""
+          }));
         }
     } catch(e) {}
   }, []);
@@ -2786,7 +2611,7 @@ function App() {
   }, [session]);
 
   const pCols = { free: D.w3, social: D.blue2, student: D.mint, full: D.amber };
-  const pLbls = { free: "Gratuito", social: "Social Premium", student: "Estudante Premium", full: "Plano Completo" };
+  const pLbls = { free: "Gratuito", social: "Social Premium", student: "Criador Avançado", full: "Plano Completo" };
 
   const NAV = [
     { id: "criador",   l: "Criador",   e: "📸" },
@@ -2794,12 +2619,14 @@ function App() {
     { id: "perfil",    l: "Perfil",    e: "👤" },
   ];
 
+  const [isResetting, setIsResetting] = useState(false);
+
   if (loadingAuth) return <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: D.bg }}><Spin s={40} c={D.blue} /></div>;
 
-  if (!session) return (
+  if (!session || isResetting) return (
     <>
       <style>{CSS}</style>
-      <AuthScreen onLogin={handleLogin} />
+      <AuthScreen onLogin={handleLogin} onResetMode={setIsResetting} />
       <Toasts items={toasts} del={del} />
     </>
   );
@@ -2810,8 +2637,8 @@ function App() {
       <div style={{ minHeight: "100vh", background: D.bg, display: "flex", justifyContent: "center" }}>
         <div style={{ width: "100%", maxWidth: 500, display: "flex", flexDirection: "column", minHeight: "100vh" }}>
           <header style={{ position:"sticky", top:0, zIndex:400, background:`${D.bg}f2`, backdropFilter:"blur(20px)", borderBottom:`1px solid ${D.b0}`, padding:"12px 16px 10px", display:"flex", alignItems:"center", gap:12 }}>
-            <div style={{ width:38, height:38, borderRadius:10, overflow: 'hidden', flexShrink:0, boxShadow:"0 0 16px rgba(37,99,235,.3)" }}>
-              <img src="/logo.png" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="DVS Logo" />
+            <div style={{ width:38, height:38, borderRadius:10, overflow: 'hidden', flexShrink:0, boxShadow:"0 0 16px rgba(37,99,235,.3)", display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(255,255,255,0.05)" }}>
+              <img src="/logo.png" style={{ width: '100%', height: '100%', objectFit: 'contain' }} alt="DVS Logo" />
             </div>
             <div>
               <div style={{ fontFamily:"'Sora',sans-serif", fontWeight:800, fontSize:16, letterSpacing:"-.2px", lineHeight:1.2 }}>DVSCREATOR</div>
@@ -2826,20 +2653,9 @@ function App() {
           </header>
 
           <main style={{ flex:1, overflowY:"auto", paddingBottom:72 }}>
-            {nav === "criador"   && <Criador   toast={toast} session={session} plan={plan} />}
+            {nav === "criador"   && <Criador   toast={toast} session={session} plan={plan} setPostsUsed={setPostsUsed} songsChanged={songsChanged} setSongsChanged={setSongsChanged} />}
             {nav === "planos"    && <Planos    plan={plan} setPlan={handleSetPlan} toast={toast} />}
-            {nav === "perfil"    && <Perfil    session={session} plan={plan} postsUsed={postsUsed} onLogout={handleLogout} onUpdateSession={handleUpdateSession} toast={toast} onResetData={async () => {
-                if (!confirm("Deseja realmente apagar todos os posts e reiniciar seu uso diário?")) return;
-                toast("Reiniciando...", "info");
-                try {
-                  await supabase.from('posts').delete().eq('user_id', session.id);
-                  await supabase.from('profiles').update({ posts_used: 0 }).eq('id', session.id);
-                  setPostsUsed(0);
-                  toast("Conta reiniciada!", "ok");
-                } catch(e) {
-                  toast("Erro ao reiniciar", "error");
-                }
-              }} />}
+            {nav === "perfil"    && <Perfil    session={session} plan={plan} postsUsed={postsUsed} songsChanged={songsChanged} onLogout={handleLogout} onUpdateSession={handleUpdateSession} toast={toast} />}
           </main>
 
           <nav style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:500, zIndex:300, background:`${D.s1}f8`, backdropFilter:"blur(24px)", borderTop:`1px solid ${D.b0}`, padding:"7px 4px 16px", display:"flex" }}>

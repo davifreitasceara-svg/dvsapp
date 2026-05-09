@@ -8,7 +8,11 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     server: {
       host: true,
-      port: 5173,
+      port: 5174,
+      headers: {
+        'Cross-Origin-Embedder-Policy': 'require-corp',
+        'Cross-Origin-Opener-Policy': 'same-origin',
+      },
       proxy: {
         '/api/ai': {
           target: 'https://generativelanguage.googleapis.com',

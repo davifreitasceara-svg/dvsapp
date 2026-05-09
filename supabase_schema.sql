@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   full_name text,
   avatar_url text,
   posts_used integer DEFAULT 0,
+  music_swaps_used integer DEFAULT 0,
   last_usage_reset date DEFAULT CURRENT_DATE,
   plan text DEFAULT 'free'
 );
@@ -64,8 +65,8 @@ BEGIN
     SELECT * INTO rec FROM public.profiles WHERE id = user_id_param;
     
     IF NOT FOUND THEN
-        INSERT INTO public.profiles (id, posts_used, last_usage_reset, plan)
-        VALUES (user_id_param, 1, today_date, 'free')
+        INSERT INTO public.profiles (id, posts_used, music_swaps_used, last_usage_reset, plan)
+        VALUES (user_id_param, 1, 0, today_date, 'free')
         RETURNING posts_used, plan INTO current_count, user_plan;
         RETURN jsonb_build_object('success', true, 'count', 1);
     END IF;
@@ -76,7 +77,7 @@ BEGIN
     -- Se mudou o dia, reseta o contador
     IF rec.last_usage_reset < today_date THEN
         UPDATE public.profiles
-        SET posts_used = 1, last_usage_reset = today_date
+        SET posts_used = 1, music_swaps_used = 0, last_usage_reset = today_date
         WHERE id = user_id_param;
         RETURN jsonb_build_object('success', true, 'count', 1);
     END IF;
@@ -95,3 +96,51 @@ BEGIN
     RETURN jsonb_build_object('success', true, 'count', current_count);
 END;
 $$;
+
+-- 7. FUNÇÃO ATÔMICA DE TROCA DE MÚSICA (RPC)
+CREATE OR REPLACE FUNCTION increment_music_usage(user_id_param uuid, limit_param integer)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    today_date date := CURRENT_DATE;
+    current_swaps integer;
+    user_plan text;
+    rec record;
+BEGIN
+    SELECT * INTO rec FROM public.profiles WHERE id = user_id_param;
+    
+    IF NOT FOUND THEN
+        INSERT INTO public.profiles (id, posts_used, music_swaps_used, last_usage_reset, plan)
+        VALUES (user_id_param, 0, 1, today_date, 'free')
+        RETURNING music_swaps_used, plan INTO current_swaps, user_plan;
+        RETURN jsonb_build_object('success', true, 'count', 1);
+    END IF;
+
+    current_swaps := rec.music_swaps_used;
+    user_plan := rec.plan;
+
+    -- Se mudou o dia, reseta o contador
+    IF rec.last_usage_reset < today_date THEN
+        UPDATE public.profiles
+        SET posts_used = 0, music_swaps_used = 1, last_usage_reset = today_date
+        WHERE id = user_id_param;
+        RETURN jsonb_build_object('success', true, 'count', 1);
+    END IF;
+
+    -- Verifica limite (Ignora se for plano 'full')
+    IF current_swaps >= limit_param AND user_plan <> 'full' THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Limit reached');
+    END IF;
+
+    -- Incrementa uso
+    UPDATE public.profiles
+    SET music_swaps_used = music_swaps_used + 1
+    WHERE id = user_id_param
+    RETURNING music_swaps_used INTO current_swaps;
+
+    RETURN jsonb_build_object('success', true, 'count', current_swaps);
+END;
+$$;
+
