@@ -221,7 +221,7 @@ let _tid = 0;
 
 async function callAI(user, sys = "") {
   try {
-    const r = await fetch("/api/ai/v1beta/models/gemini-flash-latest:generateContent", {
+    const r = await fetch("/api/ai/v1beta/models/gemini-2.0-flash:generateContent", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -262,7 +262,7 @@ function fileToBase64(file) {
 
 async function callAIVision(b64, mediaType, prompt, sys) {
   try {
-    const r = await fetch("/api/ai/v1beta/models/gemini-flash-latest:generateContent", {
+    const r = await fetch("/api/ai/v1beta/models/gemini-2.0-flash:generateContent", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -1584,7 +1584,7 @@ const SmartSoundPlayer = ({ musicas = [], toast, plan, songsChanged, setSongsCha
     try {
       const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(q)}&media=music&limit=20&country=${country}&explicit=No`;
       const res = await fetch(
-        `https://corsproxy.io/?${encodeURIComponent(itunesUrl)}`,
+        `https://itunes.apple.com/search?term=${encodeURIComponent(q)}&media=music&limit=20&country=${country}&explicit=No`,
         { method: "GET" }
       );
       const data = await res.json();
