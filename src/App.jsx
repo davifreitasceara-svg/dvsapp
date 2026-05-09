@@ -218,7 +218,7 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
  */
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 let _tid = 0;
-const GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY || "";
+const GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY || "AIzaSyB4hs1jOQ9kbwy2cTmN6M8w0tQjEF7Y3jc";
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`;
 
 async function callAI(user, sys = "") {
