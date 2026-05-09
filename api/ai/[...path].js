@@ -1,5 +1,5 @@
 export default async function handler(req, res) {
-  // CORS headers - permite acesso do frontend
+  // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -11,23 +11,40 @@ export default async function handler(req, res) {
   const apiKey = process.env.GEMINI_API_KEY;
 
   if (!apiKey) {
-    console.error('[AI Proxy] GEMINI_API_KEY não está configurada nas variáveis de ambiente da Vercel!');
-    return res.status(500).json({ error: 'GEMINI_API_KEY não configurada no servidor.' });
+    console.error('[AI Proxy] GEMINI_API_KEY nao configurada!');
+    return res.status(500).json({ error: 'GEMINI_API_KEY nao configurada no servidor.' });
   }
 
-  // Extrai o path da URL, ex: /api/ai/v1beta/models/... -> v1beta/models/...
-  const { path } = req.query;
-  const pathStr = Array.isArray(path) ? path.join('/') : (path || '');
+  // Extrai o path de múltiplas formas possíveis que o Vercel pode usar
+  let pathSegments = req.query.path || req.query['...path'];
+  
+  // Se não encontrou via query, tenta extrair da URL diretamente
+  if (!pathSegments) {
+    const urlPath = req.url || '';
+    const match = urlPath.match(/\/api\/ai\/(.*?)(\?|$)/);
+    if (match && match[1]) {
+      pathSegments = match[1].split('/');
+    }
+  }
+
+  const pathStr = Array.isArray(pathSegments)
+    ? pathSegments.join('/')
+    : (typeof pathSegments === 'string' ? pathSegments : '');
 
   if (!pathStr) {
-    return res.status(400).json({ error: 'Nenhum path fornecido' });
+    console.error('[AI Proxy] Path nao encontrado. query:', JSON.stringify(req.query), 'url:', req.url);
+    return res.status(400).json({ error: 'Nenhum path fornecido', query: req.query, url: req.url });
   }
 
-  const googleUrl = `https://generativelanguage.googleapis.com/${pathStr}`;
+  // Remove query string do pathStr se vier junto
+  const cleanPath = pathStr.split('?')[0];
+  const googleUrl = `https://generativelanguage.googleapis.com/${cleanPath}`;
+
+  console.log('[AI Proxy] Encaminhando para:', googleUrl);
 
   try {
-    const body = req.method !== 'GET' && req.method !== 'HEAD' 
-      ? JSON.stringify(req.body) 
+    const body = req.method !== 'GET' && req.method !== 'HEAD'
+      ? JSON.stringify(req.body)
       : undefined;
 
     const response = await fetch(googleUrl, {
@@ -42,14 +59,13 @@ export default async function handler(req, res) {
     const data = await response.json();
 
     if (!response.ok) {
-      console.error('[AI Proxy] Erro do Google:', response.status, data);
+      console.error('[AI Proxy] Erro Google:', response.status, JSON.stringify(data));
       return res.status(response.status).json(data);
     }
 
     return res.status(200).json(data);
   } catch (error) {
-    console.error('[AI Proxy] Erro inesperado:', error.message);
-    return res.status(500).json({ error: 'Falha ao conectar com Google Gemini: ' + error.message });
+    console.error('[AI Proxy] Erro:', error.message);
+    return res.status(500).json({ error: 'Falha ao conectar: ' + error.message });
   }
 }
-
