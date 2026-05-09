@@ -218,14 +218,17 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
  */
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 let _tid = 0;
+const GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY || "";
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`;
 
 async function callAI(user, sys = "") {
+  if (!GEMINI_KEY) { console.error("[callAI] VITE_GEMINI_API_KEY nao configurada!"); return ""; }
   try {
-    const r = await fetch("/api/ai/v1beta/models/gemini-2.0-flash:generateContent", {
+    const r = await fetch(GEMINI_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        systemInstruction: { parts: [{ text: sys || "Voc    DVSCREATOR AI  assistente especialista em marketing digital e educao. Responda sempre em portugu s brasileiro de forma direta, criativa e precisa." }] },
+        systemInstruction: { parts: [{ text: sys || "Você é o DVSCREATOR AI, assistente especialista em marketing digital e educação. Responda sempre em português brasileiro de forma direta, criativa e precisa." }] },
         contents: [{ role: "user", parts: [{ text: user }] }]
       }),
     });
@@ -261,12 +264,13 @@ function fileToBase64(file) {
 }
 
 async function callAIVision(b64, mediaType, prompt, sys) {
+  if (!GEMINI_KEY) { console.error("[callAIVision] VITE_GEMINI_API_KEY nao configurada!"); return ""; }
   try {
-    const r = await fetch("/api/ai/v1beta/models/gemini-2.0-flash:generateContent", {
+    const r = await fetch(GEMINI_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        systemInstruction: { parts: [{ text: sys || "Voc    DVSCREATOR AI  especialista em marketing viral brasileiro. Responda em portugu s." }] },
+        systemInstruction: { parts: [{ text: sys || "Você é o DVSCREATOR AI, especialista em marketing viral brasileiro. Responda em português." }] },
         contents: [{ role: "user", parts: [
           { inlineData: { mimeType: mediaType, data: b64 } },
           { text: prompt }
