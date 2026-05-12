@@ -2539,7 +2539,7 @@ const Feed = ({ toast, session, onNavigate }) => {
     setLoading(true);
     const { data, error } = await supabase
       .from("posts")
-      .select("*, profiles!inner(full_name, avatar_url)")
+      .select("*, profiles!inner(full_name, avatar_url), post_likes(count), comments(count)")
       .order("created_at", { ascending: false })
       .limit(20);
       
@@ -2563,25 +2563,48 @@ const Feed = ({ toast, session, onNavigate }) => {
 
 const PostCard = ({ post, session, toast, onNavigate }) => {
   const [liked, setLiked] = useState(false);
-  const [likesCount, setLikesCount] = useState(0);
+  const [likesCount, setLikesCount] = useState(post.post_likes?.[0]?.count || 0);
   const [saved, setSaved] = useState(false);
+  const [showComments, setShowComments] = useState(false);
+  const [commentsCount, setCommentsCount] = useState(post.comments?.[0]?.count || 0);
   
+  useEffect(() => {
+    if (!session?.id) return;
+    supabase.from("post_likes").select("post_id").eq("post_id", post.id).eq("user_id", session.id).then(({ data }) => {
+      if (data?.length) setLiked(true);
+    });
+    supabase.from("saved_posts").select("post_id").eq("post_id", post.id).eq("user_id", session.id).then(({ data }) => {
+      if (data?.length) setSaved(true);
+    });
+  }, [post.id, session?.id]);
+
   const toggleLike = async () => {
     if (!session?.id) return toast("Faça login para curtir.", "warn");
-    setLiked(!liked);
-    setLikesCount(c => liked ? c - 1 : c + 1);
-    toast(liked ? "Curtida removida" : "Post curtido!");
+    if (liked) {
+      setLiked(false); setLikesCount(c => Math.max(0, c - 1));
+      await supabase.from("post_likes").delete().eq("post_id", post.id).eq("user_id", session.id);
+    } else {
+      setLiked(true); setLikesCount(c => c + 1);
+      await supabase.from("post_likes").insert({ post_id: post.id, user_id: session.id });
+    }
   };
 
   const toggleSave = async () => {
     if (!session?.id) return toast("Faça login para salvar.", "warn");
-    setSaved(!saved);
-    toast(saved ? "Removido dos salvos." : "Salvo como inspiração!", "ok");
+    if (saved) {
+      setSaved(false);
+      await supabase.from("saved_posts").delete().eq("post_id", post.id).eq("user_id", session.id);
+      toast("Removido dos salvos.");
+    } else {
+      setSaved(true);
+      await supabase.from("saved_posts").insert({ post_id: post.id, user_id: session.id });
+      toast("Salvo como inspiração!", "ok");
+    }
   };
 
   return (
     <div className="card" style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
-      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+      <div style={{ display: "flex", gap: 10, alignItems: "center", cursor: "pointer" }} onClick={() => onNavigate("public_profile", post.user_id)}>
         <div style={{ width: 40, height: 40, borderRadius: 12, background: D.s3, overflow: "hidden" }}>
           {post.profiles?.avatar_url ? <img src={post.profiles.avatar_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>👤</div>}
         </div>
@@ -2595,6 +2618,9 @@ const PostCard = ({ post, session, toast, onNavigate }) => {
         <div style={{ fontSize: 13, lineHeight: 1.5, color: D.w2, whiteSpace: "pre-wrap" }}>
           {post.content?.caption || "Post visualizado."}
         </div>
+        {post.content?.musicas?.[0] && (
+           <div style={{ marginTop: 10, fontSize: 11, color: D.blue2 }}>🎵 {post.content.musicas[0].nome}</div>
+        )}
       </div>
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 4 }}>
@@ -2602,20 +2628,133 @@ const PostCard = ({ post, session, toast, onNavigate }) => {
           <button onClick={toggleLike} style={{ background: "none", border: "none", color: liked ? D.rose : D.w3, display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 700 }}>
             {liked ? "❤️" : "🤍"} {likesCount}
           </button>
-          <button style={{ background: "none", border: "none", color: D.w3, display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 700 }}>
-            💬 0
+          <button onClick={() => setShowComments(true)} style={{ background: "none", border: "none", color: D.w3, display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 700 }}>
+            💬 {commentsCount}
           </button>
         </div>
         <button onClick={toggleSave} style={{ background: "none", border: "none", color: saved ? D.amber : D.w3, fontSize: 18 }}>
           {saved ? "⭐" : "☆"}
         </button>
       </div>
+      
+      {showComments && (
+        <CommentsModal 
+          post={post} 
+          session={session} 
+          onClose={() => setShowComments(false)} 
+          onCommentAdded={() => setCommentsCount(c => c + 1)} 
+        />
+      )}
+    </div>
+  );
+};
+
+const CommentsModal = ({ post, session, onClose, onCommentAdded }) => {
+  const [comments, setComments] = useState([]);
+  const [text, setText] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadComments();
+  }, []);
+
+  const loadComments = async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from("comments")
+      .select("*, profiles!inner(full_name, avatar_url)")
+      .eq("post_id", post.id)
+      .order("created_at", { ascending: true });
+    if (data) setComments(data);
+    setLoading(false);
+  };
+
+  const submitComment = async () => {
+    if (!text.trim() || !session?.id) return;
+    const { data, error } = await supabase.from("comments").insert({
+      post_id: post.id,
+      user_id: session.id,
+      content: text
+    }).select("*, profiles!inner(full_name, avatar_url)").single();
+    if (!error && data) {
+      setComments([...comments, data]);
+      setText("");
+      onCommentAdded();
+    }
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 9999, display: "flex", alignItems: "flex-end", backdropFilter: "blur(2px)" }}>
+       <div style={{ background: D.bg, width: "100%", height: "70vh", borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, display: "flex", flexDirection: "column", boxShadow: "0 -4px 20px rgba(0,0,0,0.5)" }}>
+         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
+            <div style={{ fontWeight: 800, fontSize: 18 }}>Comentários</div>
+            <button onClick={onClose} style={{ background: "none", border: "none", color: D.w3, fontSize: 20 }}>✕</button>
+         </div>
+         
+         <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 12, paddingBottom: 16 }}>
+            {loading ? <Spin s={20} c={D.blue} /> : (
+              comments.length > 0 ? comments.map(c => (
+                <div key={c.id} style={{ display: "flex", gap: 10 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 10, background: D.s3, overflow: "hidden", flexShrink: 0 }}>
+                     {c.profiles?.avatar_url && <img src={c.profiles.avatar_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
+                  </div>
+                  <div style={{ background: D.bg2, padding: "8px 12px", borderRadius: 12, flex: 1 }}>
+                     <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 4 }}>{c.profiles?.full_name}</div>
+                     <div style={{ fontSize: 13, color: D.w1 }}>{c.content}</div>
+                  </div>
+                </div>
+              )) : <div style={{ color: D.w3, fontSize: 13, textAlign: "center" }}>Nenhum comentário ainda. Seja o primeiro!</div>
+            )}
+         </div>
+
+         <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+            <input 
+              className="inp" 
+              placeholder="Adicionar um comentário..." 
+              value={text} 
+              onChange={e => setText(e.target.value)} 
+              onKeyDown={e => e.key === 'Enter' && submitComment()}
+              style={{ flex: 1 }}
+            />
+            <button className="btn primary sm" onClick={submitComment} disabled={!text.trim()}>Enviar</button>
+         </div>
+       </div>
     </div>
   );
 };
 
 const SavedPosts = ({ toast, session, onNavigate }) => {
-  return <div style={{ padding: 20, textAlign: "center", color: D.w3 }}>Nenhum post salvo ainda. Em breve!</div>;
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (session?.id) loadSaved();
+  }, [session?.id]);
+
+  const loadSaved = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("saved_posts")
+      .select("post_id, posts(*, profiles!inner(full_name, avatar_url), post_likes(count), comments(count))")
+      .eq("user_id", session.id)
+      .order("created_at", { ascending: false });
+      
+    if (error) { toast("Erro ao carregar salvos.", "err"); }
+    else { setPosts(data?.map(d => d.posts) || []); }
+    setLoading(false);
+  };
+
+  if (loading) return <div style={{ padding: 40, textAlign: "center" }}><Spin s={30} c={D.amber} /></div>;
+
+  return (
+    <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: 16 }}>
+      <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 22 }}>Inspirações Salvas</div>
+      {posts.map(p => (
+        <PostCard key={p.id} post={p} session={session} toast={toast} onNavigate={onNavigate} />
+      ))}
+      {posts.length === 0 && <div style={{ textAlign: "center", padding: 40, color: D.w3 }}>Nenhum post salvo ainda. ⭐</div>}
+    </div>
+  );
 };
 // ===================================================================
 
