@@ -1612,14 +1612,14 @@ APENAS o termo de busca, sem aspas, sem explicaes. M ximo 5 palavras.`,
     const termo = raw?.trim() || `${m.nome} ${m.artista}`;
     try {
       const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(termo)}&media=music&limit=5&country=br&explicit=No`;
-      const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(itunesUrl)}`);
+      const res = await fetch(itunesUrl);
       const data = await res.json();
       const tracks = (data.results || []).filter(r => r.previewUrl);
       if (tracks.length > 0) { playTrack(tracks[0]); }
       else {
         // fallback: busca direto pelo nome
         const itunesUrl2 = `https://itunes.apple.com/search?term=${encodeURIComponent(m.nome)}&media=music&limit=5&country=br`;
-        const res2 = await fetch(`https://corsproxy.io/?${encodeURIComponent(itunesUrl2)}`);
+        const res2 = await fetch(itunesUrl2);
         const data2 = await res2.json();
         const t2 = (data2.results||[]).filter(r => r.previewUrl);
         if (t2.length > 0) playTrack(t2[0]);
