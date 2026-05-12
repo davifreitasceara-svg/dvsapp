@@ -1300,7 +1300,7 @@ ${jsonTpl}`,
           </div>
 
           {/* SmartSound */}
-          <SmartSoundPlayer musicas={result?.musicas} toast={toast} plan={plan} songsChanged={songsChanged} setSongsChanged={setSongsChanged} onSelect={setSelMusic} />
+          <SmartSoundPlayer session={session} musicas={result?.musicas} toast={toast} plan={plan} songsChanged={songsChanged} setSongsChanged={setSongsChanged} onSelect={setSelMusic} />
 
           {/* Turbinar */}
 
@@ -1484,7 +1484,7 @@ const Planos = ({ plan, setPlan, toast }) => {
   );
 };
 
-const SmartSoundPlayer = ({ musicas = [], toast, plan, songsChanged, setSongsChanged, onSelect }) => {
+const SmartSoundPlayer = ({ session, musicas = [], toast, plan, songsChanged, setSongsChanged, onSelect }) => {
   const [track,      setTrack]    = useState(null); // faixa tocando
   const [results,    setResults]  = useState([]);
   const [queue,      setQueue]    = useState([]);
