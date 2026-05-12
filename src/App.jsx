@@ -2756,6 +2756,97 @@ const SavedPosts = ({ toast, session, onNavigate }) => {
     </div>
   );
 };
+const PublicProfile = ({ userId, session, onBack }) => {
+  const [profile, setProfile] = useState(null);
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followersCount, setFollowersCount] = useState(0);
+
+  useEffect(() => {
+    if (userId) loadProfile();
+  }, [userId, session?.id]);
+
+  const loadProfile = async () => {
+    setLoading(true);
+    
+    // Load profile
+    const { data: pData } = await supabase.from("profiles").select("*").eq("id", userId).single();
+    if (pData) setProfile(pData);
+    
+    // Load followers count
+    const { count } = await supabase.from("follows").select("*", { count: 'exact', head: true }).eq("following_id", userId);
+    setFollowersCount(count || 0);
+
+    // Load is following
+    if (session?.id) {
+      const { data: fData } = await supabase.from("follows").select("*").eq("follower_id", session.id).eq("following_id", userId);
+      setIsFollowing(fData && fData.length > 0);
+    }
+
+    // Load posts
+    const { data: ptData } = await supabase
+      .from("posts")
+      .select("*, profiles!inner(full_name, avatar_url), post_likes(count), comments(count)")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+    if (ptData) setPosts(ptData);
+    
+    setLoading(false);
+  };
+
+  const toggleFollow = async () => {
+    if (!session?.id) return;
+    if (isFollowing) {
+      setIsFollowing(false); setFollowersCount(c => Math.max(0, c - 1));
+      await supabase.from("follows").delete().eq("follower_id", session.id).eq("following_id", userId);
+    } else {
+      setIsFollowing(true); setFollowersCount(c => c + 1);
+      await supabase.from("follows").insert({ follower_id: session.id, following_id: userId });
+    }
+  };
+
+  if (loading) return <div style={{ padding: 40, textAlign: "center" }}><Spin s={30} c={D.blue} /></div>;
+  if (!profile) return <div style={{ padding: 40, textAlign: "center", color: D.w3 }}>Perfil não encontrado. <button className="btn outline" onClick={onBack}>Voltar</button></div>;
+
+  return (
+    <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: 16 }}>
+      <button className="btn ghost xs" style={{ alignSelf: "flex-start", color: D.w2 }} onClick={onBack}>← Voltar</button>
+      
+      <div className="card" style={{ padding: 20, textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+        <div style={{ width: 80, height: 80, borderRadius: 24, background: D.s2, overflow: "hidden" }}>
+           {profile.avatar_url ? <img src={profile.avatar_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32 }}>👤</div>}
+        </div>
+        <div>
+           <div style={{ fontWeight: 800, fontSize: 20 }}>{profile.full_name || "Criador Anônimo"}</div>
+           <div style={{ fontSize: 13, color: D.blue2, fontWeight: 700 }}>{profile.professional_role || "Criador de Conteúdo"}</div>
+        </div>
+        <div style={{ display: "flex", gap: 20, margin: "8px 0" }}>
+           <div><span style={{ fontWeight: 800, color: D.w1 }}>{followersCount}</span> <span style={{ fontSize: 11, color: D.w3 }}>Seguidores</span></div>
+           <div><span style={{ fontWeight: 800, color: D.w1 }}>{posts.length}</span> <span style={{ fontSize: 11, color: D.w3 }}>Posts</span></div>
+        </div>
+        {profile.bio && <div style={{ fontSize: 13, color: D.w2 }}>{profile.bio}</div>}
+        
+        {session?.id !== userId && (
+          <button 
+            onClick={toggleFollow} 
+            className={`btn ${isFollowing ? "outline" : "primary"}`} 
+            style={{ width: "100%", marginTop: 10 }}>
+            {isFollowing ? "Seguindo" : "Seguir"}
+          </button>
+        )}
+      </div>
+
+      <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 18, marginTop: 10 }}>Galeria</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        {posts.map(p => (
+          <PostCard key={p.id} post={p} session={session} toast={() => {}} onNavigate={() => {}} />
+        ))}
+        {posts.length === 0 && <div style={{ textAlign: "center", padding: 20, color: D.w3 }}>Nenhum post ainda.</div>}
+      </div>
+    </div>
+  );
+};
 // ===================================================================
 
 export default function AppWrapper() {
@@ -2769,6 +2860,13 @@ export default function AppWrapper() {
 function App() {
   const [session, setSession] = useState(null);
   const [nav, setNav]         = useState("feed");
+  const [publicUserId, setPublicUserId] = useState(null);
+
+  const handleNavigate = useCallback((n, id = null) => {
+    setPublicUserId(id);
+    setNav(n);
+  }, []);
+
   const [plan, setPlan]       = useState("free");
   const [loadingAuth, setLoadingAuth] = useState(true);
   const [postsUsed, setPostsUsed] = useState(0);
@@ -2897,11 +2995,12 @@ function App() {
           </header>
 
           <main style={{ flex:1, overflowY:"auto", paddingBottom:72 }}>
-            {nav === "feed"      && <Feed      toast={toast} session={session} onNavigate={setNav} />}
-            {nav === "criador"   && <Criador   toast={toast} session={session} plan={plan} setPostsUsed={setPostsUsed} songsChanged={songsChanged} setSongsChanged={setSongsChanged} onNavigate={setNav} />}
-            {nav === "salvos"    && <SavedPosts toast={toast} session={session} onNavigate={setNav} />}
+            {nav === "feed"      && <Feed      toast={toast} session={session} onNavigate={handleNavigate} />}
+            {nav === "criador"   && <Criador   toast={toast} session={session} plan={plan} setPostsUsed={setPostsUsed} songsChanged={songsChanged} setSongsChanged={setSongsChanged} onNavigate={handleNavigate} />}
+            {nav === "salvos"    && <SavedPosts toast={toast} session={session} onNavigate={handleNavigate} />}
             {nav === "planos"    && <Planos    plan={plan} setPlan={handleSetPlan} toast={toast} />}
-            {nav === "perfil"    && <Perfil    session={session} plan={plan} postsUsed={postsUsed} songsChanged={songsChanged} onLogout={handleLogout} onUpdateSession={handleUpdateSession} toast={toast} onNavigate={setNav} />}
+            {nav === "perfil"    && <Perfil    session={session} plan={plan} postsUsed={postsUsed} songsChanged={songsChanged} onLogout={handleLogout} onUpdateSession={handleUpdateSession} toast={toast} onNavigate={handleNavigate} />}
+            {nav === "public_profile" && <PublicProfile userId={publicUserId} session={session} onBack={() => handleNavigate("feed")} />}
           </main>
 
           <nav style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:500, zIndex:300, background:`${D.s1}f8`, backdropFilter:"blur(24px)", borderTop:`1px solid ${D.b0}`, padding:"7px 4px 16px", display:"flex" }}>
