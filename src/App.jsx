@@ -2521,11 +2521,6 @@ const Perfil = ({ session, plan, postsUsed, songsChanged, onLogout, onUpdateSess
 };
 
 // ==================== SOCIAL NETWORK COMPONENTS ====================
-const Spin = ({ s = 20, c = "#fff" }) => (
-  <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="spin" style={{ animation: "spin 1s linear infinite" }}>
-    <path d="M21 12a9 9 0 11-6.219-8.56"></path>
-  </svg>
-);
 
 const Feed = ({ toast, session, onNavigate }) => {
   const [posts, setPosts] = useState([]);
