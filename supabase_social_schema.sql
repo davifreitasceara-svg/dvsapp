@@ -9,7 +9,7 @@ ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS website text;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS professional_role text;
 
 -- 2. ATUALIZAR POSTS
-ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS repost_of_id uuid REFERENCES public.posts(id) ON DELETE CASCADE;
+ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS repost_of_id bigint REFERENCES public.posts(id) ON DELETE CASCADE;
 
 -- 3. TABELA DE SEGUIDORES (FOLLOWS)
 CREATE TABLE IF NOT EXISTS public.follows (
@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS public.follows (
 
 -- 4. TABELA DE CURTIDAS (POST_LIKES)
 CREATE TABLE IF NOT EXISTS public.post_likes (
-  post_id uuid REFERENCES public.posts(id) ON DELETE CASCADE NOT NULL,
+  post_id bigint REFERENCES public.posts(id) ON DELETE CASCADE NOT NULL,
   user_id uuid REFERENCES auth.users ON DELETE CASCADE NOT NULL,
   created_at timestamp with time zone DEFAULT now(),
   PRIMARY KEY (post_id, user_id)
@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS public.post_likes (
 -- 5. TABELA DE COMENTÁRIOS (COMMENTS)
 CREATE TABLE IF NOT EXISTS public.comments (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  post_id uuid REFERENCES public.posts(id) ON DELETE CASCADE NOT NULL,
+  post_id bigint REFERENCES public.posts(id) ON DELETE CASCADE NOT NULL,
   user_id uuid REFERENCES auth.users ON DELETE CASCADE NOT NULL,
   content text NOT NULL,
   created_at timestamp with time zone DEFAULT now()
@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS public.comments (
 -- 6. TABELA DE POSTS SALVOS (SAVED_POSTS)
 CREATE TABLE IF NOT EXISTS public.saved_posts (
   user_id uuid REFERENCES auth.users ON DELETE CASCADE NOT NULL,
-  post_id uuid REFERENCES public.posts(id) ON DELETE CASCADE NOT NULL,
+  post_id bigint REFERENCES public.posts(id) ON DELETE CASCADE NOT NULL,
   created_at timestamp with time zone DEFAULT now(),
   PRIMARY KEY (user_id, post_id)
 );
