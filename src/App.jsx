@@ -2632,32 +2632,149 @@ const Perfil = ({ session, plan, postsUsed, songsChanged, onLogout, onUpdateSess
 
 
 
+
+// ==================== ADVANCED SOCIAL COMPONENTS ====================
+
+const CommentsModal = ({ post, session, onClose, onCommentAdded }) => {
+  const [comments, setComments] = useState([]);
+  const [text, setText] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadComments();
+  }, [post.id]);
+
+  const loadComments = async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from("comments")
+      .select("*, profiles!inner(full_name, avatar_url, username)")
+      .eq("post_id", post.id)
+      .order("created_at", { ascending: true });
+    if (data) setComments(data);
+    setLoading(false);
+  };
+
+  const submitComment = async () => {
+    if (!text.trim() || !session?.id) return;
+    const { data, error } = await supabase.from("comments").insert({
+      post_id: post.id,
+      user_id: session.id,
+      content: text
+    }).select("*, profiles!inner(full_name, avatar_url, username)").single();
+    if (!error && data) {
+      setComments([...comments, data]);
+      setText("");
+      onCommentAdded();
+    }
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 9999, display: "flex", alignItems: "flex-end", backdropFilter: "blur(4px)" }}>
+       <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} className="card" style={{ background: D.bg, width: "100%", height: "75vh", borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 24, display: "flex", flexDirection: "column", boxShadow: "0 -10px 40px rgba(0,0,0,0.5)" }}>
+         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+            <div style={{ fontWeight: 900, fontSize: 20 }}>Comentários</div>
+            <button onClick={onClose} style={{ background: D.bg2, border: "none", color: D.w3, width: 32, height: 32, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+         </div>
+         
+         <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 16, paddingBottom: 20 }}>
+            {loading ? <div style={{ padding: 40, textAlign: "center" }}><DvsSpin s={24} c={D.blue} /></div> : (
+              comments.length > 0 ? comments.map(c => (
+                <div key={c.id} style={{ display: "flex", gap: 12 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 12, background: D.s3, overflow: "hidden", flexShrink: 0 }}>
+                     {c.profiles?.avatar_url && <img src={c.profiles.avatar_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
+                  </div>
+                  <div style={{ background: D.bg2, padding: "10px 14px", borderRadius: 16, flex: 1 }}>
+                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                        <div style={{ fontWeight: 800, fontSize: 13 }}>{c.profiles?.full_name || "Usuário"} <span style={{ fontWeight: 400, color: D.w3, marginLeft: 4 }}>@{c.profiles?.username || "anon"}</span></div>
+                        <div style={{ fontSize: 10, color: D.w3 }}>{new Date(c.created_at).toLocaleDateString()}</div>
+                     </div>
+                     <div style={{ fontSize: 14, color: D.w1, lineHeight: 1.4 }}>{c.content}</div>
+                  </div>
+                </div>
+              )) : <div style={{ color: D.w3, fontSize: 14, textAlign: "center", padding: 40 }}>Ainda não há comentários. Seja o primeiro! 💬</div>
+            )}
+         </div>
+
+         <div style={{ display: "flex", gap: 10, marginTop: 16, background: D.bg2, padding: 8, borderRadius: 20 }}>
+            <input 
+              className="inp" 
+              placeholder="Adicionar um comentário..." 
+              value={text} 
+              onChange={e => setText(e.target.value)} 
+              onKeyDown={e => e.key === 'Enter' && submitComment()}
+              style={{ flex: 1, border: "none", background: "transparent" }}
+            />
+            <button className="btn primary sm" onClick={submitComment} disabled={!text.trim()} style={{ borderRadius: 14 }}>Enviar</button>
+         </div>
+       </motion.div>
+    </div>
+  );
+};
+
 const PostCard = ({ post, session, toast, onNavigate }) => {
+  const [liked, setLiked] = useState(false);
+  const [likesCount, setLikesCount] = useState(post.post_likes?.[0]?.count || 0);
   const [saved, setSaved] = useState(false);
+  const [showComments, setShowComments] = useState(false);
+  const [commentsCount, setCommentsCount] = useState(post.comments?.[0]?.count || 0);
   
   useEffect(() => {
     if (!session?.id) return;
+    supabase.from("post_likes").select("post_id").eq("post_id", post.id).eq("user_id", session.id).then(({ data }) => {
+      if (data?.length) setLiked(true);
+    });
     supabase.from("saved_posts").select("post_id").eq("post_id", post.id).eq("user_id", session.id).then(({ data }) => {
       if (data?.length) setSaved(true);
     });
   }, [post.id, session?.id]);
 
-  const toggleSave = async () => {
+  const toggleLike = async () => {
+    if (!session?.id) return toast("Faça login para curtir.", "warn");
+    if (liked) {
+      setLiked(false); setLikesCount(c => Math.max(0, c - 1));
+      await supabase.from("post_likes").delete().eq("post_id", post.id).eq("user_id", session.id);
+    } else {
+      setLiked(true); setLikesCount(c => c + 1);
+      await supabase.from("post_likes").insert({ post_id: post.id, user_id: session.id });
+    }
+  };
+
+  const [showFolderPicker, setShowFolderPicker] = useState(false);
+  const [collections, setCollections] = useState([]);
+
+  useEffect(() => {
+    if (showFolderPicker && session?.id) {
+       supabase.from("collections").select("*").eq("user_id", session.id).then(({ data }) => {
+         if (data) setCollections(data);
+       });
+    }
+  }, [showFolderPicker, session?.id]);
+
+  const toggleSave = async (folderId = null) => {
     if (!session?.id) return toast("Faça login para salvar.", "warn");
-    if (saved) {
+    
+    if (saved && !folderId) {
       setSaved(false);
       await supabase.from("saved_posts").delete().eq("post_id", post.id).eq("user_id", session.id);
       toast("Removido dos salvos.");
     } else {
       setSaved(true);
-      await supabase.from("saved_posts").insert({ post_id: post.id, user_id: session.id });
-      toast("Salvo como inspiração!", "ok");
+      await supabase.from("saved_posts").upsert({ post_id: post.id, user_id: session.id });
+      
+      if (folderId) {
+         await supabase.from("collection_items").upsert({ collection_id: folderId, post_id: post.id });
+         toast("Salvo na pasta!", "ok");
+      } else {
+         toast("Salvo como inspiração!", "ok");
+      }
     }
+    setShowFolderPicker(false);
   };
 
   return (
     <div className="card" style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
-      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+      <div style={{ display: "flex", gap: 10, alignItems: "center", cursor: "pointer" }} onClick={() => onNavigate("public_profile", post.user_id)}>
         <div style={{ width: 40, height: 40, borderRadius: 12, background: D.s3, overflow: "hidden" }}>
           {post.profiles?.avatar_url ? <img src={post.profiles.avatar_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>👤</div>}
         </div>
@@ -2684,48 +2801,417 @@ const PostCard = ({ post, session, toast, onNavigate }) => {
         </div>
       </div>
 
-      <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", paddingTop: 4 }}>
-        <button onClick={toggleSave} style={{ background: "none", border: "none", color: saved ? D.amber : D.w3, fontSize: 18, display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: saved ? D.amber : D.w3 }}>{saved ? "Salvo" : "Salvar"}</span>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 8 }}>
+        <div style={{ display: "flex", gap: 16 }}>
+          <button onClick={toggleLike} style={{ background: "none", border: "none", color: liked ? D.rose : D.w3, display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 700 }}>
+            {liked ? "❤️" : "🤍"} {likesCount}
+          </button>
+          <button onClick={() => setShowComments(true)} style={{ background: "none", border: "none", color: D.w3, display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 700 }}>
+            💬 {commentsCount}
+          </button>
+          <button style={{ background: "none", border: "none", color: D.w3, display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 700 }}>
+            🚀
+          </button>
+        </div>
+        <button onClick={() => setShowFolderPicker(true)} style={{ background: "none", border: "none", color: saved ? D.amber : D.w3, fontSize: 18, display: "flex", alignItems: "center", gap: 8 }}>
           {saved ? "⭐" : "☆"}
         </button>
       </div>
+
+      {showFolderPicker && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 10001, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+           <div className="card" style={{ background: D.bg, width: "100%", maxWidth: 350, padding: 24, borderRadius: 24, display: "flex", flexDirection: "column", gap: 20 }}>
+              <div style={{ fontWeight: 900, fontSize: 18 }}>Salvar em...</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 300, overflowY: "auto" }}>
+                 <button onClick={() => toggleSave()} style={{ padding: "12px 16px", borderRadius: 12, border: `1px solid ${D.b0}`, background: D.bg2, color: D.w1, textAlign: "left", fontWeight: 700 }}>
+                    ⭐ Geral (Sem pasta)
+                 </button>
+                 {collections.map(c => (
+                   <button key={c.id} onClick={() => toggleSave(c.id)} style={{ padding: "12px 16px", borderRadius: 12, border: `1px solid ${D.b0}`, background: D.bg2, color: D.w1, textAlign: "left", fontWeight: 700 }}>
+                      📂 {c.name}
+                   </button>
+                 ))}
+                 {collections.length === 0 && <div style={{ fontSize: 12, color: D.w3, textAlign: "center", padding: 10 }}>Você ainda não tem pastas. Vá em "Inspirar" para criar.</div>}
+              </div>
+              <button className="btn outline" onClick={() => setShowFolderPicker(false)}>Cancelar</button>
+           </div>
+        </div>
+      )}
+
+      {showComments && (
+        <CommentsModal 
+          post={post} 
+          session={session} 
+          onClose={() => setShowComments(false)} 
+          onCommentAdded={() => setCommentsCount(c => c + 1)} 
+        />
+      )}
     </div>
   );
 };
 
 
 
-const SavedPosts = ({ toast, session, onNavigate }) => {
-  const [posts, setPosts] = useState([]);
+const Discover = ({ toast, session, onNavigate }) => {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState([]);
+  const [recommendations, setRecommendations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState("all");
+
+  const categories = [
+    { id: "all", label: "Todos", icon: "🌈" },
+    { id: "urban", label: "Urbano", icon: "🏙️" },
+    { id: "portrait", label: "Retratos", icon: "👤" },
+    { id: "vintage", label: "Vintage", icon: "🎞️" },
+    { id: "nature", label: "Natureza", icon: "🌿" },
+    { id: "preset", label: "Presets", icon: "🎨" }
+  ];
 
   useEffect(() => {
-    if (session?.id) loadSaved();
-  }, [session?.id]);
+    loadRecommendations();
+  }, []);
 
-  const loadSaved = async () => {
+  useEffect(() => {
+    if (query.trim().length > 1) {
+      searchSocial();
+    } else {
+      setResults([]);
+    }
+  }, [query, filter]);
+
+  const loadRecommendations = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("saved_posts")
-      .select("post_id, posts(*, profiles!inner(full_name, avatar_url))")
-      .eq("user_id", session.id)
-      .order("created_at", { ascending: false });
-      
-    if (error) { toast("Erro ao carregar salvos.", "err"); }
-    else { setPosts(data?.map(d => d.posts) || []); }
+    const { data } = await supabase
+      .from("profiles")
+      .select("*")
+      .limit(10);
+    if (data) setRecommendations(data);
     setLoading(false);
   };
 
-  if (loading) return <div style={{ padding: 40, textAlign: "center" }}><DvsSpin s={30} c={D.amber} /></div>;
+  const searchSocial = async () => {
+    setLoading(true);
+    let q = supabase.from("posts").select("*, profiles!inner(full_name, avatar_url, username)");
+    
+    if (query.startsWith("#")) {
+       q = q.contains("tags", [query.substring(1)]);
+    } else if (query.startsWith("@")) {
+       q = q.ilike("profiles.username", `%${query.substring(1)}%`);
+    } else {
+       q = q.or(`caption.ilike.%${query}%, style.ilike.%${query}%, category.ilike.%${query}%`);
+    }
+
+    if (filter !== "all") {
+       q = q.eq("category", filter);
+    }
+
+    const { data } = await q.limit(20);
+    if (data) setResults(data);
+    setLoading(false);
+  };
 
   return (
-    <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 22 }}>Inspirações Salvas</div>
-      {posts.map(p => (
-        <PostCard key={p.id} post={p} session={session} toast={toast} onNavigate={onNavigate} />
-      ))}
-      {posts.length === 0 && <div style={{ textAlign: "center", padding: 40, color: D.w3 }}>Nenhum post salvo ainda. ⭐</div>}
+    <div style={{ padding: "20px 16px", display: "flex", flexDirection: "column", gap: 24 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+         <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 900, fontSize: 26, letterSpacing: "-1px" }}>Descobrir</div>
+         <div style={{ position: "relative" }}>
+            <input 
+              className="inp" 
+              placeholder="Pesquise por @usuário, #hashtag, estilo..." 
+              value={query} 
+              onChange={e => setQuery(e.target.value)}
+              style={{ width: "100%", paddingLeft: 44, borderRadius: 20, height: 50, fontSize: 14 }}
+            />
+            <span style={{ position: "absolute", left: 16, top: 15, fontSize: 18 }}>🔍</span>
+         </div>
+      </div>
+
+      <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 4, scrollbarWidth: "none" }}>
+         {categories.map(c => (
+           <button 
+             key={c.id} 
+             onClick={() => setFilter(c.id)}
+             style={{ 
+               flexShrink: 0, padding: "10px 20px", borderRadius: 100, border: "none", 
+               background: filter === c.id ? D.blue : D.bg2, 
+               color: filter === c.id ? "#fff" : D.w2,
+               fontWeight: 700, fontSize: 13, display: "flex", alignItems: "center", gap: 8,
+               transition: "all 0.2s"
+             }}
+           >
+             <span>{c.icon}</span> {c.label}
+           </button>
+         ))}
+      </div>
+
+      {query.trim().length > 1 ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+           <div style={{ fontWeight: 800, fontSize: 16 }}>Resultados para "{query}"</div>
+           {loading ? <div style={{ padding: 40, textAlign: "center" }}><DvsSpin s={24} c={D.blue} /></div> : (
+             results.length > 0 ? (
+               results.map(p => <PostCard key={p.id} post={p} session={session} toast={toast} onNavigate={onNavigate} />)
+             ) : <div style={{ textAlign: "center", padding: 40, color: D.w3 }}>Nenhum resultado encontrado. 😕</div>
+           )}
+        </div>
+      ) : (
+        <>
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+             <div style={{ fontWeight: 800, fontSize: 16 }}>Criadores Recomendados</div>
+             <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 10, scrollbarWidth: "none" }}>
+                {recommendations.map(r => (
+                  <div 
+                    key={r.id} 
+                    onClick={() => onNavigate("public_profile", r.id)}
+                    style={{ flexShrink: 0, width: 120, display: "flex", flexDirection: "column", alignItems: "center", gap: 8, cursor: "pointer" }}
+                  >
+                     <div style={{ width: 70, height: 70, borderRadius: 24, background: D.s3, overflow: "hidden", border: `3px solid ${D.b2}` }}>
+                        {r.avatar_url ? <img src={r.avatar_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>👤</div>}
+                     </div>
+                     <div style={{ fontSize: 12, fontWeight: 800, textAlign: "center", width: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.full_name}</div>
+                     <div style={{ fontSize: 10, color: D.w3 }}>@{r.username || "criador"}</div>
+                  </div>
+                ))}
+             </div>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+             <div style={{ fontWeight: 800, fontSize: 16 }}>Tendências em {filter === "all" ? "Geral" : categories.find(c => c.id === filter).label}</div>
+             {/* Feed of trending posts */}
+             <div style={{ textAlign: "center", padding: 40, color: D.w3, fontSize: 13, background: D.bg2, borderRadius: 20 }}>
+                Explore os estilos que estão bombando hoje! 🚀
+             </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+const PublicProfile = ({ userId, session, onBack, onNavigate }) => {
+  const [profile, setProfile] = useState(null);
+  const [posts, setPosts] = useState([]);
+  const [collections, setCollections] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState("posts");
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followersCount, setFollowersCount] = useState(0);
+  const [viewPost, setViewPost] = useState(null);
+
+  useEffect(() => {
+    if (userId) loadProfile();
+  }, [userId]);
+
+  const loadProfile = async () => {
+    setLoading(true);
+    const { data: pData } = await supabase.from("profiles").select("*").eq("id", userId).single();
+    if (pData) setProfile(pData);
+    
+    // Stats
+    const { count: fCount } = await supabase.from("follows").select("*", { count: 'exact', head: true }).eq("following_id", userId);
+    setFollowersCount(fCount || 0);
+
+    if (session?.id) {
+       const { data: fData } = await supabase.from("follows").select("*").eq("follower_id", session.id).eq("following_id", userId);
+       setIsFollowing(fData && fData.length > 0);
+    }
+
+    // Posts
+    const { data: ptData } = await supabase
+      .from("posts")
+      .select("*, profiles!inner(full_name, avatar_url, username)")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+    if (ptData) setPosts(ptData);
+
+    // Collections
+    const { data: colData } = await supabase.from("collections").select("*").eq("user_id", userId).eq("is_public", true);
+    if (colData) setCollections(colData);
+    
+    setLoading(false);
+  };
+
+  const toggleFollow = async () => {
+    if (!session?.id) return;
+    if (isFollowing) {
+      setIsFollowing(false); setFollowersCount(c => Math.max(0, c - 1));
+      await supabase.from("follows").delete().eq("follower_id", session.id).eq("following_id", userId);
+    } else {
+      setIsFollowing(true); setFollowersCount(c => c + 1);
+      await supabase.from("follows").insert({ follower_id: session.id, following_id: userId });
+    }
+  };
+
+  if (loading) return <div style={{ padding: 40, textAlign: "center" }}><DvsSpin s={30} c={D.blue} /></div>;
+  if (!profile) return <div style={{ padding: 40, textAlign: "center", color: D.w3 }}>Perfil não encontrado. <button className="btn outline" onClick={onBack}>Voltar</button></div>;
+
+  return (
+    <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: 20 }}>
+      <button className="btn ghost sm" onClick={onBack} style={{ alignSelf: "flex-start" }}>⬅️ Voltar</button>
+      
+      <div className="card" style={{ padding: 24, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 16 }}>
+        <div style={{ position: "relative" }}>
+          <div style={{ width: 90, height: 90, borderRadius: 30, background: D.s3, overflow: "hidden", border: `4px solid ${D.b2}` }}>
+             {profile.avatar_url ? <img src={profile.avatar_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 36 }}>👤</div>}
+          </div>
+          <div style={{ position: "absolute", bottom: -5, right: -5, width: 28, height: 28, borderRadius: 10, background: D.blue, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>✓</div>
+        </div>
+        
+        <div>
+           <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 900, fontSize: 22 }}>{profile.full_name}</div>
+           <div style={{ fontSize: 14, color: D.w3, fontWeight: 600 }}>@{profile.username || "criador"}</div>
+           <div style={{ fontSize: 13, color: D.blue2, fontWeight: 700, marginTop: 4 }}>{profile.professional_role || "EduCreator Artist"}</div>
+        </div>
+
+        <div style={{ display: "flex", gap: 30 }}>
+           <div><div style={{ fontWeight: 900, fontSize: 18 }}>{followersCount}</div><div style={{ fontSize: 11, color: D.w3, fontWeight: 700 }}>Seguidores</div></div>
+           <div><div style={{ fontWeight: 900, fontSize: 18 }}>{posts.length}</div><div style={{ fontSize: 11, color: D.w3, fontWeight: 700 }}>Posts</div></div>
+        </div>
+
+        {profile.bio && <div style={{ fontSize: 14, color: D.w2, maxWidth: 300, lineHeight: 1.5 }}>{profile.bio}</div>}
+        
+        {session?.id !== userId && (
+          <button 
+            onClick={toggleFollow} 
+            className={`btn ${isFollowing ? "outline" : "primary"}`} 
+            style={{ width: "100%", height: 48, borderRadius: 16 }}>
+            {isFollowing ? "Seguindo" : "Seguir"}
+          </button>
+        )}
+      </div>
+
+      <div style={{ display: "flex", borderBottom: `1px solid ${D.b0}` }}>
+         {["posts", "reels", "coleções"].map(t => (
+           <button 
+             key={t} 
+             onClick={() => setTab(t)}
+             style={{ flex: 1, padding: "12px 0", background: "none", border: "none", borderBottom: tab === t ? `3px solid ${D.blue}` : "none", color: tab === t ? D.w1 : D.w3, fontWeight: 800, fontSize: 13, textTransform: "capitalize" }}
+           >
+             {t}
+           </button>
+         ))}
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: tab === "coleções" ? "1fr 1fr" : "1fr 1fr 1fr", gap: 6 }}>
+        {tab === "posts" && posts.map(p => (
+           <div key={p.id} onClick={() => setViewPost(p)} style={{ aspectRatio: "1/1", background: D.bg2, borderRadius: 12, overflow: "hidden", cursor: "pointer" }}>
+              {p.content?.media_url ? (
+                p.content.media_type === "image" ? <img src={p.content.media_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <video src={p.content.media_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              ) : <div style={{ padding: 10, fontSize: 10, color: D.w3 }}>{p.content?.caption}</div>}
+           </div>
+        ))}
+        {tab === "reels" && posts.filter(p => p.content?.media_type === "video").map(p => (
+           <div key={p.id} style={{ aspectRatio: "9/16", background: D.bg2, borderRadius: 12, overflow: "hidden" }}>
+              <video src={p.content.media_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+           </div>
+        ))}
+        {tab === "coleções" && collections.map(c => (
+           <div key={c.id} style={{ background: D.bg2, borderRadius: 16, padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ aspectRatio: "1/1", background: D.s3, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>📁</div>
+              <div style={{ fontWeight: 800, fontSize: 13 }}>{c.name}</div>
+           </div>
+        ))}
+      </div>
+
+      {viewPost && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 10000, overflowY: "auto", padding: "40px 16px" }} onClick={() => setViewPost(null)}>
+          <div style={{ maxWidth: 500, margin: "0 auto" }} onClick={e => e.stopPropagation()}>
+            <PostCard post={viewPost} session={session} toast={() => {}} onNavigate={() => {}} />
+            <button className="btn primary sm" style={{ width: "100%", marginTop: 12 }} onClick={() => setViewPost(null)}>Fechar</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const SavedPosts = ({ toast, session, onNavigate }) => {
+  const [posts, setPosts] = useState([]);
+  const [collections, setCollections] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [view, setView] = useState("all"); // all | folders
+  const [selectedFolder, setSelectedFolder] = useState(null);
+
+  useEffect(() => {
+    if (session?.id) {
+      loadSaved();
+      loadCollections();
+    }
+  }, [session?.id, selectedFolder]);
+
+  const loadSaved = async () => {
+    setLoading(true);
+    let q = supabase.from("saved_posts").select("post_id, posts(*, profiles!inner(full_name, avatar_url, username))");
+    
+    if (selectedFolder) {
+       // Filter by collection
+       const { data: ci } = await supabase.from("collection_items").select("post_id").eq("collection_id", selectedFolder.id);
+       const ids = ci?.map(i => i.post_id) || [];
+       q = q.in("post_id", ids);
+    }
+
+    const { data } = await q.eq("user_id", session.id).order("created_at", { ascending: false });
+    if (data) setPosts(data.map(d => d.posts) || []);
+    setLoading(false);
+  };
+
+  const loadCollections = async () => {
+    const { data } = await supabase.from("collections").select("*").eq("user_id", session.id);
+    if (data) setCollections(data);
+  };
+
+  const createFolder = async () => {
+    const name = prompt("Nome da nova pasta:");
+    if (!name) return;
+    const { data, error } = await supabase.from("collections").insert({ name, user_id: session.id }).select().single();
+    if (data) setCollections([...collections, data]);
+  };
+
+  if (loading && posts.length === 0) return <div style={{ padding: 40, textAlign: "center" }}><DvsSpin s={30} c={D.amber} /></div>;
+
+  return (
+    <div style={{ padding: "20px 16px", display: "flex", flexDirection: "column", gap: 24 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+         <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 900, fontSize: 24 }}>Inspirações</div>
+         <button className="btn ghost sm" onClick={createFolder} style={{ fontSize: 24 }}>📁+</button>
+      </div>
+
+      <div style={{ display: "flex", gap: 10, overflowX: "auto", scrollbarWidth: "none" }}>
+         <button onClick={() => { setSelectedFolder(null); setView("all"); }} style={{ flexShrink: 0, padding: "8px 16px", borderRadius: 12, border: "none", background: !selectedFolder ? D.amber : D.bg2, color: !selectedFolder ? "#fff" : D.w2, fontWeight: 700, fontSize: 13 }}>Tudo</button>
+         {collections.map(c => (
+           <button 
+             key={c.id} 
+             onClick={() => { setSelectedFolder(c); setView("folders"); }}
+             style={{ 
+               flexShrink: 0, padding: "8px 16px", borderRadius: 12, border: "none", 
+               background: selectedFolder?.id === c.id ? D.amber : D.bg2, 
+               color: selectedFolder?.id === c.id ? "#fff" : D.w2,
+               fontWeight: 700, fontSize: 13 
+             }}
+           >
+             {c.name}
+           </button>
+         ))}
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        {selectedFolder && (
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: D.bg2, padding: "12px 16px", borderRadius: 16 }}>
+             <div style={{ fontWeight: 800, fontSize: 15 }}>📂 {selectedFolder.name}</div>
+             <button className="btn ghost xs" onClick={() => setSelectedFolder(null)} style={{ color: D.rose }}>Fechar</button>
+          </div>
+        )}
+        
+        {posts.map(p => (
+          <PostCard key={p.id} post={p} session={session} toast={toast} onNavigate={onNavigate} />
+        ))}
+        {posts.length === 0 && (
+          <div style={{ textAlign: "center", padding: 60, color: D.w3, background: D.bg2, borderRadius: 24, display: "flex", flexDirection: "column", gap: 10 }}>
+             <div style={{ fontSize: 40 }}>⭐</div>
+             <div>Sua galeria está vazia. Comece a explorar e salvar referências!</div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
@@ -2740,9 +3226,7 @@ export default function AppWrapper() {
   );
 }
 
-function App() {
-  const [session, setSession] = useState(null);
-  const [nav, setNav]         = useState("criador");
+  const [nav, setNav]         = useState("feed");
   const [publicUserId, setPublicUserId] = useState(null);
 
   const handleNavigate = useCallback((n, id = null) => {
@@ -2837,10 +3321,11 @@ function App() {
   const pLbls = { free: "Gratuito", social: "Criador", student: "Pro", full: "Ilimitado" };
 
   const NAV = [
+    { id: "feed",      l: "Descobrir", e: "🌐" },
     { id: "criador",   l: "Criador",   e: "📸" },
     { id: "salvos",    l: "Inspirar",  e: "⭐" },
     { id: "planos",    l: "Planos",    e: "💳" },
-    { id: "perfil",    l: "Meu Perfil", e: "👤" },
+    { id: "perfil",    l: "Perfil",    e: "👤" },
   ];
 
   const [isResetting, setIsResetting] = useState(false);
@@ -2877,10 +3362,12 @@ function App() {
           </header>
 
           <main style={{ flex:1, overflowY:"auto", paddingBottom:72 }}>
+            {nav === "feed"      && <Discover   toast={toast} session={session} onNavigate={handleNavigate} />}
             {nav === "criador"   && <Criador   toast={toast} session={session} plan={plan} setPostsUsed={setPostsUsed} songsChanged={songsChanged} setSongsChanged={setSongsChanged} onNavigate={handleNavigate} />}
             {nav === "salvos"    && <SavedPosts toast={toast} session={session} onNavigate={handleNavigate} />}
             {nav === "planos"    && <Planos    plan={plan} setPlan={handleSetPlan} toast={toast} />}
             {nav === "perfil"    && <Perfil    session={session} plan={plan} postsUsed={postsUsed} songsChanged={songsChanged} onLogout={handleLogout} onUpdateSession={handleUpdateSession} toast={toast} onNavigate={handleNavigate} />}
+            {nav === "public_profile" && <PublicProfile userId={publicUserId} session={session} onBack={() => handleNavigate("feed")} onNavigate={handleNavigate} />}
           </main>
 
           <nav style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:500, zIndex:300, background:`${D.s1}f8`, backdropFilter:"blur(24px)", borderTop:`1px solid ${D.b0}`, padding:"7px 4px 16px", display:"flex" }}>
@@ -2889,7 +3376,7 @@ function App() {
               return (
                 <button key={item.id} className="nav-item" onClick={() => setNav(item.id)}>
                   {active && <div style={{ position:"absolute", top:-7, left:"50%", transform:"translateX(-50%)", width:24, height:3, background:D.gBlue, borderRadius:99 }}/>}
-                  <div style={{ width:40, height:40, borderRadius:13, background:active?D.blueLo:"transparent", display:"flex", alignItems:"center", justifyContent:"center", transition:"background .18s" }}>
+                  <div style={{ width:40, height:40, borderRadius:13, background:active?D.blueLo:"transparent", display:"flex", alignItems:"center", justifyContent: "center", transition:"background .18s" }}>
                     <span style={{ fontSize:20 }}>{item.e}</span>
                   </div>
                   <span style={{ fontSize:10, fontWeight:active?700:500, color:active?D.blue2:D.w3, transition:"color .18s" }}>{item.l}</span>
