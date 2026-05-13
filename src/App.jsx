@@ -2426,8 +2426,22 @@ const Perfil = ({ session, plan, postsUsed, songsChanged, onLogout, onUpdateSess
   const [editAvatar, setEditAvatar] = useState(session?.avatar_url || "");
   const [editInstagram, setEditInstagram] = useState(session?.instagram_url || "");
   const [editTiktok, setEditTiktok] = useState(session?.tiktok_url || "");
+  const [editRelationship, setEditRelationship] = useState(session?.relationship_status || "");
   const [saving,    setSaving]    = useState(false);
   const [uploading, setUploading] = useState(false);
+
+  // Sync states when entering edit mode
+  useEffect(() => {
+    if (subpage === "edit") {
+      setEditName(session?.name || "");
+      setEditBio(session?.bio || "");
+      setEditPhone(session?.phone || "");
+      setEditAvatar(session?.avatar_url || "");
+      setEditInstagram(session?.instagram_url || "");
+      setEditTiktok(session?.tiktok_url || "");
+      setEditRelationship(session?.relationship_status || "");
+    }
+  }, [subpage, session]);
 
   const pN  = { free: "Gratuito", social: "Criador", student: "Pro", full: "Ilimitado" };
   const pBg = { free: D.gDark, social: D.gBlue, student: D.gMint, full: D.gAmber };
@@ -2504,7 +2518,8 @@ const Perfil = ({ session, plan, postsUsed, songsChanged, onLogout, onUpdateSess
               phone: editPhone, 
               avatar_url: editAvatar,
               instagram_url: editInstagram,
-              tiktok_url: editTiktok
+              tiktok_url: editTiktok,
+              relationship_status: editRelationship
             }).eq("id", session.id);
             
             if (error) throw error;
@@ -2513,7 +2528,7 @@ const Perfil = ({ session, plan, postsUsed, songsChanged, onLogout, onUpdateSess
               data: { full_name: editName.trim(), avatar_url: editAvatar }
             });
         }
-        const newSession = { ...session, name: editName.trim(), bio: editBio, phone: editPhone, avatar_url: editAvatar, instagram_url: editInstagram, tiktok_url: editTiktok };
+        const newSession = { ...session, name: editName.trim(), bio: editBio, phone: editPhone, avatar_url: editAvatar, instagram_url: editInstagram, tiktok_url: editTiktok, relationship_status: editRelationship };
         saveSession(newSession); onUpdateSession(newSession);
         toast(" Perfil atualizado!", "ok"); setSubpage("main");
     } catch(e) {
@@ -2555,6 +2570,21 @@ const Perfil = ({ session, plan, postsUsed, songsChanged, onLogout, onUpdateSess
         <Field label="Telefone" icon="" type="tel" value={editPhone} onChange={e => setEditPhone(e.target.value)} placeholder="+55 (11) 99999-9999" />
         <Field label="Instagram" icon="📸" value={editInstagram} onChange={e => setEditInstagram(e.target.value)} placeholder="@seu_insta" />
         <Field label="TikTok" icon="🎵" value={editTiktok} onChange={e => setEditTiktok(e.target.value)} placeholder="@seu_tiktok" />
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <label style={{ fontSize: 13, fontWeight: 600, color: D.w2 }}>Estado Civil / Relacionamento</label>
+          <select className="inp" value={editRelationship} onChange={e => setEditRelationship(e.target.value)} style={{ fontSize: 14 }}>
+            <option value="">Prefiro não dizer</option>
+            <option value="Solteiro(a)">Solteiro(a)</option>
+            <option value="Namorando">Namorando</option>
+            <option value="Casado(a)">Casado(a)</option>
+            <option value="Noivo(a)">Noivo(a)</option>
+            <option value="Em um relacionamento sério">Em um relacionamento sério</option>
+            <option value="Morando junto">Morando junto</option>
+            <option value="Relacionamento aberto">Relacionamento aberto</option>
+            <option value="Divorciado(a)">Divorciado(a)</option>
+            <option value="Viúvo(a)">Viúvo(a)</option>
+          </select>
+        </div>
       </div>
       <button className="btn primary lg" style={{ width: "100%", fontFamily: "'Sora',sans-serif" }} onClick={saveProfile} disabled={saving}>
         {saving ? <DvsSpin s={18} c="#fff" /> : "Salvar alterações"}
@@ -2577,6 +2607,9 @@ const Perfil = ({ session, plan, postsUsed, songsChanged, onLogout, onUpdateSess
             )}
             {session?.phone && (
               <div style={{ fontSize: 12, color: D.blue2, marginTop: 4, fontWeight: 600 }}>📞 {session.phone}</div>
+            )}
+            {session?.relationship_status && (
+              <div style={{ fontSize: 12, color: D.rose, marginTop: 4, fontWeight: 600 }}>❤️ {session.relationship_status}</div>
             )}
           </div>
           <button className="btn ghost xs" onClick={() => setSubpage("edit")} style={{ alignSelf: "flex-start" }}>Editar</button>
@@ -3107,6 +3140,9 @@ const PublicProfile = ({ userId, session, onBack, onNavigate }) => {
            <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 900, fontSize: 22 }}>{profile.full_name}</div>
            <div style={{ fontSize: 14, color: D.w3, fontWeight: 600 }}>@{profile.username || "criador"}</div>
            <div style={{ fontSize: 13, color: D.blue2, fontWeight: 700, marginTop: 4 }}>{profile.professional_role || "EduCreator Artist"}</div>
+           {profile.relationship_status && (
+              <div style={{ fontSize: 12, color: D.rose, marginTop: 4, fontWeight: 600 }}>❤️ {profile.relationship_status}</div>
+           )}
         </div>
 
         <div style={{ display: "flex", gap: 30 }}>
@@ -3295,7 +3331,7 @@ function App() {
   const fetchProfile = useCallback(async (userId) => {
     if (!userId) return;
     try {
-        const { data } = await supabase.from('profiles').select('posts_used, music_swaps_used, plan, full_name, bio, phone, avatar_url, instagram_url, tiktok_url, youtube_url').eq('id', userId).single();
+        const { data } = await supabase.from('profiles').select('posts_used, music_swaps_used, plan, full_name, bio, phone, avatar_url, instagram_url, tiktok_url, youtube_url, relationship_status').eq('id', userId).single();
         if (data) {
           setPostsUsed(data.posts_used || 0);
           setSongsChanged(data.music_swaps_used || 0);
@@ -3309,7 +3345,8 @@ function App() {
             avatar_url: data.avatar_url || "",
             instagram_url: data.instagram_url || "",
             tiktok_url: data.tiktok_url || "",
-            youtube_url: data.youtube_url || ""
+            youtube_url: data.youtube_url || "",
+            relationship_status: data.relationship_status || ""
           }));
         }
     } catch(e) {}

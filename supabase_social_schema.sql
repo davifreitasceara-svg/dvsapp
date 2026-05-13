@@ -10,6 +10,7 @@ ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS website text;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS instagram_url text;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS tiktok_url text;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS youtube_url text;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS relationship_status text;
 
 -- 2. ATUALIZAR POSTS
 ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS style text;
@@ -67,6 +68,8 @@ CREATE TABLE IF NOT EXISTS public.collection_items (
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON public.profiles;
 CREATE POLICY "Public profiles are viewable by everyone" ON public.profiles FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
+CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
 
 -- Follows
 ALTER TABLE public.follows ENABLE ROW LEVEL SECURITY;
