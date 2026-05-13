@@ -87,7 +87,7 @@ const CAPTION_TEMPLATES = {
   profissional: {
     hook: 'Você está perdendo dinheiro por não saber isso.',
     body: '73% dos profissionais cometem esse erro todos os dias.\n\nDepois de 5 anos estudando o mercado, aprendi 3 coisas que ninguém te conta:\n\n1. Consistência bate talento\n2. O posicionamento vale mais que o produto\n3. Quem não aparece, não vende\n\nSalva esse conteúdo antes de fechar.',
-    cta: '💬 Qual desses você já aplica? Comenta abaixo.',
+    cta: '✨ Salve este insight na sua galeria.',
     hashtags: '#marketing #empreendedorismo #negócios #sucesso #dicas #produtividade #br',
   },
   aesthetic: {
@@ -105,19 +105,19 @@ const CAPTION_TEMPLATES = {
   moderno: {
     hook: 'O futuro pertence a quem se prepara hoje.',
     body: 'O mercado mudou.\nNão tem mais espaço para quem só observa.\n\nEnquanto você hesita,\nalguém está construindo o que você sonha.\n\nA diferença entre onde você está\ne onde quer chegar?\nUma decisão.',
-    cta: '⚡ Segue pra mais conteúdo que transforma.',
+    cta: '⚡ Salve para não esquecer essa lição.',
     hashtags: '#tendência #inovação #tecnologia #futuro #viral #trending #growth',
   },
   cinema: {
     hook: 'Tem cenas que ficam registradas pra sempre.',
     body: 'Não porque eram perfeitas.\nMas porque eram autênticas.\n\nA câmera não capta o momento.\nEla capta a emoção.\n\nO que você quer que as pessoas sintam\nquando te veem?',
-    cta: '🎬 Marca alguém que precisa ver isso.',
+    cta: '🎬 Guarde essa inspiração para o seu próximo projeto.',
     hashtags: '#cinema #fotografia #arte #criativo #lifestyle #aesthetic #brasil',
   },
   bw: {
     hook: 'Às vezes o preto e branco diz mais que qualquer cor.',
     body: 'Quando você retira o ruído visual,\no que sobra é o que importa de verdade.\n\nO olhar.\nA postura.\nA história.\n\nSimplicidade é sofisticação.',
-    cta: '🤍 Deixa um ❤️ se você concorda.',
+    cta: '🤍 Salve para revisitar depois.',
     hashtags: '#blackandwhite #editorial #fotografia #arte #moda #brasil #aesthetic',
   },
 };

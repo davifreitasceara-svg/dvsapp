@@ -67,7 +67,7 @@ const CREATOR_CATEGORIES = [
     ]
   },
   {
-    title: '🎨 Design & Social',
+    title: '🎨 Design & Criatividade',
     tools: [
       { Icon: Image,         label: 'Editor Pro',      id: 'viral', badge: null },
       { Icon: Eraser,        label: 'Remov. Fundo',    id: 'viral', badge: 'FREE' },
@@ -522,7 +522,7 @@ const CreatorBottomNav = ({ currentView, setCurrentView }) => {
   const navItems = [
     { icon: <Home size={20} />, label: 'Home', id: 'dashboard' },
     { icon: <Play size={20} />, label: 'Viral', id: 'viral' },
-    { icon: <Sparkles size={20} />, label: 'Trend', id: 'trends' },
+    { icon: <Sparkles size={20} />, label: 'Explorar', id: 'trends' },
     { icon: <Layout size={20} />, label: 'Templates', id: 'templates' },
   ];
 
