@@ -2527,6 +2527,9 @@ const Feed = ({ toast, session, onNavigate }) => {
   const [loading, setLoading] = useState(true);
   const [newPostText, setNewPostText] = useState("");
   const [isPosting, setIsPosting] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [filePreview, setFilePreview] = useState(null);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     loadFeed();
@@ -2545,25 +2548,72 @@ const Feed = ({ toast, session, onNavigate }) => {
     setLoading(false);
   };
 
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setSelectedFile(file);
+      const url = URL.createObjectURL(file);
+      setFilePreview(url);
+    }
+  };
+
+  const uploadMedia = async (file) => {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Math.random()}.${fileExt}`;
+    const filePath = `${session.id}/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('post-media')
+      .upload(filePath, file);
+
+    if (uploadError) throw uploadError;
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('post-media')
+      .getPublicUrl(filePath);
+
+    return publicUrl;
+  };
+
   const handlePost = async () => {
-    if (!newPostText.trim()) return;
+    if (!newPostText.trim() && !selectedFile) return;
     if (!session?.id) return toast("Faça login para postar.", "warn");
     
     setIsPosting(true);
-    const newContent = { caption: newPostText.trim() };
-    
-    const { data, error } = await supabase
-      .from("posts")
-      .insert([{ user_id: session.id, content: newContent }])
-      .select("*, profiles!inner(full_name, avatar_url), post_likes(count), comments(count)")
-      .single();
+    let mediaUrl = null;
+    let mediaType = null;
+
+    try {
+      if (selectedFile) {
+        toast("Enviando mídia...", "info");
+        mediaUrl = await uploadMedia(selectedFile);
+        mediaType = selectedFile.type.startsWith("image") ? "image" : "video";
+      }
+
+      const newContent = { 
+        caption: newPostText.trim(),
+        media_url: mediaUrl,
+        media_type: mediaType
+      };
       
-    if (error) {
-      toast("Erro ao publicar post.", "error");
-    } else if (data) {
-      setPosts([data, ...posts]);
-      setNewPostText("");
-      toast("Publicado com sucesso!", "ok");
+      const { data, error } = await supabase
+        .from("posts")
+        .insert([{ user_id: session.id, content: newContent }])
+        .select("*, profiles!inner(full_name, avatar_url), post_likes(count), comments(count)")
+        .single();
+        
+      if (error) {
+        toast("Erro ao publicar post.", "error");
+      } else if (data) {
+        setPosts([data, ...posts]);
+        setNewPostText("");
+        setSelectedFile(null);
+        setFilePreview(null);
+        toast("Publicado com sucesso!", "ok");
+      }
+    } catch (err) {
+      console.error(err);
+      toast("Erro ao processar mídia.", "error");
     }
     setIsPosting(false);
   };
@@ -2589,14 +2639,33 @@ const Feed = ({ toast, session, onNavigate }) => {
               style={{ flex: 1, minHeight: 60, resize: "none", fontSize: 13 }}
             />
           </div>
-          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input type="file" ref={fileInputRef} onChange={handleFileSelect} accept="image/*,video/*" style={{ display: "none" }} />
+              <button className="btn ghost sm" onClick={() => fileInputRef.current.click()} style={{ padding: "8px 12px", background: D.bg2, borderRadius: 10 }}>
+                📷 Foto/Vídeo
+              </button>
+              {filePreview && (
+                <button className="btn ghost sm" onClick={() => { setSelectedFile(null); setFilePreview(null); }} style={{ color: D.rose }}>✕ Remover</button>
+              )}
+            </div>
             <button 
               className="btn primary sm" 
               onClick={handlePost} 
-              disabled={isPosting || !newPostText.trim()}>
+              disabled={isPosting || (!newPostText.trim() && !selectedFile)}>
               {isPosting ? <Spin s={14} c="#fff" /> : "Publicar"}
             </button>
           </div>
+
+          {filePreview && (
+            <div style={{ marginTop: 8, borderRadius: 12, overflow: "hidden", maxHeight: 300, background: D.bg2, border: `1px solid ${D.b0}` }}>
+               {selectedFile.type.startsWith("image") ? (
+                 <img src={filePreview} style={{ width: "100%", height: "auto", display: "block" }} />
+               ) : (
+                 <video src={filePreview} controls style={{ width: "100%", height: "auto", display: "block" }} />
+               )}
+            </div>
+          )}
         </div>
       )}
 
@@ -2662,13 +2731,21 @@ const PostCard = ({ post, session, toast, onNavigate }) => {
         </div>
       </div>
       
-      <div style={{ width: "100%", borderRadius: 12, background: D.bg2, border: `1px solid ${D.b0}`, padding: 16 }}>
-        <div style={{ fontSize: 13, lineHeight: 1.5, color: D.w2, whiteSpace: "pre-wrap" }}>
-          {post.content?.caption || "Post visualizado."}
-        </div>
-        {post.content?.musicas?.[0] && (
-           <div style={{ marginTop: 10, fontSize: 11, color: D.blue2 }}>🎵 {post.content.musicas[0].nome}</div>
+      <div style={{ width: "100%", borderRadius: 12, background: D.bg2, border: `1px solid ${D.b0}`, overflow: "hidden" }}>
+        {post.content?.media_url && (
+          <div style={{ width: "100%", background: "#000", display: "flex", justifyContent: "center" }}>
+            {post.content.media_type === "image" ? (
+              <img src={post.content.media_url} style={{ maxWidth: "100%", maxHeight: 500, objectFit: "contain" }} />
+            ) : (
+              <video src={post.content.media_url} controls style={{ maxWidth: "100%", maxHeight: 500 }} />
+            )}
+          </div>
         )}
+        <div style={{ padding: 16 }}>
+          <div style={{ fontSize: 13, lineHeight: 1.5, color: D.w2, whiteSpace: "pre-wrap" }}>
+            {post.content?.caption || "Post visualizado."}
+          </div>
+        </div>
       </div>
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 4 }}>
