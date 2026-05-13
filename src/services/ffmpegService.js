@@ -28,47 +28,34 @@ export const loadFFmpeg = async (onProgress) => {
   return ffmpeg;
 };
 
-export const generateVideo = async (imageBlob, audioUrl, onProgress) => {
+export const generateVideo = async (imageBlob, audioUrl, filters, onProgress) => {
   try {
     const fm = await loadFFmpeg(onProgress);
     
     // Write image
     const imgData = new Uint8Array(await imageBlob.arrayBuffer());
-    await fm.writeFile('image.png', imgData);
+    await fm.writeFile('input.png', imgData);
     
     // Write audio
-    let audioData;
-    try {
-      // Using a proxy to avoid CORS issues if iTunes blocks it, or try direct fetch first
-      const audioRes = await fetch(audioUrl);
-      if (!audioRes.ok) throw new Error("Failed response");
-      audioData = new Uint8Array(await audioRes.arrayBuffer());
-    } catch (e) {
-      console.warn("Direct fetch failed, trying with CORS proxy...", e);
-      // Fallback to a CORS proxy just in case iTunes preview blocks it
-      const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(audioUrl);
-      const audioRes2 = await fetch(proxyUrl);
-      audioData = new Uint8Array(await audioRes2.arrayBuffer());
-    }
+    const audioData = await fetchAudioData(audioUrl);
     await fm.writeFile('audio.m4a', audioData);
     
+    // Prepare filters
+    let vf = 'loop=loop=1:size=1:start=0';
+    if (filters) {
+      const b = (filters.brightness - 100) / 100;
+      const c = filters.contrast / 100;
+      const s = filters.saturate / 100;
+      vf = `format=yuv420p,eq=brightness=${b}:contrast=${c}:saturation=${s}`;
+    }
+
     // Exec FFMPEG command
-    // -loop 1: loop the single image
-    // -i image.png: input image
-    // -i audio.m4a: input audio
-    // -c:v libx264: use h264 codec
-    // -tune stillimage: optimize for still image
-    // -c:a aac: encode audio to aac
-    // -b:a 192k: audio bitrate
-    // -pix_fmt yuv420p: standard pixel format for social media compatibility
-    // -shortest: end video when the shortest input (audio) ends
-    // -t 15: maximum duration 15 seconds to make processing fast
     await fm.exec([
       '-loop', '1',
-      '-i', 'image.png',
+      '-i', 'input.png',
       '-i', 'audio.m4a',
+      '-vf', vf,
       '-c:v', 'libx264',
-      '-tune', 'stillimage',
       '-c:a', 'aac',
       '-b:a', '192k',
       '-pix_fmt', 'yuv420p',
@@ -80,7 +67,65 @@ export const generateVideo = async (imageBlob, audioUrl, onProgress) => {
     const data = await fm.readFile('out.mp4');
     return new Blob([data.buffer], { type: 'video/mp4' });
   } catch (error) {
-    console.error("FFmpeg Generation Error:", error);
+    console.error("FFmpeg Image-to-Video Error:", error);
     throw error;
   }
 };
+
+export const mixAudioWithVideo = async (videoFile, audioUrl, filters, onProgress) => {
+  try {
+    const fm = await loadFFmpeg(onProgress);
+    
+    // Write video
+    const videoData = new Uint8Array(await videoFile.arrayBuffer());
+    await fm.writeFile('input.mp4', videoData);
+    
+    // Write audio
+    const audioData = await fetchAudioData(audioUrl);
+    await fm.writeFile('audio.m4a', audioData);
+    
+    // Prepare filters
+    let vf = 'format=yuv420p';
+    if (filters) {
+      const b = (filters.brightness - 100) / 100;
+      const c = filters.contrast / 100;
+      const s = filters.saturate / 100;
+      vf = `eq=brightness=${b}:contrast=${c}:saturation=${s},format=yuv420p`;
+    }
+
+    // Exec FFMPEG command
+    // -map 0:v:0 -> take video from first input
+    // -map 1:a:0 -> take audio from second input
+    await fm.exec([
+      '-i', 'input.mp4',
+      '-i', 'audio.m4a',
+      '-vf', vf,
+      '-c:v', 'libx264',
+      '-c:a', 'aac',
+      '-b:a', '192k',
+      '-map', '0:v:0',
+      '-map', '1:a:0',
+      '-shortest',
+      'out.mp4'
+    ]);
+    
+    const data = await fm.readFile('out.mp4');
+    return new Blob([data.buffer], { type: 'video/mp4' });
+  } catch (error) {
+    console.error("FFmpeg Video-Audio Mix Error:", error);
+    throw error;
+  }
+};
+
+async function fetchAudioData(url) {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("Failed response");
+    return new Uint8Array(await res.arrayBuffer());
+  } catch (e) {
+    const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(url);
+    const res2 = await fetch(proxyUrl);
+    return new Uint8Array(await res2.arrayBuffer());
+  }
+}
+

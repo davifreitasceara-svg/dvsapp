@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { supabase } from "./services/supabase";
-import { generateVideo } from "./services/ffmpegService";
+import { generateVideo, mixAudioWithVideo } from "./services/ffmpegService";
 import html2canvas from "html2canvas";
 const SI = ["Analisando imagem", "Melhorando qualidade", "Calibrando cores", "Gerando conteúdo IA", "Calculando viral score"];
 const SV = ["Analisando v deo", "Identificando momentos", "Aplicando efeitos", "Gerando conteúdo IA", "Calculando viral score"];
@@ -1046,18 +1046,25 @@ ${jsonTpl}`,
       : (file ? new File([file], file.name, { type: file.type }) : null);
 
     const activeMusic = selMusic || result?.musicas?.[0];
-    if (blob && activeMusic && activeMusic.previewUrl) {
+    if (activeMusic && activeMusic.previewUrl) {
       toast("🎵 Mixando áudio viral...", "info");
       try {
-        // Criar uma promessa que rejeita após 12 segundos
         const timeout = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error("Timeout")), 12000)
+          setTimeout(() => reject(new Error("Timeout")), 25000) // Aumentado timeout para vídeos
         );
         
-        const videoBlob = await Promise.race([
-          generateVideo(blob, activeMusic.previewUrl),
-          timeout
-        ]);
+        let videoBlob;
+        if (isImg && blob) {
+          videoBlob = await Promise.race([
+            generateVideo(blob, activeMusic.previewUrl, filters),
+            timeout
+          ]);
+        } else if (!isImg && file) {
+          videoBlob = await Promise.race([
+            mixAudioWithVideo(file, activeMusic.previewUrl, filters),
+            timeout
+          ]);
+        }
 
         if (videoBlob) {
           fileToShare = new File([videoBlob], "EduCreator-Viral.mp4", { type: "video/mp4" });
@@ -1065,8 +1072,7 @@ ${jsonTpl}`,
         }
       } catch (err) {
         console.warn("Video generation timed out or failed", err);
-        toast("⚠️ Processamento lento. Enviando imagem...", "warn");
-        // fileToShare continua como a imagem (que foi definida acima)
+        toast("⚠️ Erro no processamento. Enviando original...", "warn");
       }
     }
 
@@ -1253,7 +1259,7 @@ ${jsonTpl}`,
                   {isImg ? (
                     <img src={fileURL} alt="" style={{ width: "100%", height: "auto", display: "block", filter: fCSS }} />
                   ) : (
-                    <video src={fileURL} autoPlay muted loop playsInline style={{ width: "100%", height: "auto", display: "block" }} />
+                    <video src={fileURL} autoPlay muted loop playsInline style={{ width: "100%", height: "auto", display: "block", filter: fCSS }} />
                   )}
                 </div>
               ) : <div style={{ color: D.w3 }}>Sem prévia</div>}
@@ -1271,7 +1277,15 @@ ${jsonTpl}`,
                 return (
                   <div key={name} onClick={() => applyFilt(name)} style={{ flexShrink: 0, cursor: "pointer", textAlign: "center", width: 66 }}>
                     <div style={{ width: 66, height: 66, borderRadius: 12, overflow: "hidden", border: "2.5px solid " + (active ? D.blue2 : D.b0), transition: "border .15s", marginBottom: 4, background: D.bg2 }}>
-                      {fileURL && isImg ? <img src={fileURL} alt={name} style={{ width: "100%", height: "100%", objectFit: "cover", filter: css }} /> : <div style={{ width: "100%", height: "100%", background: "linear-gradient(135deg,#1d4ed8,#06b6d4)", filter: css }} />}
+                      {fileURL ? (
+                        isImg ? (
+                          <img src={fileURL} alt={name} style={{ width: "100%", height: "100%", objectFit: "cover", filter: css }} />
+                        ) : (
+                          <video src={fileURL} muted style={{ width: "100%", height: "100%", objectFit: "cover", filter: css }} />
+                        )
+                      ) : (
+                        <div style={{ width: "100%", height: "100%", background: "linear-gradient(135deg,#1d4ed8,#06b6d4)", filter: css }} />
+                      )}
                     </div>
                     <div style={{ fontSize: 10, fontWeight: active ? 800 : 500, color: active ? D.blue2 : D.w3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</div>
                   </div>
