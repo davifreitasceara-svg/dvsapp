@@ -2525,6 +2525,8 @@ const Perfil = ({ session, plan, postsUsed, songsChanged, onLogout, onUpdateSess
 const Feed = ({ toast, session, onNavigate }) => {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [newPostText, setNewPostText] = useState("");
+  const [isPosting, setIsPosting] = useState(false);
 
   useEffect(() => {
     loadFeed();
@@ -2543,15 +2545,66 @@ const Feed = ({ toast, session, onNavigate }) => {
     setLoading(false);
   };
 
+  const handlePost = async () => {
+    if (!newPostText.trim()) return;
+    if (!session?.id) return toast("Faça login para postar.", "warn");
+    
+    setIsPosting(true);
+    const newContent = { caption: newPostText.trim() };
+    
+    const { data, error } = await supabase
+      .from("posts")
+      .insert([{ user_id: session.id, content: newContent }])
+      .select("*, profiles!inner(full_name, avatar_url), post_likes(count), comments(count)")
+      .single();
+      
+    if (error) {
+      toast("Erro ao publicar post.", "error");
+    } else if (data) {
+      setPosts([data, ...posts]);
+      setNewPostText("");
+      toast("Publicado com sucesso!", "ok");
+    }
+    setIsPosting(false);
+  };
+
   if (loading) return <div style={{ padding: 40, textAlign: "center" }}><Spin s={30} c={D.blue} /></div>;
 
   return (
     <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: 16 }}>
       <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 22 }}>Explorar Criadores</div>
+      
+      {/* Create Post Area */}
+      {session && (
+        <div className="card" style={{ padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ display: "flex", gap: 10 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 12, background: D.s3, overflow: "hidden", flexShrink: 0 }}>
+              {session.avatar_url ? <img src={session.avatar_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>👤</div>}
+            </div>
+            <textarea 
+              className="inp" 
+              placeholder="O que você quer compartilhar com a comunidade?" 
+              value={newPostText}
+              onChange={e => setNewPostText(e.target.value)}
+              style={{ flex: 1, minHeight: 60, resize: "none", fontSize: 13 }}
+            />
+          </div>
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+            <button 
+              className="btn primary sm" 
+              onClick={handlePost} 
+              disabled={isPosting || !newPostText.trim()}>
+              {isPosting ? <Spin s={14} c="#fff" /> : "Publicar"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Feed Posts */}
       {posts.map(p => (
         <PostCard key={p.id} post={p} session={session} toast={toast} onNavigate={onNavigate} />
       ))}
-      {posts.length === 0 && <div style={{ textAlign: "center", padding: 40, color: D.w3 }}>Nenhum post no feed ainda.</div>}
+      {posts.length === 0 && <div style={{ textAlign: "center", padding: 40, color: D.w3 }}>Nenhum post no feed ainda. Seja o primeiro!</div>}
     </div>
   );
 };
