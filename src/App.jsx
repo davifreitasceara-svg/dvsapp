@@ -3225,7 +3225,8 @@ export default function AppWrapper() {
     </ErrorBoundary>
   );
 }
-
+function App() {
+  const [session, setSession] = useState(null);
   const [nav, setNav]         = useState("feed");
   const [publicUserId, setPublicUserId] = useState(null);
 
