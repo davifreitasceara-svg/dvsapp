@@ -2630,163 +2630,7 @@ const Perfil = ({ session, plan, postsUsed, songsChanged, onLogout, onUpdateSess
   );
 };
 
-// ==================== SOCIAL NETWORK COMPONENTS ====================
 
-const Feed = ({ toast, session, onNavigate }) => {
-  const [posts, setPosts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [newPostText, setNewPostText] = useState("");
-  const [isPosting, setIsPosting] = useState(false);
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [filePreview, setFilePreview] = useState(null);
-  const fileInputRef = useRef(null);
-
-  useEffect(() => {
-    loadFeed();
-  }, []);
-
-  const loadFeed = async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from("posts")
-      .select("*, profiles!inner(full_name, avatar_url)")
-      .order("created_at", { ascending: false })
-      .limit(20);
-      
-    if (error) { toast("Erro ao carregar feed.", "err"); }
-    else { setPosts(data || []); }
-    setLoading(false);
-  };
-
-  const handleFileSelect = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setSelectedFile(file);
-      const url = URL.createObjectURL(file);
-      setFilePreview(url);
-    }
-  };
-
-  const uploadMedia = async (file) => {
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${Math.random()}.${fileExt}`;
-    const filePath = `${session.id}/${fileName}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from('post-media')
-      .upload(filePath, file);
-
-    if (uploadError) throw uploadError;
-
-    const { data: { publicUrl } } = supabase.storage
-      .from('post-media')
-      .getPublicUrl(filePath);
-
-    return publicUrl;
-  };
-
-  const handlePost = async () => {
-    if (!newPostText.trim() && !selectedFile) return;
-    if (!session?.id) return toast("Faça login para postar.", "warn");
-    
-    setIsPosting(true);
-    let mediaUrl = null;
-    let mediaType = null;
-
-    try {
-      if (selectedFile) {
-        toast("Enviando mídia...", "info");
-        mediaUrl = await uploadMedia(selectedFile);
-        mediaType = selectedFile.type.startsWith("image") ? "image" : "video";
-      }
-
-      const newContent = { 
-        caption: newPostText.trim(),
-        media_url: mediaUrl,
-        media_type: mediaType
-      };
-      
-      const { data, error } = await supabase
-        .from("posts")
-        .insert([{ user_id: session.id, content: newContent }])
-        .select("*, profiles!inner(full_name, avatar_url)")
-        .single();
-        
-      if (error) {
-        toast("Erro ao publicar post.", "error");
-      } else if (data) {
-        setPosts([data, ...posts]);
-        setNewPostText("");
-        setSelectedFile(null);
-        setFilePreview(null);
-        toast("Publicado com sucesso!", "ok");
-      }
-    } catch (err) {
-      console.error(err);
-      toast("Erro ao processar mídia.", "error");
-    }
-    setIsPosting(false);
-  };
-
-  if (loading) return <div style={{ padding: 40, textAlign: "center" }}><DvsSpin s={30} c={D.blue} /></div>;
-
-  return (
-    <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 22 }}>Explorar Criadores</div>
-      
-      {/* Create Post Area */}
-      {session && (
-        <div className="card" style={{ padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
-          <div style={{ display: "flex", gap: 10 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 12, background: D.s3, overflow: "hidden", flexShrink: 0 }}>
-              {session.avatar_url ? <img src={session.avatar_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>👤</div>}
-            </div>
-            <textarea 
-              className="inp" 
-              placeholder="O que você quer compartilhar com a comunidade?" 
-              value={newPostText}
-              onChange={e => setNewPostText(e.target.value)}
-              style={{ flex: 1, minHeight: 60, resize: "none", fontSize: 13 }}
-            />
-          </div>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div style={{ display: "flex", gap: 8 }}>
-              <input type="file" ref={fileInputRef} onChange={handleFileSelect} accept="image/*,video/*" style={{ display: "none" }} />
-              <button className="btn ghost sm" onClick={() => fileInputRef.current.click()} style={{ padding: "8px 12px", background: D.bg2, borderRadius: 10 }}>
-                📷 Foto/Vídeo
-              </button>
-              {filePreview && (
-                <button className="btn ghost sm" onClick={() => { setSelectedFile(null); setFilePreview(null); }} style={{ color: D.rose }}>✕ Remover</button>
-              )}
-            </div>
-            <button 
-              className="btn primary sm" 
-              onClick={handlePost} 
-              disabled={isPosting || (!newPostText.trim() && !selectedFile)}>
-              {isPosting ? <DvsSpin s={14} c="#fff" /> : "Publicar"}
-            </button>
-          </div>
-
-          {filePreview && (
-            <div style={{ marginTop: 8, borderRadius: 12, overflow: "hidden", maxHeight: 300, background: D.bg2, border: `1px solid ${D.b0}` }}>
-               {selectedFile.type.startsWith("image") ? (
-                 <img src={filePreview} style={{ width: "100%", height: "auto", display: "block" }} />
-               ) : (
-                 <video src={filePreview} controls style={{ width: "100%", height: "auto", display: "block" }} />
-               )}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Feed Posts */}
-      {posts.map(p => (
-        <PostCard key={p.id} post={p} session={session} toast={toast} onNavigate={onNavigate} />
-      ))}
-      {posts.length === 0 && <div style={{ textAlign: "center", padding: 40, color: D.w3 }}>Nenhum post no feed ainda. Seja o primeiro!</div>}
-    </div>
-  );
-};
 
 const PostCard = ({ post, session, toast, onNavigate }) => {
   const [saved, setSaved] = useState(false);
@@ -2813,7 +2657,7 @@ const PostCard = ({ post, session, toast, onNavigate }) => {
 
   return (
     <div className="card" style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
-      <div style={{ display: "flex", gap: 10, alignItems: "center", cursor: "pointer" }} onClick={() => onNavigate("public_profile", post.user_id)}>
+      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
         <div style={{ width: 40, height: 40, borderRadius: 12, background: D.s3, overflow: "hidden" }}>
           {post.profiles?.avatar_url ? <img src={post.profiles.avatar_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>👤</div>}
         </div>
@@ -2885,66 +2729,7 @@ const SavedPosts = ({ toast, session, onNavigate }) => {
     </div>
   );
 };
-const PublicProfile = ({ userId, session, onBack }) => {
-  const [profile, setProfile] = useState(null);
-  const [posts, setPosts] = useState([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (userId) loadProfile();
-  }, [userId, session?.id]);
-
-  const loadProfile = async () => {
-    setLoading(true);
-    
-    // Load profile
-    const { data: pData } = await supabase.from("profiles").select("*").eq("id", userId).single();
-    if (pData) setProfile(pData);
-    
-    // Load posts
-    const { data: ptData } = await supabase
-      .from("posts")
-      .select("*, profiles!inner(full_name, avatar_url)")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false });
-    if (ptData) setPosts(ptData);
-    
-    setLoading(false);
-  };
-
-
-
-  if (loading) return <div style={{ padding: 40, textAlign: "center" }}><DvsSpin s={30} c={D.blue} /></div>;
-  if (!profile) return <div style={{ padding: 40, textAlign: "center", color: D.w3 }}>Perfil não encontrado. <button className="btn outline" onClick={onBack}>Voltar</button></div>;
-
-  return (
-    <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: 16 }}>
-      <button className="btn ghost xs" style={{ alignSelf: "flex-start", color: D.w2 }} onClick={onBack}>← Voltar</button>
-      
-      <div className="card" style={{ padding: 20, textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
-        <div style={{ width: 80, height: 80, borderRadius: 24, background: D.s2, overflow: "hidden" }}>
-           {profile.avatar_url ? <img src={profile.avatar_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32 }}>👤</div>}
-        </div>
-        <div>
-           <div style={{ fontWeight: 800, fontSize: 20 }}>{profile.full_name || "Criador Anônimo"}</div>
-           <div style={{ fontSize: 13, color: D.blue2, fontWeight: 700 }}>{profile.professional_role || "Criador de Conteúdo"}</div>
-        </div>
-        <div style={{ display: "flex", gap: 20, margin: "8px 0" }}>
-           <div><span style={{ fontWeight: 800, color: D.w1 }}>{posts.length}</span> <span style={{ fontSize: 11, color: D.w3 }}>Posts</span></div>
-        </div>
-        {profile.bio && <div style={{ fontSize: 13, color: D.w2, maxWidth: 300 }}>{profile.bio}</div>}
-      </div>
-
-      <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 18, marginTop: 10 }}>Galeria</div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        {posts.map(p => (
-          <PostCard key={p.id} post={p} session={session} toast={() => {}} onNavigate={() => {}} />
-        ))}
-        {posts.length === 0 && <div style={{ textAlign: "center", padding: 20, color: D.w3 }}>Nenhum post ainda.</div>}
-      </div>
-    </div>
-  );
-};
 // ===================================================================
 
 export default function AppWrapper() {
@@ -2957,7 +2742,7 @@ export default function AppWrapper() {
 
 function App() {
   const [session, setSession] = useState(null);
-  const [nav, setNav]         = useState("feed");
+  const [nav, setNav]         = useState("criador");
   const [publicUserId, setPublicUserId] = useState(null);
 
   const handleNavigate = useCallback((n, id = null) => {
@@ -3052,11 +2837,10 @@ function App() {
   const pLbls = { free: "Gratuito", social: "Criador", student: "Pro", full: "Ilimitado" };
 
   const NAV = [
-    { id: "feed",      l: "Descobrir", e: "🌐" },
     { id: "criador",   l: "Criador",   e: "📸" },
-    { id: "salvos",    l: "Salvos",    e: "⭐" },
+    { id: "salvos",    l: "Inspirar",  e: "⭐" },
     { id: "planos",    l: "Planos",    e: "💳" },
-    { id: "perfil",    l: "Perfil",    e: "👤" },
+    { id: "perfil",    l: "Meu Perfil", e: "👤" },
   ];
 
   const [isResetting, setIsResetting] = useState(false);
@@ -3093,12 +2877,10 @@ function App() {
           </header>
 
           <main style={{ flex:1, overflowY:"auto", paddingBottom:72 }}>
-            {nav === "feed"      && <Feed      toast={toast} session={session} onNavigate={handleNavigate} />}
             {nav === "criador"   && <Criador   toast={toast} session={session} plan={plan} setPostsUsed={setPostsUsed} songsChanged={songsChanged} setSongsChanged={setSongsChanged} onNavigate={handleNavigate} />}
             {nav === "salvos"    && <SavedPosts toast={toast} session={session} onNavigate={handleNavigate} />}
             {nav === "planos"    && <Planos    plan={plan} setPlan={handleSetPlan} toast={toast} />}
             {nav === "perfil"    && <Perfil    session={session} plan={plan} postsUsed={postsUsed} songsChanged={songsChanged} onLogout={handleLogout} onUpdateSession={handleUpdateSession} toast={toast} onNavigate={handleNavigate} />}
-            {nav === "public_profile" && <PublicProfile userId={publicUserId} session={session} onBack={() => handleNavigate("feed")} />}
           </main>
 
           <nav style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:500, zIndex:300, background:`${D.s1}f8`, backdropFilter:"blur(24px)", borderTop:`1px solid ${D.b0}`, padding:"7px 4px 16px", display:"flex" }}>
