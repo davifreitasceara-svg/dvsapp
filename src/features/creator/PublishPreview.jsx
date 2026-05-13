@@ -8,7 +8,7 @@ const D = {
   blue: "#3b82f6", blue2: "#60a5fa", amber: "#f59e0b", rose: "#f43f5e"
 };
 
-const PublishPreview = ({ file, style, initialCaption, initialHashtags, session, onClose, onPublish, supabase, toast }) => {
+const PublishPreview = ({ file, style, initialCaption, initialHashtags, session, onClose, onPublish, supabase, toast, filters: initialFilters, music: initialMusic }) => {
   const [caption, setCaption] = useState(initialCaption || "");
   const [hashtags, setHashtags] = useState(initialHashtags || "");
   const [location, setLocation] = useState("");
@@ -16,7 +16,8 @@ const PublishPreview = ({ file, style, initialCaption, initialHashtags, session,
   const [userQuery, setUserQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   
-  const [music, setMusic] = useState(null);
+  const [music, setMusic] = useState(initialMusic || null);
+  const [filters, setFilters] = useState(initialFilters || { brightness: 100, contrast: 100, saturate: 100 });
   const [musicPlaying, setMusicPlaying] = useState(false);
   const [musicStartTime, setMusicStartTime] = useState(0);
   const [volOriginal, setVolOriginal] = useState(0.8);
@@ -84,7 +85,8 @@ const PublishPreview = ({ file, style, initialCaption, initialHashtags, session,
           media_url: publicUrl,
           media_type: isVideo ? "video" : "image",
           caption: caption,
-          hashtags: hashtags
+          hashtags: hashtags,
+          filters: filters
         },
         style: style,
         location: location,
@@ -125,9 +127,9 @@ const PublishPreview = ({ file, style, initialCaption, initialHashtags, session,
         {/* PREVIEW SECTION */}
         <div style={{ position: "relative", borderRadius: 24, overflow: "hidden", background: "#000", aspectRatio: "9/16", maxHeight: 400, border: `2px solid ${D.b0}` }}>
            {isVideo ? (
-             <video ref={videoRef} src={previewUrl} loop muted style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+             <video ref={videoRef} src={previewUrl} loop muted style={{ width: "100%", height: "100%", objectFit: "cover", filter: `brightness(${filters.brightness}%) contrast(${filters.contrast}%) saturate(${filters.saturate}%) sepia(${filters.sepia || 0}%) hue-rotate(${filters.hue || 0}deg)` }} />
            ) : (
-             <img src={previewUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+             <img src={previewUrl} style={{ width: "100%", height: "100%", objectFit: "cover", filter: `brightness(${filters.brightness}%) contrast(${filters.contrast}%) saturate(${filters.saturate}%) sepia(${filters.sepia || 0}%) hue-rotate(${filters.hue || 0}deg)` }} />
            )}
            <button onClick={togglePlay} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.2)", border: "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
               {musicPlaying ? <Pause size={48} color="#fff" /> : <Play size={48} color="#fff" />}

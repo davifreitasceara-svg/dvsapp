@@ -1412,6 +1412,8 @@ ${jsonTpl}`,
           style={estilo} 
           initialCaption={caption} 
           initialHashtags="" 
+          filters={filters}
+          music={selMusic}
           session={session} 
           onClose={() => setStage("result")} 
           onPublish={() => { onNavigate("perfil"); setStage("home"); setFile(null); setFileURL(null); }} 
