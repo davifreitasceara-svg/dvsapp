@@ -315,7 +315,7 @@ async function callAIVision(b64, mediaType, prompt, sys) {
 /* 
    PRIMITIVES
  */
-const Spin = ({ s = 20, c = D.blue2 }) => (
+const DvsSpin = ({ s = 20, c = D.blue2 }) => (
   <div style={{ width: s, height: s, border: `2.5px solid ${D.b1}`, borderTopColor: c, borderRadius: "50%", animation: "spinA .6s linear infinite", flexShrink: 0 }} />
 );
 
@@ -358,7 +358,7 @@ const LoadScreen = ({ steps = [], cur = 0, pct = 0, title = "Processando..." }) 
     return (
       <div style={{ padding: "36px 20px", display: "flex", flexDirection: "column", gap: 22, alignItems: "center" }}>
         <div style={{ width: 76, height: 76, borderRadius: "50%", background: (D?.blueLo || "rgba(37,99,235,0.1)"), border: `2px solid ${D?.blueM || "rgba(37,99,235,0.3)"}`, display: "flex", alignItems: "center", justifyContent: "center", animation: "glowA 2s ease-in-out infinite", position: "relative" }}>
-          <Spin s={44} />
+          <DvsSpin s={44} />
           <span style={{ position: "absolute", fontSize: 22, pointerEvents: "none" }}></span>
         </div>
         <div style={{ textAlign: "center" }}>
@@ -373,7 +373,7 @@ const LoadScreen = ({ steps = [], cur = 0, pct = 0, title = "Processando..." }) 
                 {i < safeCur ? (
                   <span style={{ color: (D?.mint || "#10b981"), fontWeight: 800 }}></span>
                 ) : i === safeCur ? (
-                  <Spin s={11} c={(D?.blue2 || "#3b82f6")} />
+                  <DvsSpin s={11} c={(D?.blue2 || "#3b82f6")} />
                 ) : (
                   <span style={{ opacity: .35 }}></span>
                 )}
@@ -732,7 +732,7 @@ const PreviewMockup = ({ platform, type, fileURL, isImg, fCSS, caption, music, o
           <span style={{ fontWeight: 800, fontSize: 16 }}>{platform === 'insta' ? 'Instagram' : 'TikTok'}</span>
         </div>
         <button className="btn primary sm" onClick={handlePublish} disabled={loading} style={{ borderRadius: 8, padding: "6px 16px" }}>
-          {loading ? <Spin s={14} c="#fff" /> : "Publicar"}
+          {loading ? <DvsSpin s={14} c="#fff" /> : "Publicar"}
         </button>
       </div>
 
@@ -1370,7 +1370,7 @@ ${jsonTpl}`,
                   transition: "transform 0.2s"
                 }}
               >
-                <span>{sharing ? <Spin s={20} c="#fff" /> : "📤"}</span>
+                <span>{sharing ? <DvsSpin s={20} c="#fff" /> : "📤"}</span>
                 <span>{sharing ? "GERANDO VÍDEO..." : "COMPARTILHAR AGORA"}</span>
               </button>
             <div style={{ marginTop: 16, display: "flex", justifyContent: "center", gap: 15 }}>
@@ -1796,7 +1796,7 @@ APENAS o termo de busca, sem aspas, sem explicaes. M ximo 5 palavras.`,
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
                   <span className="tag trose" style={{ fontSize: 10 }}>{m.tipo}</span>
                   {aiLoading === m.tipo
-                    ? <Spin s={14} c={D.rose} />
+                    ? <DvsSpin s={14} c={D.rose} />
                     : <span style={{ fontSize: 11, color: D.blue2, fontWeight: 700 }}> Tocar</span>}
                 </div>
               </div>
@@ -1818,7 +1818,7 @@ APENAS o termo de busca, sem aspas, sem explicaes. M ximo 5 palavras.`,
                 placeholder="Artista, música, álbum ex: Anitta, Drake, Taylor"
                 style={{ flex: 1, padding: "11px 14px", fontSize: 14 }} />
               <button className="btn primary sm" onClick={() => searchItunes(search)} disabled={searching || !search.trim()}>
-                {searching ? <Spin s={14} c="#fff" /> : ICONS.search}
+                {searching ? <DvsSpin s={14} c="#fff" /> : ICONS.search}
               </button>
             </div>
             {/* country filter */}
@@ -1828,7 +1828,7 @@ APENAS o termo de busca, sem aspas, sem explicaes. M ximo 5 palavras.`,
               ))}
             </div>
             {/* resultados */}
-            {searching && <div style={{ display: "flex", justifyContent: "center", padding: 20 }}><Spin s={28} /></div>}
+            {searching && <div style={{ display: "flex", justifyContent: "center", padding: 20 }}><DvsSpin s={28} /></div>}
             {!searching && results.length > 0 && (
               <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 320, overflowY: "auto" }}>
                 {results.map((r, i) => (
@@ -2357,7 +2357,7 @@ const AuthScreen = ({ onLogin, onResetMode }) => {
               onMouseOver={e => e.currentTarget.style.transform = "translateY(-2px)"}
               onMouseOut={e => e.currentTarget.style.transform = "translateY(0)"}
             >
-              {loading ? <Spin s={20} c="#fff" /> : (page === "login" ? "Log In" : page === "register" ? "Continue" : page === "verify" ? "Verify Code" : page === "reset" ? "Save Password" : "Send Code")}
+              {loading ? <DvsSpin s={20} c="#fff" /> : (page === "login" ? "Log In" : page === "register" ? "Continue" : page === "verify" ? "Verify Code" : page === "reset" ? "Save Password" : "Send Code")}
             </button>
           </div>
 
@@ -2406,11 +2406,32 @@ const Perfil = ({ session, plan, postsUsed, songsChanged, onLogout, onUpdateSess
   };
   const lim = pLimits[plan] || pLimits.free;
   
+  const [myPosts, setMyPosts] = useState([]);
+  const [loadingPosts, setLoadingPosts] = useState(false);
+  const [viewPost, setViewPost] = useState(null);
+
   const stats = [
     { l: "Posts Criados", v: postsUsed || 0, c: D.blue2, e: "📸" },
     { l: "Trocas Músicas", v: songsChanged || 0, c: D.mint, e: "🎵" },
     { l: "Plano", v: pN[plan], c: D.amber, e: "💎" },
   ];
+
+  useEffect(() => {
+    if (session?.id && subpage === "main") {
+      loadMyPosts();
+    }
+  }, [session?.id, subpage]);
+
+  const loadMyPosts = async () => {
+    setLoadingPosts(true);
+    const { data } = await supabase
+      .from("posts")
+      .select("*, profiles!inner(full_name, avatar_url), post_likes(count), comments(count)")
+      .eq("user_id", session.id)
+      .order("created_at", { ascending: false });
+    if (data) setMyPosts(data);
+    setLoadingPosts(false);
+  };
 
   const handleAvatarUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -2484,7 +2505,7 @@ const Perfil = ({ session, plan, postsUsed, songsChanged, onLogout, onUpdateSess
           )}
         </div>
         <label style={{ position: "absolute", bottom: 0, right: 0, width: 34, height: 34, borderRadius: "50%", background: D.blue2, border: `2px solid ${D.bg}`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", boxShadow: "0 4px 12px rgba(0,0,0,0.3)" }}>
-          <span>{uploading ? <Spin s={14} c="#fff" /> : "📷"}</span>
+          <span>{uploading ? <DvsSpin s={14} c="#fff" /> : "📷"}</span>
           <input type="file" accept="image/*" onChange={handleAvatarUpload} style={{ display: "none" }} />
         </label>
       </div>
@@ -2498,7 +2519,7 @@ const Perfil = ({ session, plan, postsUsed, songsChanged, onLogout, onUpdateSess
         <Field label="Telefone" icon="" type="tel" value={editPhone} onChange={e => setEditPhone(e.target.value)} placeholder="+55 (11) 99999-9999" />
       </div>
       <button className="btn primary lg" style={{ width: "100%", fontFamily: "'Sora',sans-serif" }} onClick={saveProfile} disabled={saving}>
-        {saving ? <Spin s={18} c="#fff" /> : "Salvar alterações"}
+        {saving ? <DvsSpin s={18} c="#fff" /> : "Salvar alterações"}
       </button>
     </div>
   );
@@ -2558,7 +2579,53 @@ const Perfil = ({ session, plan, postsUsed, songsChanged, onLogout, onUpdateSess
             </button>
           ))}
         </div>
+
+        <div style={{ marginTop: 8 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 18 }}>Minhas Publicações</div>
+            <div style={{ fontSize: 12, color: D.w3 }}>{myPosts.length} posts</div>
+          </div>
+
+          {loadingPosts ? (
+            <div style={{ textAlign: "center", padding: 20 }}><DvsSpin s={24} c={D.blue} /></div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 2 }}>
+              {myPosts.map(p => (
+                <div key={p.id} style={{ aspectRatio: "1/1", background: D.bg2, overflow: "hidden", cursor: "pointer", position: "relative" }} onClick={() => setViewPost(p)}>
+                  {p.content?.media_url ? (
+                    p.content.media_type === "image" ? (
+                      <img src={p.content.media_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    ) : (
+                      <div style={{ width: "100%", height: "100%", position: "relative" }}>
+                        <video src={p.content.media_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        <div style={{ position: "absolute", top: 4, right: 4, fontSize: 10 }}>🎥</div>
+                      </div>
+                    )
+                  ) : (
+                    <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, padding: 4, textAlign: "center", color: D.w3 }}>
+                      {p.content?.caption?.substring(0, 30)}...
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+          {!loadingPosts && myPosts.length === 0 && (
+            <div className="card" style={{ padding: 30, textAlign: "center", color: D.w3, fontSize: 13 }}>
+               Você ainda não fez nenhuma publicação no feed.
+            </div>
+          )}
+        </div>
       </div>
+
+      {viewPost && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 10000, overflowY: "auto", padding: "40px 16px" }} onClick={() => setViewPost(null)}>
+          <div style={{ maxWidth: 500, margin: "0 auto" }} onClick={e => e.stopPropagation()}>
+            <PostCard post={viewPost} session={session} toast={toast} onNavigate={() => {}} />
+            <button className="btn primary sm" style={{ width: "100%", marginTop: 12 }} onClick={() => setViewPost(null)}>Fechar</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -2582,7 +2649,7 @@ const Feed = ({ toast, session, onNavigate }) => {
     setLoading(true);
     const { data, error } = await supabase
       .from("posts")
-      .select("*, profiles!inner(full_name, avatar_url), post_likes(count), comments(count)")
+      .select("*, profiles!inner(full_name, avatar_url)")
       .order("created_at", { ascending: false })
       .limit(20);
       
@@ -2642,7 +2709,7 @@ const Feed = ({ toast, session, onNavigate }) => {
       const { data, error } = await supabase
         .from("posts")
         .insert([{ user_id: session.id, content: newContent }])
-        .select("*, profiles!inner(full_name, avatar_url), post_likes(count), comments(count)")
+        .select("*, profiles!inner(full_name, avatar_url)")
         .single();
         
       if (error) {
@@ -2661,7 +2728,7 @@ const Feed = ({ toast, session, onNavigate }) => {
     setIsPosting(false);
   };
 
-  if (loading) return <div style={{ padding: 40, textAlign: "center" }}><Spin s={30} c={D.blue} /></div>;
+  if (loading) return <div style={{ padding: 40, textAlign: "center" }}><DvsSpin s={30} c={D.blue} /></div>;
 
   return (
     <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: 16 }}>
@@ -2696,7 +2763,7 @@ const Feed = ({ toast, session, onNavigate }) => {
               className="btn primary sm" 
               onClick={handlePost} 
               disabled={isPosting || (!newPostText.trim() && !selectedFile)}>
-              {isPosting ? <Spin s={14} c="#fff" /> : "Publicar"}
+              {isPosting ? <DvsSpin s={14} c="#fff" /> : "Publicar"}
             </button>
           </div>
 
@@ -2722,32 +2789,14 @@ const Feed = ({ toast, session, onNavigate }) => {
 };
 
 const PostCard = ({ post, session, toast, onNavigate }) => {
-  const [liked, setLiked] = useState(false);
-  const [likesCount, setLikesCount] = useState(post.post_likes?.[0]?.count || 0);
   const [saved, setSaved] = useState(false);
-  const [showComments, setShowComments] = useState(false);
-  const [commentsCount, setCommentsCount] = useState(post.comments?.[0]?.count || 0);
   
   useEffect(() => {
     if (!session?.id) return;
-    supabase.from("post_likes").select("post_id").eq("post_id", post.id).eq("user_id", session.id).then(({ data }) => {
-      if (data?.length) setLiked(true);
-    });
     supabase.from("saved_posts").select("post_id").eq("post_id", post.id).eq("user_id", session.id).then(({ data }) => {
       if (data?.length) setSaved(true);
     });
   }, [post.id, session?.id]);
-
-  const toggleLike = async () => {
-    if (!session?.id) return toast("Faça login para curtir.", "warn");
-    if (liked) {
-      setLiked(false); setLikesCount(c => Math.max(0, c - 1));
-      await supabase.from("post_likes").delete().eq("post_id", post.id).eq("user_id", session.id);
-    } else {
-      setLiked(true); setLikesCount(c => c + 1);
-      await supabase.from("post_likes").insert({ post_id: post.id, user_id: session.id });
-    }
-  };
 
   const toggleSave = async () => {
     if (!session?.id) return toast("Faça login para salvar.", "warn");
@@ -2791,105 +2840,17 @@ const PostCard = ({ post, session, toast, onNavigate }) => {
         </div>
       </div>
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 4 }}>
-        <div style={{ display: "flex", gap: 16 }}>
-          <button onClick={toggleLike} style={{ background: "none", border: "none", color: liked ? D.rose : D.w3, display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 700 }}>
-            {liked ? "❤️" : "🤍"} {likesCount}
-          </button>
-          <button onClick={() => setShowComments(true)} style={{ background: "none", border: "none", color: D.w3, display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 700 }}>
-            💬 {commentsCount}
-          </button>
-        </div>
-        <button onClick={toggleSave} style={{ background: "none", border: "none", color: saved ? D.amber : D.w3, fontSize: 18 }}>
+      <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", paddingTop: 4 }}>
+        <button onClick={toggleSave} style={{ background: "none", border: "none", color: saved ? D.amber : D.w3, fontSize: 18, display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: saved ? D.amber : D.w3 }}>{saved ? "Salvo" : "Salvar"}</span>
           {saved ? "⭐" : "☆"}
         </button>
       </div>
-      
-      {showComments && (
-        <CommentsModal 
-          post={post} 
-          session={session} 
-          onClose={() => setShowComments(false)} 
-          onCommentAdded={() => setCommentsCount(c => c + 1)} 
-        />
-      )}
     </div>
   );
 };
 
-const CommentsModal = ({ post, session, onClose, onCommentAdded }) => {
-  const [comments, setComments] = useState([]);
-  const [text, setText] = useState("");
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadComments();
-  }, []);
-
-  const loadComments = async () => {
-    setLoading(true);
-    const { data } = await supabase
-      .from("comments")
-      .select("*, profiles!inner(full_name, avatar_url)")
-      .eq("post_id", post.id)
-      .order("created_at", { ascending: true });
-    if (data) setComments(data);
-    setLoading(false);
-  };
-
-  const submitComment = async () => {
-    if (!text.trim() || !session?.id) return;
-    const { data, error } = await supabase.from("comments").insert({
-      post_id: post.id,
-      user_id: session.id,
-      content: text
-    }).select("*, profiles!inner(full_name, avatar_url)").single();
-    if (!error && data) {
-      setComments([...comments, data]);
-      setText("");
-      onCommentAdded();
-    }
-  };
-
-  return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 9999, display: "flex", alignItems: "flex-end", backdropFilter: "blur(2px)" }}>
-       <div style={{ background: D.bg, width: "100%", height: "70vh", borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, display: "flex", flexDirection: "column", boxShadow: "0 -4px 20px rgba(0,0,0,0.5)" }}>
-         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
-            <div style={{ fontWeight: 800, fontSize: 18 }}>Comentários</div>
-            <button onClick={onClose} style={{ background: "none", border: "none", color: D.w3, fontSize: 20 }}>✕</button>
-         </div>
-         
-         <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 12, paddingBottom: 16 }}>
-            {loading ? <Spin s={20} c={D.blue} /> : (
-              comments.length > 0 ? comments.map(c => (
-                <div key={c.id} style={{ display: "flex", gap: 10 }}>
-                  <div style={{ width: 32, height: 32, borderRadius: 10, background: D.s3, overflow: "hidden", flexShrink: 0 }}>
-                     {c.profiles?.avatar_url && <img src={c.profiles.avatar_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
-                  </div>
-                  <div style={{ background: D.bg2, padding: "8px 12px", borderRadius: 12, flex: 1 }}>
-                     <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 4 }}>{c.profiles?.full_name}</div>
-                     <div style={{ fontSize: 13, color: D.w1 }}>{c.content}</div>
-                  </div>
-                </div>
-              )) : <div style={{ color: D.w3, fontSize: 13, textAlign: "center" }}>Nenhum comentário ainda. Seja o primeiro!</div>
-            )}
-         </div>
-
-         <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-            <input 
-              className="inp" 
-              placeholder="Adicionar um comentário..." 
-              value={text} 
-              onChange={e => setText(e.target.value)} 
-              onKeyDown={e => e.key === 'Enter' && submitComment()}
-              style={{ flex: 1 }}
-            />
-            <button className="btn primary sm" onClick={submitComment} disabled={!text.trim()}>Enviar</button>
-         </div>
-       </div>
-    </div>
-  );
-};
 
 const SavedPosts = ({ toast, session, onNavigate }) => {
   const [posts, setPosts] = useState([]);
@@ -2903,7 +2864,7 @@ const SavedPosts = ({ toast, session, onNavigate }) => {
     setLoading(true);
     const { data, error } = await supabase
       .from("saved_posts")
-      .select("post_id, posts(*, profiles!inner(full_name, avatar_url), post_likes(count), comments(count))")
+      .select("post_id, posts(*, profiles!inner(full_name, avatar_url))")
       .eq("user_id", session.id)
       .order("created_at", { ascending: false });
       
@@ -2912,7 +2873,7 @@ const SavedPosts = ({ toast, session, onNavigate }) => {
     setLoading(false);
   };
 
-  if (loading) return <div style={{ padding: 40, textAlign: "center" }}><Spin s={30} c={D.amber} /></div>;
+  if (loading) return <div style={{ padding: 40, textAlign: "center" }}><DvsSpin s={30} c={D.amber} /></div>;
 
   return (
     <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: 16 }}>
@@ -2928,8 +2889,6 @@ const PublicProfile = ({ userId, session, onBack }) => {
   const [profile, setProfile] = useState(null);
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [isFollowing, setIsFollowing] = useState(false);
-  const [followersCount, setFollowersCount] = useState(0);
 
   useEffect(() => {
     if (userId) loadProfile();
@@ -2942,20 +2901,10 @@ const PublicProfile = ({ userId, session, onBack }) => {
     const { data: pData } = await supabase.from("profiles").select("*").eq("id", userId).single();
     if (pData) setProfile(pData);
     
-    // Load followers count
-    const { count } = await supabase.from("follows").select("*", { count: 'exact', head: true }).eq("following_id", userId);
-    setFollowersCount(count || 0);
-
-    // Load is following
-    if (session?.id) {
-      const { data: fData } = await supabase.from("follows").select("*").eq("follower_id", session.id).eq("following_id", userId);
-      setIsFollowing(fData && fData.length > 0);
-    }
-
     // Load posts
     const { data: ptData } = await supabase
       .from("posts")
-      .select("*, profiles!inner(full_name, avatar_url), post_likes(count), comments(count)")
+      .select("*, profiles!inner(full_name, avatar_url)")
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
     if (ptData) setPosts(ptData);
@@ -2963,18 +2912,9 @@ const PublicProfile = ({ userId, session, onBack }) => {
     setLoading(false);
   };
 
-  const toggleFollow = async () => {
-    if (!session?.id) return;
-    if (isFollowing) {
-      setIsFollowing(false); setFollowersCount(c => Math.max(0, c - 1));
-      await supabase.from("follows").delete().eq("follower_id", session.id).eq("following_id", userId);
-    } else {
-      setIsFollowing(true); setFollowersCount(c => c + 1);
-      await supabase.from("follows").insert({ follower_id: session.id, following_id: userId });
-    }
-  };
 
-  if (loading) return <div style={{ padding: 40, textAlign: "center" }}><Spin s={30} c={D.blue} /></div>;
+
+  if (loading) return <div style={{ padding: 40, textAlign: "center" }}><DvsSpin s={30} c={D.blue} /></div>;
   if (!profile) return <div style={{ padding: 40, textAlign: "center", color: D.w3 }}>Perfil não encontrado. <button className="btn outline" onClick={onBack}>Voltar</button></div>;
 
   return (
@@ -2990,19 +2930,9 @@ const PublicProfile = ({ userId, session, onBack }) => {
            <div style={{ fontSize: 13, color: D.blue2, fontWeight: 700 }}>{profile.professional_role || "Criador de Conteúdo"}</div>
         </div>
         <div style={{ display: "flex", gap: 20, margin: "8px 0" }}>
-           <div><span style={{ fontWeight: 800, color: D.w1 }}>{followersCount}</span> <span style={{ fontSize: 11, color: D.w3 }}>Seguidores</span></div>
            <div><span style={{ fontWeight: 800, color: D.w1 }}>{posts.length}</span> <span style={{ fontSize: 11, color: D.w3 }}>Posts</span></div>
         </div>
-        {profile.bio && <div style={{ fontSize: 13, color: D.w2 }}>{profile.bio}</div>}
-        
-        {session?.id !== userId && (
-          <button 
-            onClick={toggleFollow} 
-            className={`btn ${isFollowing ? "outline" : "primary"}`} 
-            style={{ width: "100%", marginTop: 10 }}>
-            {isFollowing ? "Seguindo" : "Seguir"}
-          </button>
-        )}
+        {profile.bio && <div style={{ fontSize: 13, color: D.w2, maxWidth: 300 }}>{profile.bio}</div>}
       </div>
 
       <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 18, marginTop: 10 }}>Galeria</div>
@@ -3122,7 +3052,7 @@ function App() {
   const pLbls = { free: "Gratuito", social: "Social Premium", student: "Criador Avançado", full: "Plano Completo" };
 
   const NAV = [
-    { id: "feed",      l: "Feed",      e: "🌐" },
+    { id: "feed",      l: "Descobrir", e: "🌐" },
     { id: "criador",   l: "Criador",   e: "📸" },
     { id: "salvos",    l: "Salvos",    e: "⭐" },
     { id: "planos",    l: "Planos",    e: "💳" },
@@ -3131,7 +3061,7 @@ function App() {
 
   const [isResetting, setIsResetting] = useState(false);
 
-  if (loadingAuth) return <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: D.bg }}><Spin s={40} c={D.blue} /></div>;
+  if (loadingAuth) return <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: D.bg }}><DvsSpin s={40} c={D.blue} /></div>;
 
   if (!session || isResetting) return (
     <>

@@ -1,87 +1,56 @@
 -- ############################################################
--- DVS EDUCREATOR - REDE SOCIAL SCHEMA
+-- DVS EDUCREATOR - CLEANUP SOCIAL FEATURES
 -- ############################################################
--- Execute este script no SQL Editor do seu Dashboard do Supabase.
+-- Execute este script para remover as funcionalidades sociais e manter apenas a galeria de inspiração.
 
--- 1. ATUALIZAR PERFIS
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS bio text;
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS website text;
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS professional_role text;
+-- 1. REMOVER TABELAS SOCIAIS
+DROP TABLE IF EXISTS public.follows CASCADE;
+DROP TABLE IF EXISTS public.post_likes CASCADE;
+DROP TABLE IF EXISTS public.comments CASCADE;
 
--- 2. ATUALIZAR POSTS
-ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS repost_of_id bigint REFERENCES public.posts(id) ON DELETE CASCADE;
+-- 2. REMOVER COLUNAS DE REPOST (OPCIONAL)
+ALTER TABLE public.posts DROP COLUMN IF EXISTS repost_of_id;
 
--- 3. TABELA DE SEGUIDORES (FOLLOWS)
-CREATE TABLE IF NOT EXISTS public.follows (
-  follower_id uuid REFERENCES auth.users ON DELETE CASCADE NOT NULL,
-  following_id uuid REFERENCES auth.users ON DELETE CASCADE NOT NULL,
-  created_at timestamp with time zone DEFAULT now(),
-  PRIMARY KEY (follower_id, following_id)
-);
+-- 3. MANTER APENAS O QUE É NECESSÁRIO EM PERFIS
+-- (bio, website, professional_role já foram adicionados e são úteis para o perfil)
 
--- 4. TABELA DE CURTIDAS (POST_LIKES)
-CREATE TABLE IF NOT EXISTS public.post_likes (
-  post_id bigint REFERENCES public.posts(id) ON DELETE CASCADE NOT NULL,
-  user_id uuid REFERENCES auth.users ON DELETE CASCADE NOT NULL,
-  created_at timestamp with time zone DEFAULT now(),
-  PRIMARY KEY (post_id, user_id)
-);
+-- 4. MANTER TABELA DE POSTS SALVOS (SAVED_POSTS)
+-- Esta tabela é mantida para a funcionalidade de "Galeria de Inspiração".
+-- CREATE TABLE IF NOT EXISTS public.saved_posts (
+--   user_id uuid REFERENCES auth.users ON DELETE CASCADE NOT NULL,
+--   post_id bigint REFERENCES public.posts(id) ON DELETE CASCADE NOT NULL,
+--   created_at timestamp with time zone DEFAULT now(),
+--   PRIMARY KEY (user_id, post_id)
+-- );
 
--- 5. TABELA DE COMENTÁRIOS (COMMENTS)
-CREATE TABLE IF NOT EXISTS public.comments (
-  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  post_id bigint REFERENCES public.posts(id) ON DELETE CASCADE NOT NULL,
-  user_id uuid REFERENCES auth.users ON DELETE CASCADE NOT NULL,
-  content text NOT NULL,
-  created_at timestamp with time zone DEFAULT now()
-);
+-- 5. LIMPAR POLÍTICAS E ÍNDICES RELACIONADOS
+DROP INDEX IF EXISTS idx_follows_follower;
+DROP INDEX IF EXISTS idx_follows_following;
+DROP INDEX IF EXISTS idx_post_likes_post;
+DROP INDEX IF EXISTS idx_comments_post;
 
--- 6. TABELA DE POSTS SALVOS (SAVED_POSTS)
-CREATE TABLE IF NOT EXISTS public.saved_posts (
-  user_id uuid REFERENCES auth.users ON DELETE CASCADE NOT NULL,
-  post_id bigint REFERENCES public.posts(id) ON DELETE CASCADE NOT NULL,
-  created_at timestamp with time zone DEFAULT now(),
-  PRIMARY KEY (user_id, post_id)
-);
+-- As políticas para saved_posts, posts e profiles devem permanecer para que a galeria funcione.
+-- Mas garantimos que as políticas de social sejam removidas.
+DROP POLICY IF EXISTS "Users can view follows" ON public.follows;
+DROP POLICY IF EXISTS "Users can follow others" ON public.follows;
+DROP POLICY IF EXISTS "Users can unfollow others" ON public.follows;
+DROP POLICY IF EXISTS "Users can view likes" ON public.post_likes;
+DROP POLICY IF EXISTS "Users can like posts" ON public.post_likes;
+DROP POLICY IF EXISTS "Users can unlike posts" ON public.post_likes;
+DROP POLICY IF EXISTS "Users can view comments" ON public.comments;
+DROP POLICY IF EXISTS "Users can insert comments" ON public.comments;
+DROP POLICY IF EXISTS "Users can update own comments" ON public.comments;
+DROP POLICY IF EXISTS "Users can delete own comments" ON public.comments;
 
--- 7. PERFORMANCE (INDEXES)
-CREATE INDEX IF NOT EXISTS idx_follows_follower ON public.follows(follower_id);
-CREATE INDEX IF NOT EXISTS idx_follows_following ON public.follows(following_id);
-CREATE INDEX IF NOT EXISTS idx_post_likes_post ON public.post_likes(post_id);
-CREATE INDEX IF NOT EXISTS idx_comments_post ON public.comments(post_id);
-CREATE INDEX IF NOT EXISTS idx_saved_posts_user ON public.saved_posts(user_id);
-
--- 8. SEGURANÇA (RLS - Row Level Security)
-ALTER TABLE public.follows ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.post_likes ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.comments ENABLE ROW LEVEL SECURITY;
+-- 6. GARANTIR RLS PARA O QUE SOBROU
 ALTER TABLE public.saved_posts ENABLE ROW LEVEL SECURITY;
 
--- Limpar políticas existentes
-DROP POLICY IF EXISTS "Posts are viewable by everyone" ON public.posts;
-DROP POLICY IF EXISTS "Profiles are viewable by everyone" ON public.profiles;
-
--- Permitir que todos os usuários logados leiam perfis e posts (Feed Público)
-CREATE POLICY "Profiles are viewable by everyone" ON public.profiles FOR SELECT USING (auth.uid() IS NOT NULL);
-CREATE POLICY "Posts are viewable by everyone" ON public.posts FOR SELECT USING (auth.uid() IS NOT NULL);
-
--- Políticas para Follows
-CREATE POLICY "Users can view follows" ON public.follows FOR SELECT USING (auth.uid() IS NOT NULL);
-CREATE POLICY "Users can follow others" ON public.follows FOR INSERT WITH CHECK (auth.uid() = follower_id);
-CREATE POLICY "Users can unfollow others" ON public.follows FOR DELETE USING (auth.uid() = follower_id);
-
--- Políticas para Likes
-CREATE POLICY "Users can view likes" ON public.post_likes FOR SELECT USING (auth.uid() IS NOT NULL);
-CREATE POLICY "Users can like posts" ON public.post_likes FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can unlike posts" ON public.post_likes FOR DELETE USING (auth.uid() = user_id);
-
--- Políticas para Comments
-CREATE POLICY "Users can view comments" ON public.comments FOR SELECT USING (auth.uid() IS NOT NULL);
-CREATE POLICY "Users can insert comments" ON public.comments FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update own comments" ON public.comments FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Users can delete own comments" ON public.comments FOR DELETE USING (auth.uid() = user_id);
-
--- Políticas para Saved Posts
+-- Políticas para Saved Posts (Garantir que existem)
+DROP POLICY IF EXISTS "Users can view own saved posts" ON public.saved_posts;
 CREATE POLICY "Users can view own saved posts" ON public.saved_posts FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can save posts" ON public.saved_posts;
 CREATE POLICY "Users can save posts" ON public.saved_posts FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can unsave posts" ON public.saved_posts;
 CREATE POLICY "Users can unsave posts" ON public.saved_posts FOR DELETE USING (auth.uid() = user_id);
