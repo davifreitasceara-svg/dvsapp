@@ -1470,9 +1470,9 @@ ${jsonTpl}`,
         <span style={{ fontSize: 16 }}></span>
         <span style={{ fontSize: 13, color: D.w2 }}>
           {plan === "free" ? "Plano Gratuito   3 posts/dia" : 
-           plan === "social" ? "Social Premium   5 posts/dia" :
-           plan === "student" ? "Estudante Premium   10 posts/dia" :
-           "Plano Completo   Ilimitado"}   <span style={{ color: D.amber, fontWeight: 700, cursor: "pointer" }} onClick={() => toast("Acesse a aba Planos!", "info")}>{plan === "full" ? "Gerenciar" : "Upgrade"} </span>
+           plan === "social" ? "Criador   5 posts/dia" :
+           plan === "student" ? "Pro   10 posts/dia" :
+           "Ilimitado"}   <span style={{ color: D.amber, fontWeight: 700, cursor: "pointer" }} onClick={() => toast("Acesse a aba Planos!", "info")}>{plan === "full" ? "Gerenciar" : "Upgrade"} </span>
         </span>
       </div>
     </div>
@@ -1483,9 +1483,9 @@ const Planos = ({ plan, setPlan, toast }) => {
   const [ann, setAnn] = useState(false);
     const PL = [
       { id: "free", name: "Gratuito", price: 0, col: D.w2, grad: D.gDark, badge: null, feats: ["3 posts por dia", "3 trocas de música", "IA Vision Básica", "Legendas Sugeridas", "Score Viral"], miss: ["Análise Profunda", "Músicas Ilimitadas", "Export HD", "Sem marca d'água"] },
-      { id: "social", name: "Social Premium", price: 10, col: D.blue2, grad: D.gBlue, badge: " MAIS POPULAR", link: "https://buy.stripe.com/test_dRm14m1KC9iLaHr6VF5sA04", feats: ["5 posts por dia", "10 trocas de música", "SmartSound AI (músicas)", "Exportação HD", "Score Viral Avançado", "Legendas Otimizadas"], miss: ["IA Vision Pro", "Trocas Ilimitadas"] },
-      { id: "student", name: "Criador Avançado", price: 15, col: D.mint, grad: D.gMint, badge: " MELHOR CUSTO", link: "https://buy.stripe.com/test_6oUdR874W52veXHeo75sA03", feats: ["10 posts por dia", "Trocas Ilimitadas", "Tudo do Social Premium", "IA Vision Profissional", "Filtros Exclusivos", "Sugestão de Trends", "Análise de Retenção"], miss: ["Uso Ilimitado"] },
-      { id: "full", name: "Plano Completo", price: 20, col: D.amber, grad: D.gAmber, badge: " TUDO INCLUSO", link: "https://buy.stripe.com/test_5kQ6oG4WO9iLbLv93N5sA01", feats: ["Tudo Ilimitado", "IA Prioritária", "Exportação 4K", "Suporte VIP 24/7", "Novas funções antecipadas"], miss: [] },
+      { id: "social", name: "Criador", price: 10, col: D.blue2, grad: D.gBlue, badge: " MAIS POPULAR", link: "https://buy.stripe.com/test_dRm14m1KC9iLaHr6VF5sA04", feats: ["5 posts por dia", "10 trocas de música", "SmartSound AI (músicas)", "Exportação HD", "Score Viral Avançado", "Legendas Otimizadas"], miss: ["IA Vision Pro", "Trocas Ilimitadas"] },
+      { id: "student", name: "Pro", price: 15, col: D.mint, grad: D.gMint, badge: " MELHOR CUSTO", link: "https://buy.stripe.com/test_6oUdR874W52veXHeo75sA03", feats: ["10 posts por dia", "Trocas Ilimitadas", "Tudo do Criador", "IA Vision Profissional", "Filtros Exclusivos", "Sugestão de Trends", "Análise de Retenção"], miss: ["Uso Ilimitado"] },
+      { id: "full", name: "Ilimitado", price: 20, col: D.amber, grad: D.gAmber, badge: " TUDO INCLUSO", link: "https://buy.stripe.com/test_5kQ6oG4WO9iLbLv93N5sA01", feats: ["Tudo Ilimitado", "IA Prioritária", "Exportação 4K", "Suporte VIP 24/7", "Novas funções antecipadas"], miss: [] },
     ];
   return (
     <div style={{ padding: "20px 16px", display: "flex", flexDirection: "column", gap: 18 }}>
@@ -2396,7 +2396,7 @@ const Perfil = ({ session, plan, postsUsed, songsChanged, onLogout, onUpdateSess
   const [saving,    setSaving]    = useState(false);
   const [uploading, setUploading] = useState(false);
 
-  const pN  = { free: "Gratuito", social: "Social Premium", student: "Criador Avançado", full: "Plano Completo" };
+  const pN  = { free: "Gratuito", social: "Criador", student: "Pro", full: "Ilimitado" };
   const pBg = { free: D.gDark, social: D.gBlue, student: D.gMint, full: D.gAmber };
   const pLimits = {
     free:    { posts: 3 },
@@ -2426,7 +2426,7 @@ const Perfil = ({ session, plan, postsUsed, songsChanged, onLogout, onUpdateSess
     setLoadingPosts(true);
     const { data } = await supabase
       .from("posts")
-      .select("*, profiles!inner(full_name, avatar_url), post_likes(count), comments(count)")
+      .select("*, profiles!inner(full_name, avatar_url)")
       .eq("user_id", session.id)
       .order("created_at", { ascending: false });
     if (data) setMyPosts(data);
@@ -3049,7 +3049,7 @@ function App() {
   }, [session]);
 
   const pCols = { free: D.w3, social: D.blue2, student: D.mint, full: D.amber };
-  const pLbls = { free: "Gratuito", social: "Social Premium", student: "Criador Avançado", full: "Plano Completo" };
+  const pLbls = { free: "Gratuito", social: "Criador", student: "Pro", full: "Ilimitado" };
 
   const NAV = [
     { id: "feed",      l: "Descobrir", e: "🌐" },
