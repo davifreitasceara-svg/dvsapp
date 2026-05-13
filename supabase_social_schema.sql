@@ -11,6 +11,10 @@ ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS instagram_url text;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS tiktok_url text;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS youtube_url text;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS relationship_status text;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS posts_used int DEFAULT 0;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS music_swaps_used int DEFAULT 0;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS last_usage_reset text;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS plan text DEFAULT 'free';
 
 -- 2. ATUALIZAR POSTS
 ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS style text;

@@ -904,16 +904,17 @@ const Criador = ({ toast, session, plan, setPostsUsed, songsChanged, setSongsCha
       
       if (profile) {
         if (profile.last_usage_reset !== today) {
+           // Reset and continue
            await supabase.from('profiles').update({ posts_used: 0, music_swaps_used: 0, last_usage_reset: today }).eq('id', session.id);
            setPostsUsed(0);
            setSongsChanged(0);
-           // Re-fetch current limits for the rest of the function
-        } else {
-           if (profile.posts_used >= limit) {
-             toast(`Limite diário de ${limit} posts atingido. Faça upgrade para o plano superior! 🚀`, "error");
-             return;
-           }
+        } else if (profile.posts_used >= limit) {
+           toast(`Limite diário de ${limit} posts atingido. Faça upgrade para o plano superior! 🚀`, "error");
+           return;
         }
+      } else {
+        // No profile yet, create one with reset date
+        await supabase.from('profiles').insert({ id: session.id, last_usage_reset: today, posts_used: 0 });
       }
     }
 
@@ -1413,7 +1414,7 @@ ${jsonTpl}`,
           initialHashtags="" 
           session={session} 
           onClose={() => setStage("result")} 
-          onPublish={() => { onNavigate("perfil"); setStage("home"); setFile(null); setFileURL(null); setPostsUsed(p => p + 1); }} 
+          onPublish={() => { onNavigate("perfil"); setStage("home"); setFile(null); setFileURL(null); }} 
           supabase={supabase} 
           toast={toast} 
         />
