@@ -2961,10 +2961,14 @@ const Discover = ({ toast, session, onNavigate }) => {
 
   const loadRecommendations = async () => {
     setLoading(true);
+    // Filter only users who have a full name and username (indicating they set up their profile)
     const { data } = await supabase
       .from("profiles")
       .select("*")
-      .limit(10);
+      .not("full_name", "is", null)
+      .not("username", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(12);
     if (data) setRecommendations(data);
     setLoading(false);
   };
