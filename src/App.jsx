@@ -2393,6 +2393,8 @@ const Perfil = ({ session, plan, postsUsed, songsChanged, onLogout, onUpdateSess
   const [editBio,   setEditBio]   = useState(session?.bio || "");
   const [editPhone, setEditPhone] = useState(session?.phone || "");
   const [editAvatar, setEditAvatar] = useState(session?.avatar_url || "");
+  const [editInstagram, setEditInstagram] = useState(session?.instagram_url || "");
+  const [editTiktok, setEditTiktok] = useState(session?.tiktok_url || "");
   const [saving,    setSaving]    = useState(false);
   const [uploading, setUploading] = useState(false);
 
@@ -2453,6 +2455,7 @@ const Perfil = ({ session, plan, postsUsed, songsChanged, onLogout, onUpdateSess
       const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
       setEditAvatar(data.publicUrl);
       toast("Foto carregada! Salve para confirmar.", "ok");
+
     } catch (e) {
       toast("Erro no upload: " + e.message, "error");
     }
@@ -2464,12 +2467,14 @@ const Perfil = ({ session, plan, postsUsed, songsChanged, onLogout, onUpdateSess
     setSaving(true);
     try {
         if (session?.id) {
-            const { error } = await supabase.from('profiles').update({ 
+            const { error } = await supabase.from("profiles").update({ 
               full_name: editName.trim(), 
               bio: editBio, 
-              phone: editPhone,
-              avatar_url: editAvatar
-            }).eq('id', session.id);
+              phone: editPhone, 
+              avatar_url: editAvatar,
+              instagram_url: editInstagram,
+              tiktok_url: editTiktok
+            }).eq("id", session.id);
             
             if (error) throw error;
 
@@ -2477,7 +2482,7 @@ const Perfil = ({ session, plan, postsUsed, songsChanged, onLogout, onUpdateSess
               data: { full_name: editName.trim(), avatar_url: editAvatar }
             });
         }
-        const newSession = { ...session, name: editName.trim(), bio: editBio, phone: editPhone, avatar_url: editAvatar };
+        const newSession = { ...session, name: editName.trim(), bio: editBio, phone: editPhone, avatar_url: editAvatar, instagram_url: editInstagram, tiktok_url: editTiktok };
         saveSession(newSession); onUpdateSession(newSession);
         toast(" Perfil atualizado!", "ok"); setSubpage("main");
     } catch(e) {
@@ -2517,6 +2522,8 @@ const Perfil = ({ session, plan, postsUsed, songsChanged, onLogout, onUpdateSess
           <textarea className="inp" value={editBio} onChange={e => setEditBio(e.target.value)} placeholder="Conte um pouco sobre você..." style={{ minHeight: 80, fontSize: 14 }} />
         </div>
         <Field label="Telefone" icon="" type="tel" value={editPhone} onChange={e => setEditPhone(e.target.value)} placeholder="+55 (11) 99999-9999" />
+        <Field label="Instagram" icon="📸" value={editInstagram} onChange={e => setEditInstagram(e.target.value)} placeholder="@seu_insta" />
+        <Field label="TikTok" icon="🎵" value={editTiktok} onChange={e => setEditTiktok(e.target.value)} placeholder="@seu_tiktok" />
       </div>
       <button className="btn primary lg" style={{ width: "100%", fontFamily: "'Sora',sans-serif" }} onClick={saveProfile} disabled={saving}>
         {saving ? <DvsSpin s={18} c="#fff" /> : "Salvar alterações"}
@@ -2681,12 +2688,20 @@ const CommentsModal = ({ post, session, onClose, onCommentAdded }) => {
             {loading ? <div style={{ padding: 40, textAlign: "center" }}><DvsSpin s={24} c={D.blue} /></div> : (
               comments.length > 0 ? comments.map(c => (
                 <div key={c.id} style={{ display: "flex", gap: 12 }}>
-                  <div style={{ width: 36, height: 36, borderRadius: 12, background: D.s3, overflow: "hidden", flexShrink: 0 }}>
+                  <div 
+                    onClick={() => { onClose(); onNavigate("public_profile", c.user_id); }}
+                    style={{ width: 36, height: 36, borderRadius: 12, background: D.s3, overflow: "hidden", flexShrink: 0, cursor: "pointer" }}
+                  >
                      {c.profiles?.avatar_url && <img src={c.profiles.avatar_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
                   </div>
                   <div style={{ background: D.bg2, padding: "10px 14px", borderRadius: 16, flex: 1 }}>
                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                        <div style={{ fontWeight: 800, fontSize: 13 }}>{c.profiles?.full_name || "Usuário"} <span style={{ fontWeight: 400, color: D.w3, marginLeft: 4 }}>@{c.profiles?.username || "anon"}</span></div>
+                        <div 
+                          onClick={() => { onClose(); onNavigate("public_profile", c.user_id); }}
+                          style={{ fontWeight: 800, fontSize: 13, cursor: "pointer" }}
+                        >
+                          {c.profiles?.full_name || "Usuário"} <span style={{ fontWeight: 400, color: D.w3, marginLeft: 4 }}>@{c.profiles?.username || "anon"}</span>
+                        </div>
                         <div style={{ fontSize: 10, color: D.w3 }}>{new Date(c.created_at).toLocaleDateString()}</div>
                      </div>
                      <div style={{ fontSize: 14, color: D.w1, lineHeight: 1.4 }}>{c.content}</div>
@@ -3070,6 +3085,12 @@ const PublicProfile = ({ userId, session, onBack, onNavigate }) => {
 
         {profile.bio && <div style={{ fontSize: 14, color: D.w2, maxWidth: 300, lineHeight: 1.5 }}>{profile.bio}</div>}
         
+        <div style={{ display: "flex", gap: 12 }}>
+           {profile.instagram_url && <button onClick={() => window.open(`https://instagram.com/${profile.instagram_url.replace("@","")}`, "_blank")} style={{ background: D.bg2, border: "none", width: 40, height: 40, borderRadius: 12, fontSize: 18 }}>📸</button>}
+           {profile.tiktok_url && <button onClick={() => window.open(`https://tiktok.com/@${profile.tiktok_url.replace("@","")}`, "_blank")} style={{ background: D.bg2, border: "none", width: 40, height: 40, borderRadius: 12, fontSize: 18 }}>🎵</button>}
+           <button onClick={() => { navigator.clipboard.writeText(window.location.href); toast("Link do perfil copiado!"); }} style={{ background: D.bg2, border: "none", width: 40, height: 40, borderRadius: 12, fontSize: 18 }}>🔗</button>
+        </div>
+
         {session?.id !== userId && (
           <button 
             onClick={toggleFollow} 
@@ -3243,7 +3264,7 @@ function App() {
   const fetchProfile = useCallback(async (userId) => {
     if (!userId) return;
     try {
-        const { data } = await supabase.from('profiles').select('posts_used, music_swaps_used, plan, full_name, bio, phone, avatar_url').eq('id', userId).single();
+        const { data } = await supabase.from('profiles').select('posts_used, music_swaps_used, plan, full_name, bio, phone, avatar_url, instagram_url, tiktok_url, youtube_url').eq('id', userId).single();
         if (data) {
           setPostsUsed(data.posts_used || 0);
           setSongsChanged(data.music_swaps_used || 0);
@@ -3254,7 +3275,10 @@ function App() {
             name: data.full_name || prev?.name,
             bio: data.bio || "",
             phone: data.phone || "",
-            avatar_url: data.avatar_url || ""
+            avatar_url: data.avatar_url || "",
+            instagram_url: data.instagram_url || "",
+            tiktok_url: data.tiktok_url || "",
+            youtube_url: data.youtube_url || ""
           }));
         }
     } catch(e) {}

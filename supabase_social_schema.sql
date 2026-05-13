@@ -7,6 +7,9 @@ ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS username text UNIQUE;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS preferred_styles text[];
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS bio text;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS website text;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS instagram_url text;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS tiktok_url text;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS youtube_url text;
 
 -- 2. ATUALIZAR POSTS
 ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS style text;
