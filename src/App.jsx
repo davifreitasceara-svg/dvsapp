@@ -1102,8 +1102,9 @@ ${jsonTpl}`,
           toast("✅ Vídeo pronto!", "ok");
         }
       } catch (err) {
-        console.warn("Video generation timed out or failed", err);
-        toast("⚠️ Erro no processamento. Enviando original...", "warn");
+        console.error("Video generation failed:", err);
+        toast("⚠️ Erro na mixagem: " + (err.message || "processamento falhou"), "warn");
+        // Don't override fileToShare here, keep the original if possible
       }
     }
 

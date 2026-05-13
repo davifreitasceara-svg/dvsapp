@@ -118,14 +118,23 @@ export const mixAudioWithVideo = async (videoFile, audioUrl, filters, onProgress
 };
 
 async function fetchAudioData(url) {
-  try {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error("Failed response");
-    return new Uint8Array(await res.arrayBuffer());
-  } catch (e) {
-    const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(url);
-    const res2 = await fetch(proxyUrl);
-    return new Uint8Array(await res2.arrayBuffer());
+  const proxies = [
+    (u) => u, // Direct
+    (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+    (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+  ];
+
+  for (const proxyFn of proxies) {
+    try {
+      const res = await fetch(proxyFn(url));
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const buffer = await res.arrayBuffer();
+      if (buffer.byteLength < 100) throw new Error("Empty buffer");
+      return new Uint8Array(buffer);
+    } catch (e) {
+      console.warn(`Proxy failed for ${url}:`, e.message);
+    }
   }
+  throw new Error("Não foi possível carregar o áudio. Verifique sua conexão.");
 }
 
