@@ -218,23 +218,34 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
  */
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 let _tid = 0;
-const GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY || "AIzaSyDFuWZ6tYWHCLQufmIOravvafotX8Xzrxg";
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`;
+const XAI_KEY = import.meta.env.VITE_XAI_API_KEY || "";
+const XAI_URL = "https://api.x.ai/v1/chat/completions";
 
 async function callAI(user, sys = "") {
-  if (!GEMINI_KEY) { console.error("[callAI] VITE_GEMINI_API_KEY nao configurada!"); return ""; }
+  if (!XAI_KEY) { console.error("[callAI] VITE_XAI_API_KEY nao configurada!"); return ""; }
   try {
-    const r = await fetch(GEMINI_URL, {
+    const r = await fetch(XAI_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { 
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${XAI_KEY}`
+      },
       body: JSON.stringify({
-        systemInstruction: { parts: [{ text: sys || "Você é o DVSCREATOR AI, assistente especialista em marketing digital e educação. Responda sempre em português brasileiro de forma direta, criativa e precisa." }] },
-        contents: [{ role: "user", parts: [{ text: user }] }]
+        model: "grok-beta",
+        messages: [
+          { role: "system", content: sys || "Você é o DVSCREATOR AI, assistente especialista em marketing digital e educação. Responda sempre em português brasileiro de forma direta, criativa e precisa." },
+          { role: "user", content: user }
+        ],
+        stream: false
       }),
     });
-    if (!r.ok) { const err = await r.json().catch(()=>({})); console.error("[callAI] Error:", r.status, err); return ""; }
+    if (!r.ok) { 
+      const err = await r.json().catch(()=>({})); 
+      console.error("[callAI] Error:", r.status, err); 
+      return ""; 
+    }
     const d = await r.json();
-    return d.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    return d.choices?.[0]?.message?.content || "";
   } catch(e) { console.error("[callAI]", e); return ""; }
 }
 
@@ -264,22 +275,40 @@ function fileToBase64(file) {
 }
 
 async function callAIVision(b64, mediaType, prompt, sys) {
-  if (!GEMINI_KEY) { console.error("[callAIVision] VITE_GEMINI_API_KEY nao configurada!"); return ""; }
+  if (!XAI_KEY) { console.error("[callAIVision] VITE_XAI_API_KEY nao configurada!"); return ""; }
   try {
-    const r = await fetch(GEMINI_URL, {
+    const r = await fetch(XAI_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { 
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${XAI_KEY}`
+      },
       body: JSON.stringify({
-        systemInstruction: { parts: [{ text: sys || "Você é o DVSCREATOR AI, especialista em marketing viral brasileiro. Responda em português." }] },
-        contents: [{ role: "user", parts: [
-          { inlineData: { mimeType: mediaType, data: b64 } },
-          { text: prompt }
-        ]}]
+        model: "grok-vision-beta",
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: (sys ? sys + "\n\n" : "") + prompt },
+              {
+                type: "image_url",
+                image_url: {
+                  url: `data:${mediaType};base64,${b64}`
+                }
+              }
+            ]
+          }
+        ],
+        stream: false
       })
     });
-    if (!r.ok) { const err = await r.json().catch(()=>({})); console.error("[callAIVision] Error:", r.status, err); return ""; }
+    if (!r.ok) { 
+      const err = await r.json().catch(()=>({})); 
+      console.error("[callAIVision] Error:", r.status, err); 
+      return ""; 
+    }
     const d = await r.json();
-    return d.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    return d.choices?.[0]?.message?.content || "";
   } catch (e) { console.error("[callAIVision] Exception:", e); return ""; }
 }
 
