@@ -15,6 +15,9 @@ ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS youtube_url text;
 ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS style text;
 ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS category text;
 ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS tags text[];
+ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS location text;
+ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS tagged_users uuid[];
+ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS music_metadata jsonb; -- { id, name, artist, startTime, volumeOriginal, volumeMusic }
 
 -- 3. TABELAS
 CREATE TABLE IF NOT EXISTS public.follows (

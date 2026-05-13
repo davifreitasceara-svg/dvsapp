@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { supabase } from "./services/supabase";
+import PublishPreview from "./features/creator/PublishPreview";
 import { generateVideo, mixAudioWithVideo } from "./services/ffmpegService";
 import html2canvas from "html2canvas";
 const SI = ["Analisando imagem", "Melhorando qualidade", "Calibrando cores", "Gerando conteúdo IA", "Calculando viral score"];
@@ -821,8 +822,8 @@ const PreviewMockup = ({ platform, type, fileURL, isImg, fCSS, caption, music, o
 };
 
 
-const Criador = ({ toast, session, plan, setPostsUsed, songsChanged, setSongsChanged }) => {
-  const [stage, setStage] = useState("home");
+const Criador = ({ toast, session, plan, setPostsUsed, songsChanged, setSongsChanged, onNavigate }) => {
+  const [stage, setStage] = useState("home"); // home | proc | result | publish
   const [file, setFile] = useState(null);
   const [fileURL, setFileURL] = useState(null);
   const [isImg, setIsImg] = useState(true);
@@ -1373,6 +1374,21 @@ ${jsonTpl}`,
                 <span>{sharing ? <DvsSpin s={20} c="#fff" /> : "📤"}</span>
                 <span>{sharing ? "GERANDO VÍDEO..." : "COMPARTILHAR AGORA"}</span>
               </button>
+              
+              <button 
+                onClick={() => setStage("publish")}
+                style={{ 
+                  width: "100%", marginTop: 12, padding: "16px 0", 
+                  background: "linear-gradient(135deg, #7c3aed, #d946ef)", 
+                  color: "#fff", border: "none", borderRadius: 16, 
+                  fontWeight: 800, fontSize: 16, fontFamily: "'Sora', sans-serif",
+                  cursor: "pointer", boxShadow: "0 10px 25px rgba(124, 58, 237, 0.4)",
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 12
+                }}
+              >
+                <span>🚀</span>
+                <span>PUBLICAR NO FEED</span>
+              </button>
             <div style={{ marginTop: 16, display: "flex", justifyContent: "center", gap: 15 }}>
               <button onClick={() => setMock({ platform: "insta", type: "reels" })} style={{ background: "none", border: "none", color: D.blue2, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>👁️ Ver Preview</button>
               <div style={{ width: 1, height: 12, background: D.b1 }}></div>
@@ -1385,6 +1401,22 @@ ${jsonTpl}`,
           </div>
         </div>
       </>
+    );
+  }
+
+  if (stage === "publish") {
+    return (
+        <PublishPreview 
+          file={file} 
+          style={estilo} 
+          initialCaption={caption} 
+          initialHashtags="" 
+          session={session} 
+          onClose={() => setStage("result")} 
+          onPublish={() => { onNavigate("perfil"); setStage("home"); setFile(null); setFileURL(null); setPostsUsed(p => p + 1); }} 
+          supabase={supabase} 
+          toast={toast} 
+        />
     );
   }
 
@@ -1475,7 +1507,6 @@ ${jsonTpl}`,
            "Ilimitado"}   <span style={{ color: D.amber, fontWeight: 700, cursor: "pointer" }} onClick={() => toast("Acesse a aba Planos!", "info")}>{plan === "full" ? "Gerenciar" : "Upgrade"} </span>
         </span>
       </div>
-    </div>
   );
 };
 
