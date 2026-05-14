@@ -168,8 +168,10 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 
 /*  CARDS  */
 .card  { background: ${D.s1}; border: 1px solid ${D.b0}; border-radius: 18px; overflow: hidden; }
-.cardH { transition: border-color .2s, box-shadow .2s; }
-.cardH:hover { border-color: ${D.blueM}; box-shadow: 0 6px 28px rgba(0,0,0,.38); }
+.cardH { background: ${D.s1}; border: 1px solid ${D.b0}; border-radius: 20px; overflow: hidden; transition: transform .3s ease, box-shadow .3s ease; }
+.cardH:hover { transform: translateY(-4px); box-shadow: 0 16px 40px rgba(0,0,0,.5); }
+.cardH:hover .hover-zoom { transform: scale(1.06); }
+.hover-zoom { transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
 
 /*  INPUTS  */
 .inp {
@@ -1389,7 +1391,7 @@ ${jsonTpl}`,
                 }}
               >
                 <span>🚀</span>
-                <span>PUBLICAR NO FEED</span>
+                <span>PUBLICAR NO APP</span>
               </button>
             <div style={{ marginTop: 16, display: "flex", justifyContent: "center", gap: 15 }}>
               <button onClick={() => setMock({ platform: "insta", type: "reels" })} style={{ background: "none", border: "none", color: D.blue2, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>👁️ Ver Preview</button>
@@ -1511,6 +1513,7 @@ ${jsonTpl}`,
            "Ilimitado"}   <span style={{ color: D.amber, fontWeight: 700, cursor: "pointer" }} onClick={() => toast("Acesse a aba Planos!", "info")}>{plan === "full" ? "Gerenciar" : "Upgrade"} </span>
         </span>
       </div>
+    </div>
   );
 };
 
@@ -2965,12 +2968,13 @@ const Discover = ({ toast, session, onNavigate }) => {
 
   const loadRecommendations = async () => {
     setLoading(true);
-    // Filter only users who have a full name and username (indicating they set up their profile)
+    // Filter only users who have a full name, username AND bio or avatar (real users)
     const { data } = await supabase
       .from("profiles")
       .select("*")
       .not("full_name", "is", null)
       .not("username", "is", null)
+      .not("avatar_url", "is", null) // Must have an avatar to be recommended
       .order("created_at", { ascending: false })
       .limit(12);
     if (data) setRecommendations(data);
@@ -3266,23 +3270,39 @@ const SavedPosts = ({ toast, session, onNavigate }) => {
   if (loading && posts.length === 0) return <div style={{ padding: 40, textAlign: "center" }}><DvsSpin s={30} c={D.amber} /></div>;
 
   return (
-    <div style={{ padding: "20px 16px", display: "flex", flexDirection: "column", gap: 24 }}>
+    <div style={{ padding: "24px 16px", display: "flex", flexDirection: "column", gap: 28, animation: "fadeIn 0.5s ease" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-         <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 900, fontSize: 24 }}>Inspirações</div>
-         <button className="btn ghost sm" onClick={createFolder} style={{ fontSize: 24 }}>📁+</button>
+         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 900, fontSize: 28, letterSpacing: "-1px" }}>Inspirações</div>
+            <div style={{ fontSize: 13, color: D.w3, fontWeight: 500 }}>Sua curadoria visual de referências</div>
+         </div>
+         <button className="btn dark" onClick={createFolder} style={{ width: 48, height: 48, borderRadius: 16, fontSize: 20 }}>📁</button>
       </div>
 
-      <div style={{ display: "flex", gap: 10, overflowX: "auto", scrollbarWidth: "none" }}>
-         <button onClick={() => { setSelectedFolder(null); setView("all"); }} style={{ flexShrink: 0, padding: "8px 16px", borderRadius: 12, border: "none", background: !selectedFolder ? D.amber : D.bg2, color: !selectedFolder ? "#fff" : D.w2, fontWeight: 700, fontSize: 13 }}>Tudo</button>
+      <div style={{ display: "flex", gap: 12, overflowX: "auto", scrollbarWidth: "none", padding: "4px 0" }}>
+         <button 
+           onClick={() => { setSelectedFolder(null); setView("all"); }} 
+           style={{ 
+             flexShrink: 0, padding: "10px 20px", borderRadius: 14, border: "none", 
+             background: !selectedFolder ? D.gBlue : D.bg2, 
+             color: "#fff", fontWeight: 700, fontSize: 13,
+             boxShadow: !selectedFolder ? "0 4px 12px rgba(37,99,235,0.3)" : "none",
+             transition: "all 0.2s"
+           }}
+         >
+           Tudo
+         </button>
          {collections.map(c => (
            <button 
              key={c.id} 
              onClick={() => { setSelectedFolder(c); setView("folders"); }}
              style={{ 
-               flexShrink: 0, padding: "8px 16px", borderRadius: 12, border: "none", 
-               background: selectedFolder?.id === c.id ? D.amber : D.bg2, 
+               flexShrink: 0, padding: "10px 20px", borderRadius: 14, border: "none", 
+               background: selectedFolder?.id === c.id ? D.gBlue : D.bg2, 
                color: selectedFolder?.id === c.id ? "#fff" : D.w2,
-               fontWeight: 700, fontSize: 13 
+               fontWeight: 700, fontSize: 13,
+               boxShadow: selectedFolder?.id === c.id ? "0 4px 12px rgba(37,99,235,0.3)" : "none",
+               transition: "all 0.2s"
              }}
            >
              {c.name}
@@ -3290,24 +3310,50 @@ const SavedPosts = ({ toast, session, onNavigate }) => {
          ))}
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        {selectedFolder && (
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: D.bg2, padding: "12px 16px", borderRadius: 16 }}>
-             <div style={{ fontWeight: 800, fontSize: 15 }}>📂 {selectedFolder.name}</div>
-             <button className="btn ghost xs" onClick={() => setSelectedFolder(null)} style={{ color: D.rose }}>Fechar</button>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        {posts.map((p, i) => (
+          <div 
+            key={p.id} 
+            className="cardH"
+            onClick={() => onNavigate("public_profile", p.user_id)}
+            style={{ 
+              display: "flex", flexDirection: "column", gap: 10, cursor: "pointer",
+              animation: `fadeUp 0.5s ease ${i * 0.1}s both`
+            }}
+          >
+            <div style={{ 
+              aspectRatio: "3/4", borderRadius: 24, overflow: "hidden", 
+              background: D.bg2, border: `1px solid ${D.b0}`,
+              position: "relative", boxShadow: "0 8px 20px rgba(0,0,0,0.2)"
+            }}>
+              {p.content?.media_url ? (
+                p.content.media_type === "image" ? (
+                  <img src={p.content.media_url} style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.5s" }} className="hover-zoom" />
+                ) : (
+                  <video src={p.content.media_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                )
+              ) : (
+                <div style={{ padding: 20, fontSize: 12, color: D.w3 }}>{p.content?.caption}</div>
+              )}
+            </div>
+            <div style={{ padding: "0 8px", display: "flex", alignItems: "center", gap: 8 }}>
+               <div style={{ width: 24, height: 24, borderRadius: 8, background: D.s3, overflow: "hidden" }}>
+                  {p.profiles?.avatar_url && <img src={p.profiles.avatar_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
+               </div>
+               <div style={{ fontSize: 11, fontWeight: 700, color: D.w2 }}>@{p.profiles?.username || "user"}</div>
+            </div>
           </div>
-        )}
-        
-        {posts.map(p => (
-          <PostCard key={p.id} post={p} session={session} toast={toast} onNavigate={onNavigate} />
         ))}
-        {posts.length === 0 && (
-          <div style={{ textAlign: "center", padding: 60, color: D.w3, background: D.bg2, borderRadius: 24, display: "flex", flexDirection: "column", gap: 10 }}>
-             <div style={{ fontSize: 40 }}>⭐</div>
-             <div>Sua galeria está vazia. Comece a explorar e salvar referências!</div>
-          </div>
-        )}
       </div>
+      
+      {posts.length === 0 && (
+        <div style={{ textAlign: "center", padding: "80px 20px", color: D.w3, background: D.bg2, borderRadius: 32, display: "flex", flexDirection: "column", gap: 16, border: `1px dashed ${D.b0}` }}>
+           <div style={{ fontSize: 50 }}>✨</div>
+           <div style={{ fontWeight: 700, fontSize: 16, color: D.w1 }}>Sua galeria está pronta</div>
+           <div style={{ fontSize: 13, lineHeight: 1.5 }}>Explore o feed e salve referências para criar sua própria coleção de inspirações.</div>
+           <button className="btn primary sm" style={{ alignSelf: "center", marginTop: 10 }} onClick={() => onNavigate("feed")}>Explorar agora</button>
+        </div>
+      )}
     </div>
   );
 };
