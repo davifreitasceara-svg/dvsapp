@@ -28,7 +28,7 @@ const FPRESET = {
   "V\u00edvido":    { brightness: 104, contrast: 108, saturate: 152, sepia: 0,  hue: 0   },
 };
 
-const PublishPreview = ({ file, style, initialCaption, initialHashtags, session, onClose, onPublish, supabase, toast, filters: initialFilters, music: initialMusic }) => {
+const PublishPreview = ({ postId, file, style, initialCaption, initialHashtags, session, onClose, onPublish, supabase, toast, filters: initialFilters, music: initialMusic }) => {
   const [caption, setCaption] = useState(initialCaption || "");
   const [hashtags, setHashtags] = useState(initialHashtags || "");
   const [location, setLocation] = useState("");
@@ -106,8 +106,8 @@ const PublishPreview = ({ file, style, initialCaption, initialHashtags, session,
       
       const { data: { publicUrl } } = supabase.storage.from("post-media").getPublicUrl(path);
 
-      // 2. Insert post
-      const { error: postError } = await supabase.from("posts").insert({
+      // 2. Upsert post
+      const postData = {
         user_id: session.id,
         content: {
           media_url: publicUrl,
@@ -129,7 +129,16 @@ const PublishPreview = ({ file, style, initialCaption, initialHashtags, session,
           volumeMusic: volMusic
         } : null,
         tags: hashtags.replace(/#/g, "").split(" ").filter(t => t)
-      });
+      };
+
+      let postError;
+      if (postId) {
+        const res = await supabase.from("posts").update(postData).eq("id", postId);
+        postError = res.error;
+      } else {
+        const res = await supabase.from("posts").insert(postData);
+        postError = res.error;
+      }
 
       if (postError) throw postError;
 

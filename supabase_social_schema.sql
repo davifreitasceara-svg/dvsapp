@@ -24,6 +24,20 @@ ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS location text;
 ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS tagged_users uuid[];
 ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS music_metadata jsonb; -- { id, name, artist, startTime, volumeOriginal, volumeMusic }
 
+-- Garantir que posts.user_id aponta para profiles (necessário para joins no Supabase)
+-- Se a FK não existir ainda, isso vai criar; se já existir, ignore o erro
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.table_constraints
+    WHERE constraint_name = 'posts_user_id_fkey' AND table_name = 'posts'
+  ) THEN
+    ALTER TABLE public.posts
+    ADD CONSTRAINT posts_user_id_fkey
+    FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+
 -- 3. TABELAS
 CREATE TABLE IF NOT EXISTS public.follows (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -125,3 +139,62 @@ CREATE POLICY "Users can add to own collections" ON public.collection_items FOR 
 CREATE POLICY "Users can remove from own collections" ON public.collection_items FOR DELETE USING (
   EXISTS (SELECT 1 FROM public.collections WHERE id = collection_id AND user_id = auth.uid())
 );
+
+-- ############################################################
+-- 5. STORAGE BUCKETS
+-- ############################################################
+
+-- Bucket para mídias de posts (público, até 50MB)
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'post-media', 'post-media', true, 52428800,
+  ARRAY['image/jpeg','image/png','image/gif','image/webp','video/mp4','video/quicktime','video/webm']
+) ON CONFLICT (id) DO UPDATE SET public = true;
+
+-- Bucket para avatares (público, até 5MB)
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'avatars', 'avatars', true, 5242880,
+  ARRAY['image/jpeg','image/png','image/gif','image/webp']
+) ON CONFLICT (id) DO UPDATE SET public = true;
+
+-- Políticas de acesso: post-media
+DROP POLICY IF EXISTS "Post media publicly readable" ON storage.objects;
+CREATE POLICY "Post media publicly readable" ON storage.objects
+  FOR SELECT USING (bucket_id = 'post-media');
+
+DROP POLICY IF EXISTS "Authenticated can upload post media" ON storage.objects;
+CREATE POLICY "Authenticated can upload post media" ON storage.objects
+  FOR INSERT WITH CHECK (bucket_id = 'post-media' AND auth.role() = 'authenticated');
+
+DROP POLICY IF EXISTS "Users can delete own post media" ON storage.objects;
+CREATE POLICY "Users can delete own post media" ON storage.objects
+  FOR DELETE USING (bucket_id = 'post-media' AND auth.uid()::text = (storage.foldername(name))[1]);
+
+-- Políticas de acesso: avatars
+DROP POLICY IF EXISTS "Avatars publicly readable" ON storage.objects;
+CREATE POLICY "Avatars publicly readable" ON storage.objects
+  FOR SELECT USING (bucket_id = 'avatars');
+
+DROP POLICY IF EXISTS "Authenticated can upload avatars" ON storage.objects;
+CREATE POLICY "Authenticated can upload avatars" ON storage.objects
+  FOR INSERT WITH CHECK (bucket_id = 'avatars' AND auth.role() = 'authenticated');
+
+DROP POLICY IF EXISTS "Users can update own avatar" ON storage.objects;
+CREATE POLICY "Users can update own avatar" ON storage.objects
+  FOR UPDATE USING (bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1]);
+
+-- ############################################################
+-- 6. SAVED_POSTS (caso não exista)
+-- ############################################################
+CREATE TABLE IF NOT EXISTS public.saved_posts (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid REFERENCES auth.users ON DELETE CASCADE NOT NULL,
+  post_id bigint REFERENCES public.posts(id) ON DELETE CASCADE NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  UNIQUE(user_id, post_id)
+);
+ALTER TABLE public.saved_posts ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users manage own saved posts" ON public.saved_posts;
+CREATE POLICY "Users manage own saved posts" ON public.saved_posts
+  FOR ALL USING (auth.uid() = user_id);

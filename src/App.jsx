@@ -234,7 +234,7 @@ async function callAI(user, sys = "") {
         "Authorization": `Bearer ${XAI_KEY}`
       },
       body: JSON.stringify({
-        model: "grok-beta",
+        model: "grok-3-mini-latest",
         messages: [
           { role: "system", content: sys || "Você é o DVSCREATOR AI, assistente especialista em marketing digital e educação. Responda sempre em português brasileiro de forma direta, criativa e precisa." },
           { role: "user", content: user }
@@ -287,7 +287,7 @@ async function callAIVision(b64, mediaType, prompt, sys) {
         "Authorization": `Bearer ${XAI_KEY}`
       },
       body: JSON.stringify({
-        model: "grok-vision-beta",
+        model: "grok-2-vision-1212",
         messages: [
           {
             role: "user",
@@ -905,8 +905,12 @@ const Criador = ({ toast, session, plan, setPostsUsed, songsChanged, setSongsCha
       const { data: profile } = await supabase.from('profiles').select('posts_used, music_swaps_used, last_usage_reset').eq('id', session.id).single();
       
       if (profile) {
-        if (profile.last_usage_reset !== today) {
-           // Reset and continue
+        // Normalize reset date — column may be 'date' or 'text' type, both compared as string
+        const lastReset = profile.last_usage_reset
+          ? String(profile.last_usage_reset).substring(0, 10)
+          : null;
+        if (lastReset !== today) {
+           // Reset daily counters
            await supabase.from('profiles').update({ posts_used: 0, music_swaps_used: 0, last_usage_reset: today }).eq('id', session.id);
            setPostsUsed(0);
            setSongsChanged(0);
@@ -1411,15 +1415,24 @@ ${jsonTpl}`,
   if (stage === "publish") {
     return (
         <PublishPreview 
+          postId={postId}
           file={file} 
           style={estilo} 
           initialCaption={caption} 
-          initialHashtags="" 
+          initialHashtags={result?.hashtags?.map(h => "#" + h).join(" ") || ""} 
           filters={filters}
           music={selMusic}
           session={session} 
           onClose={() => setStage("result")} 
-          onPublish={() => { onNavigate("perfil"); setStage("home"); setFile(null); setFileURL(null); }} 
+          onPublish={() => { 
+            toast("🎉 Publicado! Veja no feed.", "ok");
+            onNavigate("feed"); 
+            setStage("home"); 
+            setFile(null); 
+            setFileURL(null);
+            setResult(null);
+            setCaption("");
+          }} 
           supabase={supabase} 
           toast={toast} 
         />
@@ -1608,10 +1621,22 @@ const SmartSoundPlayer = ({ session, musicas = [], toast, plan, songsChanged, se
     }
     if (t !== track) {
       setSongsChanged(prev => prev + 1);
-      // Persist to database
-      supabase.rpc('increment_music_usage', { user_id_param: session.id, limit_param: limit }).then(({ data, error }) => {
-        if (error) console.error("Error incrementing music usage:", error);
-      });
+      // Persist to database directly (no RPC needed)
+      supabase
+        .from('profiles')
+        .select('music_swaps_used')
+        .eq('id', session.id)
+        .single()
+        .then(({ data }) => {
+          if (data !== null) {
+            supabase.from('profiles')
+              .update({ music_swaps_used: (data.music_swaps_used || 0) + 1 })
+              .eq('id', session.id)
+              .then(({ error }) => {
+                if (error) console.error("Error updating music usage:", error);
+              });
+          }
+        });
     }
     if (!t?.previewUrl) { toast("Pr via n o disponível para esta faixa.", "warn"); return; }
     const a = audioRef.current;
@@ -2478,11 +2503,13 @@ const Perfil = ({ session, plan, postsUsed, songsChanged, onLogout, onUpdateSess
 
   const loadMyPosts = async () => {
     setLoadingPosts(true);
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("posts")
-      .select("*, profiles!inner(full_name, avatar_url)")
+      .select("id, user_id, content, style, location, tags, created_at")
       .eq("user_id", session.id)
+      .not("content->>media_url", "is", null)
       .order("created_at", { ascending: false });
+    if (error) console.error("loadMyPosts error:", error);
     if (data) setMyPosts(data);
     setLoadingPosts(false);
   };
@@ -2798,6 +2825,53 @@ const CommentsModal = ({ post, session, onClose, onCommentAdded }) => {
   );
 };
 
+// Standalone save button used in FeedPostCard and other feed cards
+const SavePostBtn = ({ postId, session, toast }) => {
+  const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!session?.id || !postId) return;
+    supabase.from("saved_posts").select("id").eq("post_id", postId).eq("user_id", session.id).then(({ data }) => {
+      if (data?.length) setSaved(true);
+    });
+  }, [postId, session?.id]);
+
+  const toggle = async () => {
+    if (!session?.id) return toast("Faça login para salvar.", "warn");
+    setLoading(true);
+    if (saved) {
+      setSaved(false);
+      const { error } = await supabase.from("saved_posts").delete().eq("post_id", postId).eq("user_id", session.id);
+      if (!error) toast("Removido das inspirações.");
+    } else {
+      setSaved(true);
+      const { error } = await supabase.from("saved_posts").upsert({ post_id: postId, user_id: session.id });
+      if (!error) toast("⭐ Salvo nas inspirações!", "ok");
+      else { setSaved(false); toast("Erro ao salvar: " + error.message, "error"); }
+    }
+    setLoading(false);
+  };
+
+  return (
+    <button
+      onClick={toggle}
+      disabled={loading}
+      style={{
+        background: saved ? "rgba(251,191,36,0.15)" : D.bg2,
+        border: `1.5px solid ${saved ? D.amber : D.b1}`,
+        color: saved ? D.amber : D.w3,
+        padding: "8px 16px", borderRadius: 12,
+        fontWeight: 700, fontSize: 13,
+        display: "flex", alignItems: "center", gap: 6,
+        transition: "all 0.2s"
+      }}
+    >
+      {saved ? "⭐" : "☆"} {saved ? "Salvo" : "Salvar"}
+    </button>
+  );
+};
+
 const PostCard = ({ post, session, toast, onNavigate }) => {
   const [liked, setLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(post.post_likes?.[0]?.count || 0);
@@ -2941,22 +3015,26 @@ const PostCard = ({ post, session, toast, onNavigate }) => {
 const Discover = ({ toast, session, onNavigate }) => {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
+  const [feed, setFeed] = useState([]);
   const [recommendations, setRecommendations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingFeed, setLoadingFeed] = useState(false);
   const [filter, setFilter] = useState("all");
+  const [page, setPage] = useState(0);
 
   const categories = [
     { id: "all", label: "Todos", icon: "🌈" },
     { id: "urban", label: "Urbano", icon: "🏙️" },
     { id: "portrait", label: "Retratos", icon: "👤" },
-    { id: "vintage", label: "Vintage", icon: "🎞️" },
+    { id: "vintage", label: "Vintage", icon: "🇯️" },
     { id: "nature", label: "Natureza", icon: "🌿" },
     { id: "preset", label: "Presets", icon: "🎨" }
   ];
 
   useEffect(() => {
+    loadFeed();
     loadRecommendations();
-  }, []);
+  }, [filter]);
 
   useEffect(() => {
     if (query.trim().length > 1) {
@@ -2966,15 +3044,36 @@ const Discover = ({ toast, session, onNavigate }) => {
     }
   }, [query, filter]);
 
+  const loadFeed = async () => {
+    setLoadingFeed(true);
+    try {
+      let q = supabase
+        .from("posts")
+        .select("id, user_id, content, style, location, tags, created_at, profiles(full_name, avatar_url, username)")
+        .not("content->>media_url", "is", null)
+        .eq("content->>is_public", "true")
+        .order("created_at", { ascending: false })
+        .limit(30);
+      const { data, error } = await q;
+      if (error) {
+        console.error("Feed load error:", error);
+      } else if (data) {
+        setFeed(data);
+      }
+    } catch(e) {
+      console.error("Feed exception:", e);
+    }
+    setLoadingFeed(false);
+  };
+
   const loadRecommendations = async () => {
     setLoading(true);
-    // Filter only users who have a full name, username AND bio or avatar (real users)
     const { data } = await supabase
       .from("profiles")
       .select("*")
       .not("full_name", "is", null)
       .not("username", "is", null)
-      .not("avatar_url", "is", null) // Must have an avatar to be recommended
+      .not("avatar_url", "is", null)
       .order("created_at", { ascending: false })
       .limit(12);
     if (data) setRecommendations(data);
@@ -2983,14 +3082,17 @@ const Discover = ({ toast, session, onNavigate }) => {
 
   const searchSocial = async () => {
     setLoading(true);
-    let q = supabase.from("posts").select("*, profiles!inner(full_name, avatar_url, username)");
+    let q = supabase.from("posts")
+      .select("id, user_id, content, style, location, tags, created_at, profiles(full_name, avatar_url, username)")
+      .not("content->>media_url", "is", null)
+      .eq("content->>is_public", "true");
     
     if (query.startsWith("#")) {
        q = q.contains("tags", [query.substring(1)]);
     } else if (query.startsWith("@")) {
        q = q.ilike("profiles.username", `%${query.substring(1)}%`);
     } else {
-       q = q.or(`caption.ilike.%${query}%, style.ilike.%${query}%, category.ilike.%${query}%`);
+       q = q.ilike("style", `%${query}%`);
     }
 
     if (filter !== "all") {
@@ -3000,6 +3102,55 @@ const Discover = ({ toast, session, onNavigate }) => {
     const { data } = await q.limit(20);
     if (data) setResults(data);
     setLoading(false);
+  };
+
+  const FeedPostCard = ({ p }) => {
+    const mediaUrl = p.content?.media_url;
+    const mediaType = p.content?.media_type;
+    const caption = p.content?.caption || "";
+    const filt = p.content?.filters;
+    const fCSS = filt ? `brightness(${filt.brightness||100}%) contrast(${filt.contrast||100}%) saturate(${filt.saturate||100}%) sepia(${filt.sepia||0}%) hue-rotate(${filt.hue||0}deg)` : "none";
+
+    return (
+      <div style={{ background: D.s1, border: `1px solid ${D.b0}`, borderRadius: 20, overflow: "hidden", animation: "fadeUp 0.4s ease both" }}>
+        {mediaUrl && (
+          <div style={{ width: "100%", background: "#000", position: "relative", minHeight: 200 }}>
+            {mediaType === "image" ? (
+              <img src={mediaUrl} style={{ width: "100%", maxHeight: 420, objectFit: "cover", display: "block", filter: fCSS }} />
+            ) : (
+              <video src={mediaUrl} controls playsInline style={{ width: "100%", maxHeight: 420, display: "block", filter: fCSS }} />
+            )}
+          </div>
+        )}
+        <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ display: "flex", gap: 10, alignItems: "center", cursor: "pointer" }} onClick={() => onNavigate("public_profile", p.user_id)}>
+            <div style={{ width: 36, height: 36, borderRadius: 12, background: D.s3, overflow: "hidden", flexShrink: 0 }}>
+              {p.profiles?.avatar_url ? <img src={p.profiles.avatar_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>👤</div>}
+            </div>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 13 }}>{p.profiles?.full_name || "Criador"}</div>
+              <div style={{ fontSize: 11, color: D.w3 }}>{new Date(p.created_at).toLocaleDateString("pt-BR")}</div>
+            </div>
+          </div>
+          {caption && (
+            <div style={{ fontSize: 13, color: D.w2, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
+              {caption.length > 200 ? caption.substring(0, 200) + "..." : caption}
+            </div>
+          )}
+          {p.tags?.length > 0 && (
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {p.tags.slice(0, 5).map((t, i) => (
+                <span key={i} style={{ fontSize: 11, color: D.blue2, fontWeight: 700 }}>#{t}</span>
+              ))}
+            </div>
+          )}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 4 }}>
+            <SavePostBtn postId={p.id} session={session} toast={toast} />
+            {p.location && <span style={{ fontSize: 11, color: D.w3 }}>📍 {p.location}</span>}
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -3025,10 +3176,11 @@ const Discover = ({ toast, session, onNavigate }) => {
              onClick={() => setFilter(c.id)}
              style={{ 
                flexShrink: 0, padding: "10px 20px", borderRadius: 100, border: "none", 
-               background: filter === c.id ? D.blue : D.bg2, 
+               background: filter === c.id ? D.gBlue : D.bg2, 
                color: filter === c.id ? "#fff" : D.w2,
                fontWeight: 700, fontSize: 13, display: "flex", alignItems: "center", gap: 8,
-               transition: "all 0.2s"
+               transition: "all 0.2s",
+               boxShadow: filter === c.id ? "0 4px 12px rgba(37,99,235,0.35)" : "none"
              }}
            >
              <span>{c.icon}</span> {c.label}
@@ -3037,42 +3189,55 @@ const Discover = ({ toast, session, onNavigate }) => {
       </div>
 
       {query.trim().length > 1 ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
            <div style={{ fontWeight: 800, fontSize: 16 }}>Resultados para "{query}"</div>
            {loading ? <div style={{ padding: 40, textAlign: "center" }}><DvsSpin s={24} c={D.blue} /></div> : (
              results.length > 0 ? (
-               results.map(p => <PostCard key={p.id} post={p} session={session} toast={toast} onNavigate={onNavigate} />)
+               results.map(p => <FeedPostCard key={p.id} p={p} />)
              ) : <div style={{ textAlign: "center", padding: 40, color: D.w3 }}>Nenhum resultado encontrado. 😕</div>
            )}
         </div>
       ) : (
         <>
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-             <div style={{ fontWeight: 800, fontSize: 16 }}>Criadores Recomendados</div>
-             <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 10, scrollbarWidth: "none" }}>
-                {recommendations.map(r => (
-                  <div 
-                    key={r.id} 
-                    onClick={() => onNavigate("public_profile", r.id)}
-                    style={{ flexShrink: 0, width: 120, display: "flex", flexDirection: "column", alignItems: "center", gap: 8, cursor: "pointer" }}
-                  >
-                     <div style={{ width: 70, height: 70, borderRadius: 24, background: D.s3, overflow: "hidden", border: `3px solid ${D.b2}` }}>
-                        {r.avatar_url ? <img src={r.avatar_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>👤</div>}
-                     </div>
-                     <div style={{ fontSize: 12, fontWeight: 800, textAlign: "center", width: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.full_name}</div>
-                     <div style={{ fontSize: 10, color: D.w3 }}>@{r.username || "criador"}</div>
-                  </div>
-                ))}
-             </div>
-          </div>
+          {recommendations.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+               <div style={{ fontWeight: 800, fontSize: 16 }}>Criadores</div>
+               <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 10, scrollbarWidth: "none" }}>
+                  {recommendations.map(r => (
+                    <div 
+                      key={r.id} 
+                      onClick={() => onNavigate("public_profile", r.id)}
+                      style={{ flexShrink: 0, width: 100, display: "flex", flexDirection: "column", alignItems: "center", gap: 8, cursor: "pointer" }}
+                    >
+                       <div style={{ width: 64, height: 64, borderRadius: 20, background: D.s3, overflow: "hidden", border: `3px solid ${D.b2}` }}>
+                          {r.avatar_url ? <img src={r.avatar_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>👤</div>}
+                       </div>
+                       <div style={{ fontSize: 11, fontWeight: 800, textAlign: "center", width: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.full_name}</div>
+                       <div style={{ fontSize: 10, color: D.w3 }}>@{r.username || "criador"}</div>
+                    </div>
+                  ))}
+               </div>
+            </div>
+          )}
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-             <div style={{ fontWeight: 800, fontSize: 16 }}>Tendências em {filter === "all" ? "Geral" : categories.find(c => c.id === filter).label}</div>
-             {/* Feed of trending posts */}
-             <div style={{ textAlign: "center", padding: 40, color: D.w3, fontSize: 13, background: D.bg2, borderRadius: 20 }}>
-                Explore os estilos que estão bombando hoje! 🚀
-             </div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+             <div style={{ fontWeight: 800, fontSize: 16 }}>📸 Feed</div>
+             <button onClick={loadFeed} style={{ background: "none", border: "none", color: D.blue2, fontSize: 12, fontWeight: 700 }}>↻ Atualizar</button>
           </div>
+          
+          {loadingFeed ? (
+            <div style={{ padding: 60, textAlign: "center" }}><DvsSpin s={30} c={D.blue} /></div>
+          ) : feed.length > 0 ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+              {feed.map(p => <FeedPostCard key={p.id} p={p} />)}
+            </div>
+          ) : (
+            <div style={{ textAlign: "center", padding: 60, color: D.w3, background: D.bg2, borderRadius: 24, display: "flex", flexDirection: "column", gap: 12 }}>
+              <div style={{ fontSize: 44 }}>📭</div>
+              <div style={{ fontWeight: 700, fontSize: 15, color: D.w1 }}>Nenhuma publicação ainda</div>
+              <div style={{ fontSize: 13, lineHeight: 1.5 }}>Seja o primeiro a publicar um conteúdo incrível!</div>
+            </div>
+          )}
         </>
       )}
     </div>
@@ -3241,17 +3406,26 @@ const SavedPosts = ({ toast, session, onNavigate }) => {
 
   const loadSaved = async () => {
     setLoading(true);
-    let q = supabase.from("saved_posts").select("post_id, posts(*, profiles!inner(full_name, avatar_url, username))");
-    
-    if (selectedFolder) {
-       // Filter by collection
-       const { data: ci } = await supabase.from("collection_items").select("post_id").eq("collection_id", selectedFolder.id);
-       const ids = ci?.map(i => i.post_id) || [];
-       q = q.in("post_id", ids);
-    }
+    try {
+      let q = supabase
+        .from("saved_posts")
+        .select("post_id, posts(id, user_id, content, style, location, tags, created_at, profiles(full_name, avatar_url, username))")
+        .eq("user_id", session.id)
+        .order("created_at", { ascending: false });
+      
+      if (selectedFolder) {
+         const { data: ci } = await supabase.from("collection_items").select("post_id").eq("collection_id", selectedFolder.id);
+         const ids = ci?.map(i => i.post_id) || [];
+         if (ids.length > 0) q = q.in("post_id", ids);
+         else { setPosts([]); setLoading(false); return; }
+      }
 
-    const { data } = await q.eq("user_id", session.id).order("created_at", { ascending: false });
-    if (data) setPosts(data.map(d => d.posts) || []);
+      const { data, error } = await q;
+      if (error) console.error("loadSaved error:", error);
+      if (data) setPosts(data.map(d => d.posts).filter(Boolean));
+    } catch(e) {
+      console.error("loadSaved exception:", e);
+    }
     setLoading(false);
   };
 
