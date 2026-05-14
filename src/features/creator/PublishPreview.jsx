@@ -151,6 +151,25 @@ const PublishPreview = ({ postId, file, style, initialCaption, initialHashtags, 
     }
   };
 
+  const renderFilteredImage = async () => {
+    return new Promise((resolve, reject) => {
+      if (isVideo) return resolve(file); // No filter rendering for videos yet
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.src = previewUrl;
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.naturalWidth || img.width;
+        canvas.height = img.naturalHeight || img.height;
+        const ctx = canvas.getContext("2d");
+        ctx.filter = `brightness(${filters.brightness}%) contrast(${filters.contrast}%) saturate(${filters.saturate}%) sepia(${filters.sepia || 0}%) hue-rotate(${filters.hue || 0}deg)`;
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(blob => resolve(new File([blob], "edicao_premium.jpg", { type: "image/jpeg" })), "image/jpeg", 0.95);
+      };
+      img.onerror = reject;
+    });
+  };
+
   const fCSS = `brightness(${filters.brightness}%) contrast(${filters.contrast}%) saturate(${filters.saturate}%) sepia(${filters.sepia || 0}%) hue-rotate(${filters.hue || 0}deg)`;
 
   return (
@@ -159,7 +178,7 @@ const PublishPreview = ({ postId, file, style, initialCaption, initialHashtags, 
          <button onClick={onClose} style={{ background: "none", border: "none", color: D.w2, fontSize: 15, fontWeight: 600 }}>Cancelar</button>
          <div style={{ fontWeight: 900, fontSize: 17, fontFamily: "'Sora', sans-serif", letterSpacing: "-0.5px" }}>Publicar no App</div>
          <button onClick={handlePublish} disabled={publishing} style={{ background: D.gBlue, border: "none", color: "#fff", padding: "10px 24px", borderRadius: 14, fontWeight: 800, fontSize: 14, boxShadow: "0 8px 20px rgba(37,99,235,0.3)" }}>
-            {publishing ? "Postando..." : "Compartilhar"}
+            {publishing ? "Postando..." : "Salvar no App"}
          </button>
       </header>
 
@@ -300,6 +319,62 @@ const PublishPreview = ({ postId, file, style, initialCaption, initialHashtags, 
                  </div>
                  <input type="range" min="0" max="1" step="0.01" value={volMusic} onChange={e => setVolMusic(parseFloat(e.target.value))} style={{ accentColor: D.blue }} />
               </div>
+           </div>
+        </div>
+
+        {/* COMPARTILHAMENTO EXTERNO */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16, background: "linear-gradient(135deg, #1e1b4b, #312e81)", padding: "24px 20px", borderRadius: 28, border: `1px solid ${D.blue}` }}>
+           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                 <div style={{ fontWeight: 900, fontSize: 16, color: "#fff" }}>Compartilhar Agora 🚀</div>
+                 <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)" }}>Publique nas suas redes sociais</div>
+              </div>
+           </div>
+           
+           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 8 }}>
+              {[
+                { name: "Instagram", icon: "📸", color: "#E1306C" },
+                { name: "TikTok", icon: "🎵", color: "#000000" },
+                { name: "WhatsApp", icon: "💬", color: "#25D366" },
+                { name: "Facebook", icon: "📘", color: "#1877F2" },
+                { name: "Threads", icon: "🧵", color: "#000000" },
+                { name: "X", icon: "✖️", color: "#000000" }
+              ].map(network => (
+                <button 
+                  key={network.name}
+                  onClick={async () => {
+                    toast(`Renderizando imagem para ${network.name}...`, "info");
+                    try { await navigator.clipboard.writeText(caption); } catch(e) {}
+                    
+                    try {
+                      const fileToShare = await renderFilteredImage();
+                      
+                      if (navigator.share && navigator.canShare && navigator.canShare({ files: [fileToShare] })) {
+                        await navigator.share({
+                          title: 'Edição Premium',
+                          text: caption,
+                          files: [fileToShare]
+                        });
+                      } else {
+                        // Fallback download if Web Share API is not supported
+                        const url = URL.createObjectURL(fileToShare);
+                        const a = document.createElement("a");
+                        a.href = url;
+                        a.download = "edicao_premium.jpg";
+                        a.click();
+                        toast(`Pronto! Baixamos a foto. Abra o ${network.name} e cole a legenda.`, "ok");
+                      }
+                    } catch(e) {
+                       toast("Erro ao renderizar imagem.", "err");
+                    }
+                  }}
+                  style={{ background: "#fff", color: "#000", border: "none", borderRadius: 16, padding: "12px", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontWeight: 800, fontSize: 14, cursor: "pointer", transition: "transform 0.2s" }}
+                  onMouseOver={e => e.currentTarget.style.transform = "translateY(-2px)"}
+                  onMouseOut={e => e.currentTarget.style.transform = "translateY(0)"}
+                >
+                  <span style={{ fontSize: 18 }}>{network.icon}</span> {network.name}
+                </button>
+              ))}
            </div>
         </div>
       </div>

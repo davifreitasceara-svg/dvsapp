@@ -929,23 +929,21 @@ const Criador = ({ toast, session, plan, setPostsUsed, songsChanged, setSongsCha
     for (let i = 0; i < steps.length; i++) { setCur(i); await sleep(480 + Math.random() * 380); setPct(Math.round(((i + 1) / steps.length) * 88)); }
 
     const jsonTpl = `{
-  "analiseVisual": "descrição detalhada do que aparece: pessoas, objetos, cenário, cores, clima, expressões",
-  "vibeImagem": "sentimento transmitido (alegria, paz, agitação, romance, adrenalina, elegância, etc.)",
-  "hook": "frase de impacto máx 10 palavras com emoji BASEADA EXATAMENTE no que está na foto/vídeo",
-  "caption": "legenda de 2-3 frases que descreve e valoriza ESPECIFICAMENTE o conteúdo visual, em português brasileiro natural e estilo ${estilo}",
-  "hashtags": ["10 hashtags específicos: mix de nicho e trending relacionados ao visual"],
-  "filtro": "filtro que melhor combina com as cores da foto (Clarendon, Gingham, Moon, Lark, Juno, Reyes, Valencia, Hudson, Nashville, HDR ou Vívido)",
+  "analiseVisual": "descrição detalhada de: cores principais, iluminação, ambiente, estilo visual e sentimento transmitido pela imagem.",
+  "vibeImagem": "emoção e estética da imagem (ex: cinemática, minimalista, tumblr, casual, criativa, vibrante)",
+  "hook": "frase inicial curta e cativante que reflete a vibe visual (com emoji)",
+  "caption": "legenda sofisticada e premium que combina perfeitamente com a iluminação, cores e emoção da foto.",
+  "hashtags": ["10 hashtags modernas e aesthetic relacionadas ao clima visual"],
+  "filtro": "nome do filtro que mais valoriza as cores analisadas (Clarendon, Gingham, Moon, Lark, Juno, Reyes, Valencia, Hudson, Nashville, HDR ou Vívido)",
   "musicas": [
-    {"tipo":"Combina perfeitamente","nome":"Música REAL famosa cuja vibe combina com o clima visual da foto","artista":"Artista real","vibe":"por que combina com este visual específico"},
-    {"tipo":"Em Alta no TikTok","nome":"Música viral atual que combina com o sentimento desta imagem","artista":"Artista real","vibe":"relação com o visual e clima da foto"},
-    {"tipo":"Alternativa","nome":"Terceira opção real adequada para o tema visual","artista":"Artista real","vibe":"por que esta também serve para este conteúdo"}
+    {"tipo":"Combina perfeitamente","nome":"Música REAL famosa cuja vibe (indie, lofi, pop, acústico) combina com o clima visual da foto","artista":"Artista real","vibe":"por que combina com este visual estético"}
   ],
-  "score": 85,
-  "scoreMotivo": "análise do potencial viral baseada nas características visuais DESTA foto específica",
-  "melhorias": ["dica concreta de melhoria baseada no que aparece nesta foto", "sugestão específica de edição ou composição"],
-  "plataforma": "rede social mais adequada para este conteúdo visual",
-  "horario": "melhor horário para este tipo de conteúdo",
-  "cta": "chamada para ação específica para o tema desta foto"
+  "score": 95,
+  "scoreMotivo": "análise da estética e composição visual",
+  "melhorias": ["dica elegante de composição fotográfica"],
+  "plataforma": "rede social principal para esta estética",
+  "horario": "18h",
+  "cta": "pergunta criativa para inspirar os seguidores"
 }`;
 
     let raw = "";
@@ -953,32 +951,29 @@ const Criador = ({ toast, session, plan, setPostsUsed, songsChanged, setSongsCha
       try {
         const b64 = await fileToBase64(file);
         const mt = file.type?.startsWith("image") ? file.type : "image/jpeg";
-        const visionPrompt = plan === "free" 
-          ? "Você é um especialista em marketing. Analise esta imagem de forma direta e crie uma legenda viral simples."
-          : plan === "social"
-          ? "Você é um especialista em marketing viral. Analise esta imagem com foco em engajamento e sugira músicas que estão em alta no momento."
-          : "Você é um estrategista de conteúdo viral de elite. Faça uma análise PROFUNDA desta imagem (IA Vision Profissional), identifique gatilhos psicológicos, tendências de nicho e crie uma estratégia completa de postagem.";
+        const visionPrompt = "Você é um diretor de arte e especialista em edição visual premium. Analise a estética desta foto profundamente.";
 
         raw = await callAIVision(b64, mt,
           `${visionPrompt}
           
-PASSO 1 — ANALISE A IMAGEM:
-- O que aparece na foto? (pessoas, objetos, local, natureza, comida, produto, etc.)
-- Qual é a paleta de cores dominante? (cores quentes, frias, neutras, vibrantes)
-- Qual é o clima/sentimento? (alegre, romântico, agitado, sereno, elegante, divertido, etc.)
-- Qual é o contexto? (ao ar livre, interior, praia, cidade, academia, restaurante, etc.)
+PASSO 1 — ANALISE PROFUNDA DA IMAGEM:
+- Cores e Paleta: Quais os tons dominantes?
+- Iluminação e Sombras: Luz natural, estúdio, dark, soft light?
+- Ambiente: Descrição do local e elementos visuais.
+- Estilo visual e Emoção: Cinemática, motivacional, minimalista, retrô, etc?
+- Qual o melhor filtro fotográfico para esta cena?
 
-PASSO 2 — BASEADO NO QUE VIU NA IMAGEM:
-- Escreva a legenda descrevendo ESTE conteúdo específico
-- Escolha músicas que COMBINAM com a vibe visual desta foto
-- Sugira hashtags específicas para o que aparece na imagem
+PASSO 2 — GERAÇÃO DA LEGENDA AESTHETIC:
+- Crie uma legenda que combine PERFEITAMENTE com o estilo visual detectado.
+- Escolha músicas que evocam a mesma emoção (ex: lofi para fotos minimalistas, pop para fotos vibrantes).
+- Sugira hashtags focadas em inspiração e fotografia.
 
 Tema adicional do usuário: "${topic || 'nenhum'}"
 Estilo desejado: "${estilo}"
 
 Retorne APENAS este JSON sem markdown:
 ${jsonTpl}`,
-          "IMPORTANTE: Analise a imagem profundamente. Retorne APENAS JSON válido. Zero texto fora do JSON."
+          "IMPORTANTE: Analise a estética da imagem detalhadamente. Retorne APENAS JSON válido. Zero texto fora do JSON."
         );
       } catch (e) { console.error("Vision fallback:", e); }
     }
@@ -2471,7 +2466,6 @@ const Perfil = ({ session, plan, postsUsed, songsChanged, onLogout, onUpdateSess
       setEditAvatar(session?.avatar_url || "");
       setEditInstagram(session?.instagram_url || "");
       setEditTiktok(session?.tiktok_url || "");
-      setEditRelationship(session?.relationship_status || "");
     }
   }, [subpage, session]);
 
@@ -2552,8 +2546,7 @@ const Perfil = ({ session, plan, postsUsed, songsChanged, onLogout, onUpdateSess
               phone: editPhone, 
               avatar_url: editAvatar,
               instagram_url: editInstagram,
-              tiktok_url: editTiktok,
-              relationship_status: editRelationship
+              tiktok_url: editTiktok
             }).eq("id", session.id);
             
             if (error) throw error;
@@ -2562,7 +2555,7 @@ const Perfil = ({ session, plan, postsUsed, songsChanged, onLogout, onUpdateSess
               data: { full_name: editName.trim(), avatar_url: editAvatar }
             });
         }
-        const newSession = { ...session, name: editName.trim(), bio: editBio, phone: editPhone, avatar_url: editAvatar, instagram_url: editInstagram, tiktok_url: editTiktok, relationship_status: editRelationship };
+        const newSession = { ...session, name: editName.trim(), bio: editBio, phone: editPhone, avatar_url: editAvatar, instagram_url: editInstagram, tiktok_url: editTiktok };
         saveSession(newSession); onUpdateSession(newSession);
         toast(" Perfil atualizado!", "ok"); setSubpage("main");
     } catch(e) {
@@ -2604,21 +2597,6 @@ const Perfil = ({ session, plan, postsUsed, songsChanged, onLogout, onUpdateSess
         <Field label="Telefone" icon="" type="tel" value={editPhone} onChange={e => setEditPhone(e.target.value)} placeholder="+55 (11) 99999-9999" />
         <Field label="Instagram" icon="📸" value={editInstagram} onChange={e => setEditInstagram(e.target.value)} placeholder="@seu_insta" />
         <Field label="TikTok" icon="🎵" value={editTiktok} onChange={e => setEditTiktok(e.target.value)} placeholder="@seu_tiktok" />
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <label style={{ fontSize: 13, fontWeight: 600, color: D.w2 }}>Estado Civil / Relacionamento</label>
-          <select className="inp" value={editRelationship} onChange={e => setEditRelationship(e.target.value)} style={{ fontSize: 14 }}>
-            <option value="">Prefiro não dizer</option>
-            <option value="Solteiro(a)">Solteiro(a)</option>
-            <option value="Namorando">Namorando</option>
-            <option value="Casado(a)">Casado(a)</option>
-            <option value="Noivo(a)">Noivo(a)</option>
-            <option value="Em um relacionamento sério">Em um relacionamento sério</option>
-            <option value="Morando junto">Morando junto</option>
-            <option value="Relacionamento aberto">Relacionamento aberto</option>
-            <option value="Divorciado(a)">Divorciado(a)</option>
-            <option value="Viúvo(a)">Viúvo(a)</option>
-          </select>
-        </div>
       </div>
       <button className="btn primary lg" style={{ width: "100%", fontFamily: "'Sora',sans-serif" }} onClick={saveProfile} disabled={saving}>
         {saving ? <DvsSpin s={18} c="#fff" /> : "Salvar alterações"}
@@ -2641,9 +2619,6 @@ const Perfil = ({ session, plan, postsUsed, songsChanged, onLogout, onUpdateSess
             )}
             {session?.phone && (
               <div style={{ fontSize: 12, color: D.blue2, marginTop: 4, fontWeight: 600 }}>📞 {session.phone}</div>
-            )}
-            {session?.relationship_status && (
-              <div style={{ fontSize: 12, color: D.rose, marginTop: 4, fontWeight: 600 }}>❤️ {session.relationship_status}</div>
             )}
           </div>
           <button className="btn ghost xs" onClick={() => setSubpage("edit")} style={{ alignSelf: "flex-start" }}>Editar</button>
@@ -2694,15 +2669,18 @@ const Perfil = ({ session, plan, postsUsed, songsChanged, onLogout, onUpdateSess
           {loadingPosts ? (
             <div style={{ textAlign: "center", padding: 20 }}><DvsSpin s={24} c={D.blue} /></div>
           ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 2 }}>
-              {myPosts.map(p => (
-                <div key={p.id} style={{ aspectRatio: "1/1", background: D.bg2, overflow: "hidden", cursor: "pointer", position: "relative" }} onClick={() => setViewPost(p)}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
+              {myPosts.map(p => {
+                const filt = p.content?.filters;
+                const fCSS = filt ? `brightness(${filt.brightness||100}%) contrast(${filt.contrast||100}%) saturate(${filt.saturate||100}%) sepia(${filt.sepia||0}%) hue-rotate(${filt.hue||0}deg)` : "none";
+                return (
+                <div key={p.id} onClick={() => setViewPost(p)} style={{ aspectRatio: "1/1", background: D.bg2, borderRadius: 12, overflow: "hidden", cursor: "pointer", position: "relative" }}>
                   {p.content?.media_url ? (
                     p.content.media_type === "image" ? (
-                      <img src={p.content.media_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      <img src={p.content.media_url} style={{ width: "100%", height: "100%", objectFit: "cover", filter: fCSS }} />
                     ) : (
-                      <div style={{ width: "100%", height: "100%", position: "relative" }}>
-                        <video src={p.content.media_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      <div style={{ position: "relative", width: "100%", height: "100%" }}>
+                        <video src={p.content.media_url} style={{ width: "100%", height: "100%", objectFit: "cover", filter: fCSS }} />
                         <div style={{ position: "absolute", top: 4, right: 4, fontSize: 10 }}>🎥</div>
                       </div>
                     )
@@ -2712,7 +2690,7 @@ const Perfil = ({ session, plan, postsUsed, songsChanged, onLogout, onUpdateSess
                     </div>
                   )}
                 </div>
-              ))}
+              )})}
             </div>
           )}
           {!loadingPosts && myPosts.length === 0 && (
@@ -2740,90 +2718,6 @@ const Perfil = ({ session, plan, postsUsed, songsChanged, onLogout, onUpdateSess
 
 // ==================== ADVANCED SOCIAL COMPONENTS ====================
 
-const CommentsModal = ({ post, session, onClose, onCommentAdded }) => {
-  const [comments, setComments] = useState([]);
-  const [text, setText] = useState("");
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    loadComments();
-  }, [post.id]);
-
-  const loadComments = async () => {
-    setLoading(true);
-    const { data } = await supabase
-      .from("comments")
-      .select("*, profiles!inner(full_name, avatar_url, username)")
-      .eq("post_id", post.id)
-      .order("created_at", { ascending: true });
-    if (data) setComments(data);
-    setLoading(false);
-  };
-
-  const submitComment = async () => {
-    if (!text.trim() || !session?.id) return;
-    const { data, error } = await supabase.from("comments").insert({
-      post_id: post.id,
-      user_id: session.id,
-      content: text
-    }).select("*, profiles!inner(full_name, avatar_url, username)").single();
-    if (!error && data) {
-      setComments([...comments, data]);
-      setText("");
-      onCommentAdded();
-    }
-  };
-
-  return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 9999, display: "flex", alignItems: "flex-end", backdropFilter: "blur(4px)" }}>
-       <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} className="card" style={{ background: D.bg, width: "100%", height: "75vh", borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 24, display: "flex", flexDirection: "column", boxShadow: "0 -10px 40px rgba(0,0,0,0.5)" }}>
-         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-            <div style={{ fontWeight: 900, fontSize: 20 }}>Comentários</div>
-            <button onClick={onClose} style={{ background: D.bg2, border: "none", color: D.w3, width: 32, height: 32, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
-         </div>
-         
-         <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 16, paddingBottom: 20 }}>
-            {loading ? <div style={{ padding: 40, textAlign: "center" }}><DvsSpin s={24} c={D.blue} /></div> : (
-              comments.length > 0 ? comments.map(c => (
-                <div key={c.id} style={{ display: "flex", gap: 12 }}>
-                  <div 
-                    onClick={() => { onClose(); onNavigate("public_profile", c.user_id); }}
-                    style={{ width: 36, height: 36, borderRadius: 12, background: D.s3, overflow: "hidden", flexShrink: 0, cursor: "pointer" }}
-                  >
-                     {c.profiles?.avatar_url && <img src={c.profiles.avatar_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
-                  </div>
-                  <div style={{ background: D.bg2, padding: "10px 14px", borderRadius: 16, flex: 1 }}>
-                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                        <div 
-                          onClick={() => { onClose(); onNavigate("public_profile", c.user_id); }}
-                          style={{ fontWeight: 800, fontSize: 13, cursor: "pointer" }}
-                        >
-                          {c.profiles?.full_name || "Usuário"} <span style={{ fontWeight: 400, color: D.w3, marginLeft: 4 }}>@{c.profiles?.username || "anon"}</span>
-                        </div>
-                        <div style={{ fontSize: 10, color: D.w3 }}>{new Date(c.created_at).toLocaleDateString()}</div>
-                     </div>
-                     <div style={{ fontSize: 14, color: D.w1, lineHeight: 1.4 }}>{c.content}</div>
-                  </div>
-                </div>
-              )) : <div style={{ color: D.w3, fontSize: 14, textAlign: "center", padding: 40 }}>Ainda não há comentários. Seja o primeiro! 💬</div>
-            )}
-         </div>
-
-         <div style={{ display: "flex", gap: 10, marginTop: 16, background: D.bg2, padding: 8, borderRadius: 20 }}>
-            <input 
-              className="inp" 
-              placeholder="Adicionar um comentário..." 
-              value={text} 
-              onChange={e => setText(e.target.value)} 
-              onKeyDown={e => e.key === 'Enter' && submitComment()}
-              style={{ flex: 1, border: "none", background: "transparent" }}
-            />
-            <button className="btn primary sm" onClick={submitComment} disabled={!text.trim()} style={{ borderRadius: 14 }}>Enviar</button>
-         </div>
-       </motion.div>
-    </div>
-  );
-};
 
 // Standalone save button used in FeedPostCard and other feed cards
 const SavePostBtn = ({ postId, session, toast }) => {
@@ -2876,8 +2770,6 @@ const PostCard = ({ post, session, toast, onNavigate }) => {
   const [liked, setLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(post.post_likes?.[0]?.count || 0);
   const [saved, setSaved] = useState(false);
-  const [showComments, setShowComments] = useState(false);
-  const [commentsCount, setCommentsCount] = useState(post.comments?.[0]?.count || 0);
   
   useEffect(() => {
     if (!session?.id) return;
@@ -2945,16 +2837,25 @@ const PostCard = ({ post, session, toast, onNavigate }) => {
       </div>
       
       <div style={{ width: "100%", borderRadius: 12, background: D.bg2, border: `1px solid ${D.b0}`, overflow: "hidden" }}>
-        {post.content?.media_url && (
-          <div style={{ width: "100%", background: "#000", display: "flex", justifyContent: "center" }}>
-            {post.content.media_type === "image" ? (
-              <img src={post.content.media_url} style={{ maxWidth: "100%", maxHeight: 500, objectFit: "contain" }} />
-            ) : (
-              <video src={post.content.media_url} controls style={{ maxWidth: "100%", maxHeight: 500 }} />
-            )}
-          </div>
-        )}
+        {post.content?.media_url && (() => {
+          const filt = post.content?.filters;
+          const fCSS = filt ? `brightness(${filt.brightness||100}%) contrast(${filt.contrast||100}%) saturate(${filt.saturate||100}%) sepia(${filt.sepia||0}%) hue-rotate(${filt.hue||0}deg)` : "none";
+          return (
+            <div style={{ width: "100%", background: "#000", display: "flex", justifyContent: "center", position: "relative" }}>
+              {post.content.media_type === "image" ? (
+                <img src={post.content.media_url} style={{ maxWidth: "100%", maxHeight: 500, objectFit: "contain", filter: fCSS }} />
+              ) : (
+                <video src={post.content.media_url} controls style={{ maxWidth: "100%", maxHeight: 500, filter: fCSS }} />
+              )}
+            </div>
+          );
+        })()}
         <div style={{ padding: 16 }}>
+          {post.music_metadata?.name && (
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, color: D.w2, fontSize: 12, fontWeight: 700 }}>
+              <span>🎵</span> {post.music_metadata.name} • {post.music_metadata.artist}
+            </div>
+          )}
           <div style={{ fontSize: 13, lineHeight: 1.5, color: D.w2, whiteSpace: "pre-wrap" }}>
             {post.content?.caption || "Post visualizado."}
           </div>
@@ -2966,11 +2867,8 @@ const PostCard = ({ post, session, toast, onNavigate }) => {
           <button onClick={toggleLike} style={{ background: "none", border: "none", color: liked ? D.rose : D.w3, display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 700 }}>
             {liked ? "❤️" : "🤍"} {likesCount}
           </button>
-          <button onClick={() => setShowComments(true)} style={{ background: "none", border: "none", color: D.w3, display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 700 }}>
-            💬 {commentsCount}
-          </button>
           <button style={{ background: "none", border: "none", color: D.w3, display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 700 }}>
-            🚀
+            🚀 Compartilhar
           </button>
         </div>
         <button onClick={() => setShowFolderPicker(true)} style={{ background: "none", border: "none", color: saved ? D.amber : D.w3, fontSize: 18, display: "flex", alignItems: "center", gap: 8 }}>
@@ -2996,15 +2894,6 @@ const PostCard = ({ post, session, toast, onNavigate }) => {
               <button className="btn outline" onClick={() => setShowFolderPicker(false)}>Cancelar</button>
            </div>
         </div>
-      )}
-
-      {showComments && (
-        <CommentsModal 
-          post={post} 
-          session={session} 
-          onClose={() => setShowComments(false)} 
-          onCommentAdded={() => setCommentsCount(c => c + 1)} 
-        />
       )}
     </div>
   );
@@ -3132,6 +3021,13 @@ const Discover = ({ toast, session, onNavigate }) => {
               <div style={{ fontSize: 11, color: D.w3 }}>{new Date(p.created_at).toLocaleDateString("pt-BR")}</div>
             </div>
           </div>
+          
+          {p.music_metadata?.name && (
+            <div style={{ display: "flex", alignItems: "center", gap: 6, color: D.w2, fontSize: 12, fontWeight: 700, background: D.bg2, padding: "6px 12px", borderRadius: 100, alignSelf: "flex-start" }}>
+              <span>🎵</span> {p.music_metadata.name} • {p.music_metadata.artist}
+            </div>
+          )}
+
           {caption && (
             <div style={{ fontSize: 13, color: D.w2, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
               {caption.length > 200 ? caption.substring(0, 200) + "..." : caption}
@@ -3275,15 +3171,21 @@ const PublicProfile = ({ userId, session, onBack, onNavigate }) => {
     // Posts
     const { data: ptData } = await supabase
       .from("posts")
-      .select("*, profiles!inner(full_name, avatar_url, username)")
+      .select("id, user_id, content, style, location, tags, created_at, profiles(full_name, avatar_url, username)")
+      .not("content->>media_url", "is", null)
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
     if (ptData) setPosts(ptData);
 
-    // Collections
-    const { data: colData } = await supabase.from("collections").select("*").eq("user_id", userId).eq("is_public", true);
-    if (colData) setCollections(colData);
-    
+    // Get Total Likes
+    let tLikes = 0;
+    if (ptData && ptData.length > 0) {
+       const postIds = ptData.map(p => p.id);
+       const { count } = await supabase.from("post_likes").select("*", { count: "exact", head: true }).in("post_id", postIds);
+       tLikes = count || 0;
+    }
+    setFollowersCount(tLikes); // reusing the state variable for Total Likes
+
     setLoading(false);
   };
 
@@ -3317,14 +3219,11 @@ const PublicProfile = ({ userId, session, onBack, onNavigate }) => {
            <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 900, fontSize: 22 }}>{profile.full_name}</div>
            <div style={{ fontSize: 14, color: D.w3, fontWeight: 600 }}>@{profile.username || "criador"}</div>
            <div style={{ fontSize: 13, color: D.blue2, fontWeight: 700, marginTop: 4 }}>{profile.professional_role || "EduCreator Artist"}</div>
-           {profile.relationship_status && (
-              <div style={{ fontSize: 12, color: D.rose, marginTop: 4, fontWeight: 600 }}>❤️ {profile.relationship_status}</div>
-           )}
         </div>
 
         <div style={{ display: "flex", gap: 30 }}>
-           <div><div style={{ fontWeight: 900, fontSize: 18 }}>{followersCount}</div><div style={{ fontSize: 11, color: D.w3, fontWeight: 700 }}>Seguidores</div></div>
-           <div><div style={{ fontWeight: 900, fontSize: 18 }}>{posts.length}</div><div style={{ fontSize: 11, color: D.w3, fontWeight: 700 }}>Posts</div></div>
+           <div><div style={{ fontWeight: 900, fontSize: 18 }}>{posts.length}</div><div style={{ fontSize: 11, color: D.w3, fontWeight: 700 }}>Edições</div></div>
+           <div><div style={{ fontWeight: 900, fontSize: 18 }}>{followersCount}</div><div style={{ fontSize: 11, color: D.w3, fontWeight: 700 }}>Curtidas</div></div>
         </div>
 
         {profile.bio && <div style={{ fontSize: 14, color: D.w2, maxWidth: 300, lineHeight: 1.5 }}>{profile.bio}</div>}
@@ -3334,19 +3233,10 @@ const PublicProfile = ({ userId, session, onBack, onNavigate }) => {
            {profile.tiktok_url && <button onClick={() => window.open(`https://tiktok.com/@${profile.tiktok_url.replace("@","")}`, "_blank")} style={{ background: D.bg2, border: "none", width: 40, height: 40, borderRadius: 12, fontSize: 18 }}>🎵</button>}
            <button onClick={() => { navigator.clipboard.writeText(window.location.href); toast("Link do perfil copiado!"); }} style={{ background: D.bg2, border: "none", width: 40, height: 40, borderRadius: 12, fontSize: 18 }}>🔗</button>
         </div>
-
-        {session?.id !== userId && (
-          <button 
-            onClick={toggleFollow} 
-            className={`btn ${isFollowing ? "outline" : "primary"}`} 
-            style={{ width: "100%", height: 48, borderRadius: 16 }}>
-            {isFollowing ? "Seguindo" : "Seguir"}
-          </button>
-        )}
       </div>
 
       <div style={{ display: "flex", borderBottom: `1px solid ${D.b0}` }}>
-         {["posts", "reels", "coleções"].map(t => (
+         {["publicações"].map(t => (
            <button 
              key={t} 
              onClick={() => setTab(t)}
@@ -3357,25 +3247,22 @@ const PublicProfile = ({ userId, session, onBack, onNavigate }) => {
          ))}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: tab === "coleções" ? "1fr 1fr" : "1fr 1fr 1fr", gap: 6 }}>
-        {tab === "posts" && posts.map(p => (
-           <div key={p.id} onClick={() => setViewPost(p)} style={{ aspectRatio: "1/1", background: D.bg2, borderRadius: 12, overflow: "hidden", cursor: "pointer" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
+        {posts.map(p => {
+           const filt = p.content?.filters;
+           const fCSS = filt ? `brightness(${filt.brightness||100}%) contrast(${filt.contrast||100}%) saturate(${filt.saturate||100}%) sepia(${filt.sepia||0}%) hue-rotate(${filt.hue||0}deg)` : "none";
+           return (
+           <div key={p.id} onClick={() => setViewPost(p)} style={{ aspectRatio: "1/1", background: D.bg2, borderRadius: 12, overflow: "hidden", cursor: "pointer", position: "relative" }}>
               {p.content?.media_url ? (
-                p.content.media_type === "image" ? <img src={p.content.media_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <video src={p.content.media_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                p.content.media_type === "image" ? <img src={p.content.media_url} style={{ width: "100%", height: "100%", objectFit: "cover", filter: fCSS }} /> : <video src={p.content.media_url} style={{ width: "100%", height: "100%", objectFit: "cover", filter: fCSS }} />
               ) : <div style={{ padding: 10, fontSize: 10, color: D.w3 }}>{p.content?.caption}</div>}
+              {p.content?.filters && (
+                <div style={{ position: "absolute", bottom: 6, left: 6, background: "rgba(0,0,0,0.6)", padding: "4px 8px", borderRadius: 8, fontSize: 10, color: "#fff", fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
+                   🎨 {p.content.filters.name || "Editado"}
+                </div>
+              )}
            </div>
-        ))}
-        {tab === "reels" && posts.filter(p => p.content?.media_type === "video").map(p => (
-           <div key={p.id} style={{ aspectRatio: "9/16", background: D.bg2, borderRadius: 12, overflow: "hidden" }}>
-              <video src={p.content.media_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-           </div>
-        ))}
-        {tab === "coleções" && collections.map(c => (
-           <div key={c.id} style={{ background: D.bg2, borderRadius: 16, padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
-              <div style={{ aspectRatio: "1/1", background: D.s3, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>📁</div>
-              <div style={{ fontWeight: 800, fontSize: 13 }}>{c.name}</div>
-           </div>
-        ))}
+        )})}
       </div>
 
       {viewPost && (
