@@ -1048,10 +1048,16 @@ ${jsonTpl}`,
     setStage("result");
     
     // Save to Supabase
+    const mMeta = p.musicas?.[0] ? {
+      name: p.musicas[0].nome,
+      artist: p.musicas[0].artista,
+      previewUrl: p.musicas[0].previewUrl
+    } : null;
+
     if (postId) {
-      await supabase.from('posts').update({ content: p }).eq('id', postId);
+      await supabase.from('posts').update({ content: p, music_metadata: mMeta }).eq('id', postId);
     } else {
-      const { data: postData } = await supabase.from('posts').insert([{ user_id: session.id, content: p }]).select();
+      const { data: postData } = await supabase.from('posts').insert([{ user_id: session.id, content: p, music_metadata: mMeta }]).select();
       if (postData?.[0]) setPostId(postData[0].id);
     }
     if (plan !== "full") {
@@ -2723,9 +2729,10 @@ const PostCard = ({ post, session, toast, onNavigate }) => {
           );
         })()}
         
-        {post.music_metadata?.previewUrl && (
-          <audio ref={audioRef} src={post.music_metadata.previewUrl} loop />
-        )}
+        {(() => {
+          const mUrl = post.music_metadata?.previewUrl || post.content?.music?.previewUrl;
+          return mUrl ? <audio ref={audioRef} src={mUrl} loop /> : null;
+        })()}
 
         <div style={{ padding: 16 }}>
           {post.music_metadata?.name && (
@@ -3178,9 +3185,10 @@ const Discover = ({ toast, session, onNavigate }) => {
             ) : (
               <video src={mediaUrl} loop muted={!playing} playsInline style={{ width: "100%", maxHeight: 420, display: "block", filter: fCSS }} />
             )}
-            {p.music_metadata?.previewUrl && (
-              <audio ref={audioRef} src={p.music_metadata.previewUrl} loop />
-            )}
+            {(() => {
+              const mUrl = p.music_metadata?.previewUrl || p.content?.music?.previewUrl;
+              return mUrl ? <audio ref={audioRef} src={mUrl} loop /> : null;
+            })()}
           </div>
         )}
         <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12 }}>

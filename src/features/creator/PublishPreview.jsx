@@ -173,6 +173,7 @@ const PublishPreview = ({ postId, file, style, initialCaption, initialHashtags, 
           id: music.id,
           name: music.name,
           artist: music.artist,
+          previewUrl: music.previewUrl,
           startTime: musicStartTime,
           volumeOriginal: volOriginal,
           volumeMusic: volMusic
