@@ -837,6 +837,20 @@ const Criador = ({ toast, session, plan, setPostsUsed, songsChanged, setSongsCha
   const [selMusic, setSelMusic] = useState(null);
   const [filters, setFilters] = useState({ brightness: 100, contrast: 100, saturate: 100 });
   const [filtName, setFiltName] = useState(null);
+
+  // Sync selection to DB if postId exists
+  useEffect(() => {
+    if (postId && (filters || selMusic)) {
+      const updateDB = async () => {
+        try {
+          await supabase.from('posts').update({ 
+            content: { ...result, caption, filters, music: selMusic, is_public: true } 
+          }).eq('id', postId);
+        } catch(e) {}
+      };
+      updateDB();
+    }
+  }, [filters, selMusic, postId, result, caption]);
   const [vLoad, setVLoad] = useState(false); const SI = ["Lendo imagem...", "Extraindo cores...", "Analisando vibe...", "Buscando tend ncias...", "Gerando conteúdo..."]; const SV = ["Processando v deo...", "Mapeando frames...", "Captando clima...", "Buscando  udio viral...", "Gerando estrat gia..."]; const [rLoad, setRLoad] = useState(false);
   const fileId = "dvs-file-input";
 
@@ -1142,7 +1156,11 @@ ${jsonTpl}`,
 
   const compartilharDireto = async () => {
     if (postId) {
-      try { await supabase.from('posts').update({ content: { ...result, caption, filters, music: selMusic } }).eq('id', postId); } catch(e) {}
+      try { 
+        await supabase.from('posts').update({ 
+          content: { ...result, caption, filters, music: selMusic, is_public: true } 
+        }).eq('id', postId); 
+      } catch(e) {}
     }
 
     const m = selMusic || result?.musicas?.[0];
