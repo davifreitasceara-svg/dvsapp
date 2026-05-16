@@ -182,7 +182,12 @@ const PublishPreview = ({ postId, file, style, initialCaption, initialHashtags, 
 
       // UPLOAD MANUAL VIA XHR PARA CONTROLE TOTAL DE HEADERS
       const xhr = new XMLHttpRequest();
-      const storageUrl = `${import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, "")}/storage/v1/object/post-media/${path}?apikey=${import.meta.env.VITE_SUPABASE_ANON_KEY}`;
+      const baseUrl = import.meta.env.VITE_SUPABASE_URL || "";
+      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
+      
+      if (!baseUrl || !anonKey) throw new Error("Configuração do servidor (Supabase) não encontrada.");
+
+      const storageUrl = `${baseUrl.replace(/\/$/, "")}/storage/v1/object/post-media/${path}?apikey=${anonKey}`;
       
       const uploadPromise = new Promise((resolve, reject) => {
         xhr.open('POST', storageUrl, true);
