@@ -115,33 +115,11 @@ const PublishPreview = ({ postId, file, style, initialCaption, initialHashtags, 
     if (publishing) return;
     setPublishing(true);
     try {
-      // 1. Process media (Apply filters ONLY - No Music for internal feed)
-      let fileToUpload = file;
-      
-      if (isVideo) {
-        setStage("processing");
-        setProcLabel("🎨 Aplicando filtros...");
-        setProcProgress(10);
-        try {
-          const onFfmpegProgress = (p) => setProcProgress(10 + Math.round(p * 80));
-          const processedBlob = await Promise.race([
-            processVideo(file, filters, onFfmpegProgress),
-            new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 120000))
-          ]);
-          if (processedBlob) {
-            fileToUpload = new File([processedBlob], "filtered_content.mp4", { type: "video/mp4" });
-          }
-        } catch (err) {
-          console.error("Video filter failed:", err);
-          fileToUpload = file;
-        } finally {
-          setStage("edit");
-        }
-      } else {
-        // Foto: Apenas aplica filtros via Canvas (Super rápido e leve)
-        toast("✨ Refinando imagem...", "info");
-        fileToUpload = await renderFilteredImage();
-      }
+      // Publicação Instantânea (Invincible Mode): 
+      // Enviamos o arquivo original sem processamento para máxima velocidade.
+      // Os filtros serão aplicados via CSS no seu feed interno.
+      // A "Geração Pesada" (Filtro + Música) ocorrerá apenas ao compartilhar para fora.
+      const fileToUpload = file;
 
       // 2. Upload para o Supabase (Versão Robusta e Simplificada)
       const userId = session?.id || (await supabase.auth.getSession()).data.session?.user.id;
@@ -424,40 +402,39 @@ const PublishPreview = ({ postId, file, style, initialCaption, initialHashtags, 
                   key={network.name}
                   onClick={async () => {
                     try {
-                      // Se tem música, gera o vídeo completo para compartilhar fora do app
+                      // GERAÇÃO COMPLETA: Filtro + Música (Pesado)
+                      setStage("processing");
+                      setProcLabel(`🚀 Gerando vídeo premium para ${network.name}...`);
+                      setProcProgress(5);
+                      const onFfmpegProgress = (p) => setProcProgress(10 + Math.round(p * 85));
+                      
+                      let heavyFile;
                       if (music) {
-                        setStage("processing");
-                        setProcLabel(`🚀 Preparando vídeo para ${network.name}...`);
-                        setProcProgress(5);
-                        const onFfmpegProgress = (p) => setProcProgress(10 + Math.round(p * 85));
-                        
-                        let heavyFile;
                         if (isVideo) {
                           heavyFile = await mixAudioWithVideo(file, music.previewUrl, filters, onFfmpegProgress);
                         } else {
                           heavyFile = await generateVideo(file, music.previewUrl, filters, onFfmpegProgress);
                         }
-                        
-                        const fileToShare = new File([heavyFile], isVideo ? "viral_video.mp4" : "premium_video.mp4", { type: "video/mp4" });
-                        
-                        setStage("edit");
-                        if (navigator.share && navigator.canShare && navigator.canShare({ files: [fileToShare] })) {
-                          await navigator.share({ title: 'DVS EduCreator', text: caption, files: [fileToShare] });
-                        } else {
-                          const url = URL.createObjectURL(fileToShare);
-                          const a = document.createElement("a");
-                          a.href = url; a.download = fileToShare.name; a.click();
-                        }
                       } else {
-                        // Sem música: Apenas imagem filtrada
-                        const fileToShare = await renderFilteredImage();
-                        if (navigator.share && navigator.canShare && navigator.canShare({ files: [fileToShare] })) {
-                          await navigator.share({ title: 'DVS EduCreator', text: caption, files: [fileToShare] });
+                        // Apenas filtro se não tiver música
+                        if (isVideo) {
+                          heavyFile = await processVideo(file, filters, onFfmpegProgress);
                         } else {
-                          const url = URL.createObjectURL(fileToShare);
-                          const a = document.createElement("a");
-                          a.href = url; a.download = "premium_photo.jpg"; a.click();
+                          heavyFile = await renderFilteredImage();
                         }
+                      }
+                      
+                      const fileToShare = new File([heavyFile], isVideo || music ? "viral_video.mp4" : "premium_photo.jpg", { 
+                        type: isVideo || music ? "video/mp4" : "image/jpeg" 
+                      });
+                      
+                      setStage("edit");
+                      if (navigator.share && navigator.canShare && navigator.canShare({ files: [fileToShare] })) {
+                        await navigator.share({ title: 'DVS EduCreator', text: caption, files: [fileToShare] });
+                      } else {
+                        const url = URL.createObjectURL(fileToShare);
+                        const a = document.createElement("a");
+                        a.href = url; a.download = fileToShare.name; a.click();
                       }
                       toast(`Pronto! Compartilhado no ${network.name}.`, "ok");
                     } catch(e) {

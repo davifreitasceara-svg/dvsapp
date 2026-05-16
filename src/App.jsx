@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { supabase } from "./services/supabase";
 import PublishPreview from "./features/creator/PublishPreview";
-import { generateVideo, mixAudioWithVideo } from "./services/ffmpegService";
+import { generateVideo, mixAudioWithVideo, processVideo } from "./services/ffmpegService";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Play, Check, Sparkles, X, Music2, MapPin, Users, Send, 
@@ -2626,18 +2626,38 @@ const ShareModal = ({ post, session, toast, onClose }) => {
       const mediaFile = new File([mediaBlob], isVideo ? "input.mp4" : "input.jpg", { type: isVideo ? "video/mp4" : "image/jpeg" });
 
       let finalFile;
+      const onFfmpegProgress = (p) => setProgress(10 + Math.round(p * 85));
       
       if (musicUrl) {
-        // 2. Heavy Render: Merge with Music
-        const onFfmpegProgress = (p) => setProgress(10 + Math.round(p * 85));
+        // 2. Heavy Render: Merge Filter + Music
         if (isVideo) {
           finalFile = await mixAudioWithVideo(mediaFile, musicUrl, filters, onFfmpegProgress);
         } else {
           finalFile = await generateVideo(mediaFile, musicUrl, filters, onFfmpegProgress);
         }
       } else {
-        // No music, just use the light media
-        finalFile = mediaBlob;
+        // 2. Medium Render: Merge Filter ONLY (RAW -> Filtered)
+        if (isVideo) {
+          finalFile = await processVideo(mediaFile, filters, onFfmpegProgress);
+        } else {
+          // Para imagens, usamos o canvas (mais rápido)
+          // Como não estamos no componente PublishPreview, recriamos a lógica simples
+          finalFile = await new Promise((resolve, reject) => {
+             const img = new Image();
+             img.crossOrigin = "anonymous";
+             img.onload = () => {
+                const canvas = document.createElement("canvas");
+                canvas.width = img.width; canvas.height = img.height;
+                const ctx = canvas.getContext("2d");
+                const f = filters;
+                ctx.filter = `brightness(${f.brightness||100}%) contrast(${f.contrast||100}%) saturate(${f.saturate||100}%) sepia(${f.sepia||0}%) hue-rotate(${f.hue||0}deg)`;
+                ctx.drawImage(img, 0, 0);
+                canvas.toBlob(resolve, "image/jpeg", 0.95);
+             };
+             img.onerror = reject;
+             img.src = mediaUrl;
+          });
+        }
       }
 
       const fileToShare = new File([finalFile], isVideo || musicUrl ? "dvs_export.mp4" : "dvs_export.jpg", { type: isVideo || musicUrl ? "video/mp4" : "image/jpeg" });
