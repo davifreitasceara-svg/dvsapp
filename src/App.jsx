@@ -2,6 +2,12 @@ import React, { useState, useRef, useCallback, useEffect } from "react";
 import { supabase } from "./services/supabase";
 import PublishPreview from "./features/creator/PublishPreview";
 import { generateVideo, mixAudioWithVideo } from "./services/ffmpegService";
+import { motion, AnimatePresence } from "framer-motion";
+import { 
+  Play, Check, Sparkles, X, Music2, MapPin, Users, Send, 
+  Pause, Volume2, Sliders, Eye, EyeOff, Search, Heart, 
+  Trash2, Download, Share2, MoreHorizontal, MessageCircle 
+} from "lucide-react";
 import html2canvas from "html2canvas";
 const SI = ["Analisando imagem", "Melhorando qualidade", "Calibrando cores", "Gerando conteúdo IA", "Calculando viral score"];
 const SV = ["Analisando v deo", "Identificando momentos", "Aplicando efeitos", "Gerando conteúdo IA", "Calculando viral score"];
@@ -2600,7 +2606,7 @@ const ProfileFollowBtn = ({ targetUserId, session, toast }) => {
   );
 };
 
-const PostCard = ({ post, session, toast, onNavigate }) => {
+const PostCard = ({ post, session, toast, onNavigate, onDelete }) => {
   const [liked, setLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(post.post_likes?.[0]?.count || 0);
   const [saved, setSaved] = useState(false);
@@ -2663,7 +2669,11 @@ const PostCard = ({ post, session, toast, onNavigate }) => {
       const { error } = await supabase.from("posts").delete().eq("id", post.id);
       if (!error) {
         toast("Publicação deletada.", "ok");
-        if (onNavigate) onNavigate("feed");
+        if (onDelete) {
+          onDelete(post.id);
+        } else if (onNavigate) {
+          onNavigate("feed");
+        }
       }
     }
   };
@@ -3070,7 +3080,16 @@ const Perfil = ({ session, plan, postsUsed, songsChanged, onLogout, onUpdateSess
       {viewPost && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 10000, overflowY: "auto", padding: "40px 16px" }} onClick={() => setViewPost(null)}>
           <div style={{ maxWidth: 500, margin: "0 auto" }} onClick={e => e.stopPropagation()}>
-            <PostCard post={viewPost} session={session} toast={toast} onNavigate={() => {}} />
+            <PostCard 
+              post={viewPost} 
+              session={session} 
+              toast={toast} 
+              onNavigate={() => {}} 
+              onDelete={(deletedId) => {
+                setMyPosts(prev => prev.filter(p => p.id !== deletedId));
+                setViewPost(null);
+              }}
+            />
             <button className="btn primary sm" style={{ width: "100%", marginTop: 12 }} onClick={() => setViewPost(null)}>Fechar</button>
           </div>
         </div>
