@@ -3623,6 +3623,8 @@ const SavedPosts = ({ toast, session, onNavigate }) => {
            <div style={{ fontSize: 13, lineHeight: 1.5 }}>Explore o feed e salve referências para criar sua própria coleção de inspirações.</div>
            <button className="btn primary sm" style={{ alignSelf: "center", marginTop: 10 }} onClick={() => onNavigate("feed")}>Explorar agora</button>
         </div>
+      )}
+      
       {viewPost && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 10000, overflowY: "auto", padding: "40px 16px" }} onClick={() => setViewPost(null)}>
           <div style={{ maxWidth: 500, margin: "0 auto" }} onClick={e => e.stopPropagation()}>
