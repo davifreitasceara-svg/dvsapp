@@ -169,18 +169,18 @@ const PublishPreview = ({ postId, file, style, initialCaption, initialHashtags, 
       
       const cleanBlob = fileToUpload.slice(0, fileToUpload.size, cleanType);
       
-      const storageUrl = `${import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, "")}/storage/v1/object/post-media/${path}`;
+      const storageUrl = `${import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, "")}/storage/v1/object/post-media/${path}?apikey=${import.meta.env.VITE_SUPABASE_ANON_KEY}`;
       const { data: { session: currentSession } } = await supabase.auth.getSession();
       const token = currentSession?.access_token;
 
       if (!token) throw new Error("Sessão expirada. Por favor, faça login novamente.");
+      console.log(`🔑 Token size: ${token.length} chars`);
 
       const response = await fetch(storageUrl, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
-          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-          'Content-Type': cleanType,
+          'Content-Type': 'application/octet-stream',
           'x-upsert': 'true'
         },
         body: cleanBlob
