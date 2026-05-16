@@ -169,8 +169,6 @@ const PublishPreview = ({ postId, file, style, initialCaption, initialHashtags, 
       const path = `${session.id}/${fileName}`;
       const cleanBlob = fileToUpload.slice(0, fileToUpload.size, cleanType);
       
-      const storageUrl = `${import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, "")}/storage/v1/object/post-media/${path}?apikey=${import.meta.env.VITE_SUPABASE_ANON_KEY}`;
-      
       // FORÇAR REFRESH DA SESSÃO
       const { data: refreshData } = await supabase.auth.refreshSession();
       const currentSession = refreshData?.session || (await supabase.auth.getSession()).data.session;
@@ -179,23 +177,26 @@ const PublishPreview = ({ postId, file, style, initialCaption, initialHashtags, 
       if (!token) throw new Error("Sessão expirada. Por favor, faça login novamente.");
       console.log(`🔑 Token size: ${token.length} chars`);
 
+      const storageUrl = `${import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, "")}/storage/v1/object/post-media/${path}?apikey=${import.meta.env.VITE_SUPABASE_ANON_KEY}`;
+
       const response = await fetch(storageUrl, {
-        method: 'POST',
+        method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/octet-stream',
-          'x-upsert': 'true'
+          'Authorization': `Bearer ${token}`
         },
         body: cleanBlob
       });
 
       if (!response.ok) {
         if (response.status === 431) {
-          console.warn("⚠️ Token ainda muito grande (431). Forçando logout total para limpeza...");
-          await supabase.auth.updateUser({ data: { full_name: session.name, avatar_url: null } });
+          console.warn("⚠️ Token persistente (431). Limpando COOKIES e Metadados...");
+          document.cookie.split(";").forEach(c => {
+            document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+          });
+          await supabase.auth.updateUser({ data: { full_name: session.name, avatar_url: null, bio: null } });
           await supabase.auth.signOut();
           localStorage.clear();
-          throw new Error("ERRO DE TOKEN: Sua conta estava com dados excessivos. O sistema realizou uma limpeza profunda e te desconectou. POR FAVOR, FAÇA LOGIN NOVAMENTE e o problema estará resolvido.");
+          throw new Error("LIMPEZA PROFUNDA: O seu navegador estava enviando dados demais. Limpamos os cookies e o seu perfil. POR FAVOR, FECHE O NAVEGADOR E ABRA NOVAMENTE. Se não funcionar, tente uma ABA ANÔNIMA.");
         }
         const errJson = await response.json().catch(() => ({ message: "Erro desconhecido no servidor" }));
         console.error("Manual upload error:", errJson);
