@@ -1107,11 +1107,13 @@ ${jsonTpl}`,
         
         let videoBlob;
         if (isImg && blob) {
+          // Image is already filtered by html2canvas
           videoBlob = await Promise.race([
-            generateVideo(blob, activeMusic.previewUrl, filters),
+            generateVideo(blob, activeMusic.previewUrl, { brightness: 100, contrast: 100, saturate: 100 }),
             timeout
           ]);
         } else if (!isImg && file) {
+          // Video needs filters applied by FFmpeg
           videoBlob = await Promise.race([
             mixAudioWithVideo(file, activeMusic.previewUrl, filters),
             timeout
@@ -2641,15 +2643,35 @@ const PostCard = ({ post, session, toast, onNavigate }) => {
     setShowFolderPicker(false);
   };
 
+  const handleDelete = async () => {
+    if (window.confirm("Deseja deletar esta publicação permanentemente?")) {
+      const { error } = await supabase.from("posts").delete().eq("id", post.id);
+      if (!error) {
+        toast("Publicação deletada.", "ok");
+        if (onNavigate) onNavigate("feed");
+      }
+    }
+  };
+
   return (
     <div className="card" style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
-      <div style={{ display: "flex", gap: 10, alignItems: "center", cursor: "pointer" }} onClick={() => onNavigate("public_profile", post.user_id)}>
-        <div style={{ width: 40, height: 40, borderRadius: 12, background: D.s3, overflow: "hidden" }}>
-          {post.profiles?.avatar_url ? <img src={post.profiles.avatar_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>👤</div>}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 10, alignItems: "center", cursor: "pointer" }} onClick={() => onNavigate("public_profile", post.user_id)}>
+          <div style={{ width: 40, height: 40, borderRadius: 12, background: D.s3, overflow: "hidden" }}>
+            {post.profiles?.avatar_url ? <img src={post.profiles.avatar_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>👤</div>}
+          </div>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 14 }}>{post.profiles?.full_name || "Criador Anônimo"}</div>
+            <div style={{ fontSize: 11, color: D.w3 }}>{new Date(post.created_at).toLocaleDateString()}</div>
+          </div>
         </div>
-        <div>
-          <div style={{ fontWeight: 700, fontSize: 14 }}>{post.profiles?.full_name || "Criador Anônimo"}</div>
-          <div style={{ fontSize: 11, color: D.w3 }}>{new Date(post.created_at).toLocaleDateString()}</div>
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <ProfileFollowBtn targetUserId={post.user_id} session={session} toast={toast} />
+          {post.user_id === session?.id && (
+            <button onClick={handleDelete} style={{ background: "none", border: "none", color: D.rose, fontSize: 16, cursor: "pointer", padding: 8 }}>
+              🗑️
+            </button>
+          )}
         </div>
       </div>
       
@@ -2681,11 +2703,11 @@ const PostCard = ({ post, session, toast, onNavigate }) => {
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 8 }}>
         <div style={{ display: "flex", gap: 16 }}>
-          <button onClick={toggleLike} style={{ background: "none", border: "none", color: liked ? D.rose : D.w3, display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 700 }}>
-            {liked ? "❤️" : "🤍"} {likesCount}
-          </button>
-          <button style={{ background: "none", border: "none", color: D.w3, display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 700 }}>
-            🚀 Compartilhar
+          <button 
+            onClick={() => downloadMedia(post.content.media_url, `dvs-${post.id}.mp4`)}
+            style={{ background: "none", border: "none", color: D.w3, display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 700 }}
+          >
+            📥 Baixar
           </button>
         </div>
         <button onClick={() => setShowFolderPicker(true)} style={{ background: "none", border: "none", color: saved ? D.amber : D.w3, fontSize: 18, display: "flex", alignItems: "center", gap: 8 }}>
@@ -3448,52 +3470,50 @@ const SavedPosts = ({ toast, session, onNavigate }) => {
   if (loading && posts.length === 0) return <div style={{ padding: 40, textAlign: "center" }}><DvsSpin s={30} c={D.amber} /></div>;
 
   return (
-    <div style={{ padding: "24px 16px", display: "flex", flexDirection: "column", gap: 28, animation: "fadeIn 0.5s ease" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 900, fontSize: 28, letterSpacing: "-1px" }}>Inspirações</div>
-            <div style={{ fontSize: 13, color: D.w3, fontWeight: 500 }}>Sua curadoria visual de referências</div>
-         </div>
-         <button className="btn dark" onClick={createFolder} style={{ width: 48, height: 48, borderRadius: 16, fontSize: 20 }}>📁</button>
-      </div>
+    <div style={{ padding: "20px 16px", display: "flex", flexDirection: "column", gap: 24 }}>
+       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 900, fontSize: 26, letterSpacing: "-1px" }}>Inspirar</div>
+          <button className="btn primary sm" onClick={createFolder}>+ Pasta</button>
+       </div>
 
-      <div style={{ display: "flex", gap: 12, overflowX: "auto", scrollbarWidth: "none", padding: "4px 0" }}>
-         <button 
-           onClick={() => { setSelectedFolder(null); setView("all"); }} 
-           style={{ 
-             flexShrink: 0, padding: "10px 20px", borderRadius: 14, border: "none", 
-             background: !selectedFolder ? D.gBlue : D.bg2, 
-             color: "#fff", fontWeight: 700, fontSize: 13,
-             boxShadow: !selectedFolder ? "0 4px 12px rgba(37,99,235,0.3)" : "none",
-             transition: "all 0.2s"
-           }}
-         >
-           Tudo
-         </button>
-         {collections.map(c => (
-           <button 
-             key={c.id} 
-             onClick={() => { setSelectedFolder(c); setView("folders"); }}
-             style={{ 
-               flexShrink: 0, padding: "10px 20px", borderRadius: 14, border: "none", 
-               background: selectedFolder?.id === c.id ? D.gBlue : D.bg2, 
-               color: selectedFolder?.id === c.id ? "#fff" : D.w2,
-               fontWeight: 700, fontSize: 13,
-               boxShadow: selectedFolder?.id === c.id ? "0 4px 12px rgba(37,99,235,0.3)" : "none",
-               transition: "all 0.2s"
-             }}
-           >
-             {c.name}
-           </button>
-         ))}
-      </div>
+       <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 4, scrollbarWidth: "none" }}>
+          <button 
+            onClick={() => setSelectedFolder(null)}
+            style={{ 
+              flexShrink: 0, padding: "10px 20px", borderRadius: 100, border: "none", 
+              background: !selectedFolder ? D.gAmber : D.bg2, 
+              color: !selectedFolder ? "#fff" : D.w2,
+              fontWeight: 700, fontSize: 13,
+              boxShadow: !selectedFolder ? "0 4px 12px rgba(245,158,11,0.3)" : "none",
+              transition: "all 0.2s"
+            }}
+          >
+            Tudo
+          </button>
+          {collections.map(c => (
+            <button 
+              key={c.id} 
+              onClick={() => setSelectedFolder(c)}
+              style={{ 
+                flexShrink: 0, padding: "10px 20px", borderRadius: 100, border: "none", 
+                background: selectedFolder?.id === c.id ? D.gBlue : D.bg2, 
+                color: selectedFolder?.id === c.id ? "#fff" : D.w2,
+                fontWeight: 700, fontSize: 13,
+                boxShadow: selectedFolder?.id === c.id ? "0 4px 12px rgba(37,99,235,0.3)" : "none",
+                transition: "all 0.2s"
+              }}
+            >
+              {c.name}
+            </button>
+          ))}
+       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
         {posts.map((p, i) => (
           <div 
             key={p.id} 
             className="cardH"
-            onClick={() => onNavigate("public_profile", p.user_id)}
+            onClick={() => setViewPost(p)}
             style={{ 
               display: "flex", flexDirection: "column", gap: 10, cursor: "pointer",
               animation: `fadeUp 0.5s ease ${i * 0.1}s both`
@@ -3531,12 +3551,17 @@ const SavedPosts = ({ toast, session, onNavigate }) => {
            <div style={{ fontSize: 13, lineHeight: 1.5 }}>Explore o feed e salve referências para criar sua própria coleção de inspirações.</div>
            <button className="btn primary sm" style={{ alignSelf: "center", marginTop: 10 }} onClick={() => onNavigate("feed")}>Explorar agora</button>
         </div>
+      {viewPost && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 10000, overflowY: "auto", padding: "40px 16px" }} onClick={() => setViewPost(null)}>
+          <div style={{ maxWidth: 500, margin: "0 auto" }} onClick={e => e.stopPropagation()}>
+            <PostCard post={viewPost} session={session} toast={toast} onNavigate={onNavigate} />
+            <button className="btn primary sm" style={{ width: "100%", marginTop: 12 }} onClick={() => setViewPost(null)}>Fechar</button>
+          </div>
+        </div>
       )}
     </div>
   );
 };
-
-// ===================================================================
 
 export default function AppWrapper() {
   return (

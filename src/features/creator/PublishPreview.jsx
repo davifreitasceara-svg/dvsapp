@@ -105,35 +105,36 @@ const PublishPreview = ({ postId, file, style, initialCaption, initialHashtags, 
 
       if (isVideo || music) {
         try {
-          // Promise that rejects after 25 seconds
           const timeout = (ms) => new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), ms));
           
           const process = async () => {
             if (!isVideo && music) {
-              toast("🎵 Criando vídeo com música e filtros...", "info");
-              const imgFile = await renderFilteredImage();
-              const videoBlob = await generateVideo(imgFile, music.previewUrl, filters);
-              return new File([videoBlob], "processed_video.mp4", { type: "video/mp4" });
+              // Image to Video with Music
+              toast("🎵 Criando vídeo viral...", "info");
+              return await generateVideo(file, music.previewUrl, filters);
             } else if (isVideo && music) {
-              toast("🎵 Mixando áudio e aplicando filtros...", "info");
-              const videoBlob = await mixAudioWithVideo(file, music.previewUrl, filters);
-              return new File([videoBlob], "processed_video.mp4", { type: "video/mp4" });
+              // Video with Music
+              toast("🎵 Mixando áudio e filtros...", "info");
+              return await mixAudioWithVideo(file, music.previewUrl, filters);
             } else if (isVideo && !music) {
+              // Video only (Apply filters)
               toast("✨ Aplicando filtros ao vídeo...", "info");
-              const videoBlob = await processVideo(file, filters);
-              return new File([videoBlob], "processed_video.mp4", { type: "video/mp4" });
+              return await processVideo(file, filters);
             } else {
-               toast("✨ Aplicando filtros à imagem...", "info");
+               // Photo only (Fallback case, should use renderFilteredImage)
+               toast("✨ Aplicando filtros...", "info");
                return await renderFilteredImage();
             }
           };
 
-          // Race processing against timeout
-          fileToUpload = await Promise.race([process(), timeout(30000)]);
+          const processedBlob = await Promise.race([process(), timeout(45000)]);
+          fileToUpload = new File([processedBlob], isVideo || music ? "viral_content.mp4" : "premium_photo.jpg", { 
+            type: isVideo || music ? "video/mp4" : "image/jpeg" 
+          });
         } catch (err) {
-          console.error("Media processing failed or timed out:", err);
-          toast("⚠️ Processamento lento ou falhou. Usando original.", "warn");
-          fileToUpload = file; // Fallback to original
+          console.error("Media processing failed:", err);
+          toast("⚠️ Processamento lento. Usando original.", "warn");
+          fileToUpload = file;
         }
       } else {
         toast("✨ Aplicando filtros...", "info");
