@@ -160,27 +160,39 @@ const PublishPreview = ({ postId, file, style, initialCaption, initialHashtags, 
         fileToUpload = await renderFilteredImage();
       }
 
-      // 2. Upload to storage (Cleaned version)
-      console.log(`📤 Iniciando upload de ${fileToUpload.size} bytes...`);
+      // 2. Upload to storage (Manual Fetch Bypass to avoid Header Limit Issues)
+      console.log(`📤 Iniciando upload manual (Bypass SDK)...`);
       const cleanExt = isVideo || music ? "mp4" : "jpg";
       const cleanType = isVideo || music ? "video/mp4" : "image/jpeg";
       const fileName = `${Date.now()}.${cleanExt}`;
       const path = `${session.id}/${fileName}`;
       
-      // Criar um novo Blob limpo para garantir que nenhum metadado estranho vá no cabeçalho
       const cleanBlob = fileToUpload.slice(0, fileToUpload.size, cleanType);
       
-      const { error: uploadError } = await supabase.storage
-        .from("post-media")
-        .upload(path, cleanBlob, {
-          contentType: cleanType,
-          upsert: true,
-          cacheControl: '3600'
-        });
-      if (uploadError) {
-        console.error("Upload error:", uploadError);
-        throw new Error("Falha no upload: " + (uploadError.message || "Erro desconhecido"));
+      const storageUrl = `${import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, "")}/storage/v1/object/post-media/${path}`;
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      const token = currentSession?.access_token;
+
+      if (!token) throw new Error("Sessão expirada. Por favor, faça login novamente.");
+
+      const response = await fetch(storageUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+          'Content-Type': cleanType,
+          'x-upsert': 'true'
+        },
+        body: cleanBlob
+      });
+
+      if (!response.ok) {
+        const errJson = await response.json().catch(() => ({ message: "Erro desconhecido no servidor" }));
+        console.error("Manual upload error:", errJson);
+        throw new Error(`Falha no upload (${response.status}): ${errJson.message || errJson.error || "Erro de rede"}`);
       }
+
+      console.log("✅ Upload manual concluído com sucesso!");
       
       const { data: { publicUrl } } = supabase.storage.from("post-media").getPublicUrl(path);
 
