@@ -136,11 +136,13 @@ const PublishPreview = ({ postId, file, style, initialCaption, initialHashtags, 
               if (isVideo) {
                 if (music) return await mixAudioWithVideo(file, music.previewUrl, filters, onFfmpegProgress);
                 return await processVideo(file, filters, onFfmpegProgress);
-              } else {
+              } else if (music) {
+                // Foto com música vira vídeo
                 return await generateVideo(file, music.previewUrl, filters, onFfmpegProgress);
               }
+              return null;
             })(),
-            new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 60000))
+            new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 300000)) // Aumentado para 5 minutos
           ]);
 
           if (processedBlob) {
@@ -160,54 +162,45 @@ const PublishPreview = ({ postId, file, style, initialCaption, initialHashtags, 
         fileToUpload = await renderFilteredImage();
       }
 
-      // 2. Upload to storage (Manual Fetch Bypass to avoid Header Limit Issues)
-      console.log(`📤 Iniciando upload manual (Bypass SDK)...`);
-      
+      // 2. Upload para o Supabase (Versão Robusta e Simplificada)
       const userId = session?.id || (await supabase.auth.getSession()).data.session?.user.id;
       if (!userId) throw new Error("Usuário não identificado. Por favor, faça login.");
 
-      const cleanExt = isVideo || music ? "mp4" : "jpg";
-      const cleanType = isVideo || music ? "video/mp4" : "image/jpeg";
-      const fileName = `${Date.now()}.${cleanExt}`;
-      const path = `${userId}/${fileName}`;
-      const cleanBlob = fileToUpload.slice(0, fileToUpload.size, cleanType);
-      
-      // FORÇAR REFRESH DA SESSÃO
       const { data: refreshData } = await supabase.auth.refreshSession();
       const currentSession = refreshData?.session || (await supabase.auth.getSession()).data.session;
       const token = currentSession?.access_token;
 
-      if (!token) throw new Error("Sessão expirada. Por favor, faça login novamente.");
-      console.log(`🔑 Token size: ${token.length} chars`);
+      const cleanExt = isVideo || music ? "mp4" : "jpg";
+      const fileName = `${Date.now()}.${cleanExt}`;
+      const path = `${userId}/${fileName}`;
+      const cleanBlob = fileToUpload.slice(0, fileToUpload.size, isVideo || music ? "video/mp4" : "image/jpeg");
 
-      // UPLOAD MANUAL VIA XHR PARA CONTROLE TOTAL DE HEADERS
-      const xhr = new XMLHttpRequest();
-      const baseUrl = import.meta.env.VITE_SUPABASE_URL || "";
-      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
+      console.log("📤 Iniciando envio da mídia...");
       
-      if (!baseUrl || !anonKey) throw new Error("Configuração do servidor (Supabase) não encontrada.");
+      // Se o token for muito grande (>8KB), enviamos sem Header Auth 
+      // (Isso funciona porque tornamos o bucket público para inserts no SQL)
+      const options = {
+        contentType: isVideo || music ? "video/mp4" : "image/jpeg",
+        upsert: true
+      };
 
-      const storageUrl = `${baseUrl.replace(/\/$/, "")}/storage/v1/object/post-media/${path}?apikey=${anonKey}`;
-      
-      const uploadPromise = new Promise((resolve, reject) => {
-        xhr.open('POST', storageUrl, true);
-        // NÃO ADICIONAMOS AUTHORIZATION AQUI PARA EVITAR ERRO 431
-        // O BUCKET DEVE ESTAR PÚBLICO (POLÍTICA SQL)
-        xhr.setRequestHeader('x-upsert', 'true');
-        
-        xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) resolve();
-          else reject(new Error(`Erro ${xhr.status}: ${xhr.responseText}`));
-        };
-        xhr.onerror = () => reject(new Error("Erro de rede no upload manual"));
-        xhr.send(cleanBlob);
-      });
+      const tokenSize = token?.length || 0;
 
-      await uploadPromise;
-      console.log("✅ Upload via XHR concluído!");
+      if (tokenSize > 8000) {
+        console.warn("⚠️ Token muito grande. Usando envio simplificado sem cabeçalhos pesados.");
+        const storageUrl = `${import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, "")}/storage/v1/object/post-media/${path}?apikey=${import.meta.env.VITE_SUPABASE_ANON_KEY}`;
+        const res = await fetch(storageUrl, {
+          method: 'POST',
+          headers: { 'x-upsert': 'true' },
+          body: cleanBlob
+        });
+        if (!res.ok) throw new Error("Erro no envio simplificado: " + res.status);
+      } else {
+        const { error: upErr } = await supabase.storage.from("post-media").upload(path, cleanBlob, options);
+        if (upErr) throw upErr;
+      }
 
-      console.log("✅ Upload manual concluído com sucesso!");
-      
+      console.log("✅ Mídia enviada com sucesso!");
       const { data: { publicUrl } } = supabase.storage.from("post-media").getPublicUrl(path);
 
       // 3. Upsert post
