@@ -115,50 +115,31 @@ const PublishPreview = ({ postId, file, style, initialCaption, initialHashtags, 
     if (publishing) return;
     setPublishing(true);
     try {
-      // 1. Process media (Apply filters and music)
+      // 1. Process media (Apply filters ONLY - No Music for internal feed)
       let fileToUpload = file;
       
-      if (isVideo || music) {
+      if (isVideo) {
         setStage("processing");
-        setProcLabel("⚙️ Preparando estúdio de renderização...");
-        setProcProgress(5);
-
+        setProcLabel("🎨 Aplicando filtros...");
+        setProcProgress(10);
         try {
-          const onFfmpegProgress = (p) => {
-            setProcProgress(10 + Math.round(p * 85));
-            if (p > 0.1) setProcLabel("🎬 Renderizando vídeo premium...");
-            if (p > 0.5) setProcLabel("🎨 Aplicando filtros cinematográficos...");
-            if (p > 0.8) setProcLabel("🔊 Sincronizando áudio e efeitos...");
-          };
-
+          const onFfmpegProgress = (p) => setProcProgress(10 + Math.round(p * 80));
           const processedBlob = await Promise.race([
-            (async () => {
-              if (isVideo) {
-                if (music) return await mixAudioWithVideo(file, music.previewUrl, filters, onFfmpegProgress);
-                return await processVideo(file, filters, onFfmpegProgress);
-              } else if (music) {
-                // Foto com música vira vídeo
-                return await generateVideo(file, music.previewUrl, filters, onFfmpegProgress);
-              }
-              return null;
-            })(),
-            new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 300000)) // Aumentado para 5 minutos
+            processVideo(file, filters, onFfmpegProgress),
+            new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 120000))
           ]);
-
           if (processedBlob) {
-            fileToUpload = new File([processedBlob], isVideo || music ? "viral_content.mp4" : "premium_photo.jpg", { 
-              type: isVideo || music ? "video/mp4" : "image/jpeg" 
-            });
+            fileToUpload = new File([processedBlob], "filtered_content.mp4", { type: "video/mp4" });
           }
         } catch (err) {
-          console.error("Media processing failed:", err);
-          toast("⚠️ Processamento excedeu o tempo. Usando original.", "warn");
+          console.error("Video filter failed:", err);
           fileToUpload = file;
         } finally {
           setStage("edit");
         }
       } else {
-        toast("✨ Aplicando filtros...", "info");
+        // Foto: Apenas aplica filtros via Canvas (Super rápido e leve)
+        toast("✨ Refinando imagem...", "info");
         fileToUpload = await renderFilteredImage();
       }
 
