@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Music2, MapPin, Users, Send, Play, Pause, Volume2, Sliders, Eye, EyeOff, Check, Sparkles } from 'lucide-react';
+import { generateVideo, mixAudioWithVideo, processVideo } from '../../services/ffmpegService';
 
 const D = {
   bg: "#020B1A", bg2: "#04132B", bg3: "#072146", 
@@ -98,24 +99,58 @@ const PublishPreview = ({ postId, file, style, initialCaption, initialHashtags, 
     if (publishing) return;
     setPublishing(true);
     try {
-      // 1. Upload to storage
-      const ext = file.name.split('.').pop();
+      // 1. Process media (Apply filters and music)
+      let fileToUpload = file;
+      toast("🚀 Processando mídia com IA...", "info");
+
+      if (isVideo || music) {
+        try {
+          if (!isVideo && music) {
+            // Convert image to video with music and filter
+            const imgFile = await renderFilteredImage();
+            const videoBlob = await generateVideo(imgFile, music.previewUrl, filters);
+            fileToUpload = new File([videoBlob], "processed_video.mp4", { type: "video/mp4" });
+          } else if (isVideo && music) {
+            // Mix video with music and filter
+            const videoBlob = await mixAudioWithVideo(file, music.previewUrl, filters);
+            fileToUpload = new File([videoBlob], "processed_video.mp4", { type: "video/mp4" });
+          } else if (isVideo && !music) {
+            // Process video filters only
+            const videoBlob = await processVideo(file, filters);
+            fileToUpload = new File([videoBlob], "processed_video.mp4", { type: "video/mp4" });
+          } else {
+             // Image without music - just apply filter
+             fileToUpload = await renderFilteredImage();
+          }
+        } catch (err) {
+          console.error("FFmpeg processing failed:", err);
+          toast("⚠️ Erro no processamento. Tentando upload original.", "warn");
+          // Fallback to original if processing fails
+        }
+      } else {
+        // Just apply filter to image
+        fileToUpload = await renderFilteredImage();
+      }
+
+      // 2. Upload to storage
+      const ext = fileToUpload.name.split('.').pop();
       const path = `${session.id}/${Date.now()}.${ext}`;
-      const { error: uploadError } = await supabase.storage.from("post-media").upload(path, file);
+      const { error: uploadError } = await supabase.storage.from("post-media").upload(path, fileToUpload);
       if (uploadError) throw uploadError;
       
       const { data: { publicUrl } } = supabase.storage.from("post-media").getPublicUrl(path);
 
-      // 2. Upsert post
+      // 3. Upsert post
       const postData = {
         user_id: session.id,
         content: {
           media_url: publicUrl,
-          media_type: isVideo ? "video" : "image",
+          media_type: fileToUpload.type.startsWith("video") ? "video" : "image",
           caption: caption,
           hashtags: hashtags,
           filters: filters,
-          is_public: isPublic
+          is_public: isPublic,
+          music: music // ensure music is in content too
         },
         style: style,
         location: location,
@@ -128,7 +163,7 @@ const PublishPreview = ({ postId, file, style, initialCaption, initialHashtags, 
           volumeOriginal: volOriginal,
           volumeMusic: volMusic
         } : null,
-        tags: hashtags.replace(/#/g, "").split(" ").filter(t => t)
+        tags: hashtags.replace(/#/g, "").split(/\s+/).filter(t => t)
       };
 
       let postError;
@@ -136,7 +171,7 @@ const PublishPreview = ({ postId, file, style, initialCaption, initialHashtags, 
         const res = await supabase.from("posts").update(postData).eq("id", postId);
         postError = res.error;
       } else {
-        const res = await supabase.from("posts").insert(postData);
+        const res = await supabase.from("posts").insert([postData]);
         postError = res.error;
       }
 
@@ -155,7 +190,6 @@ const PublishPreview = ({ postId, file, style, initialCaption, initialHashtags, 
     return new Promise((resolve, reject) => {
       if (isVideo) return resolve(file); // No filter rendering for videos yet
       const img = new Image();
-      img.crossOrigin = "anonymous";
       img.src = previewUrl;
       img.onload = () => {
         const canvas = document.createElement("canvas");

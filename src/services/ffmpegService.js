@@ -117,6 +117,40 @@ export const mixAudioWithVideo = async (videoFile, audioUrl, filters, onProgress
   }
 };
 
+export const processVideo = async (videoFile, filters, onProgress) => {
+  try {
+    const fm = await loadFFmpeg(onProgress);
+    
+    // Write video
+    const videoData = new Uint8Array(await videoFile.arrayBuffer());
+    await fm.writeFile('input.mp4', videoData);
+    
+    // Prepare filters
+    let vf = 'format=yuv420p';
+    if (filters) {
+      const b = (filters.brightness - 100) / 100;
+      const c = filters.contrast / 100;
+      const s = filters.saturate / 100;
+      vf = `eq=brightness=${b}:contrast=${c}:saturation=${s},format=yuv420p`;
+    }
+
+    // Exec FFMPEG command
+    await fm.exec([
+      '-i', 'input.mp4',
+      '-vf', vf,
+      '-c:v', 'libx264',
+      '-c:a', 'copy',
+      'out.mp4'
+    ]);
+    
+    const data = await fm.readFile('out.mp4');
+    return new Blob([data.buffer], { type: 'video/mp4' });
+  } catch (error) {
+    console.error("FFmpeg Video Process Error:", error);
+    throw error;
+  }
+};
+
 async function fetchAudioData(url) {
   const proxies = [
     (u) => u, // Direct

@@ -1026,8 +1026,12 @@ ${jsonTpl}`,
     setStage("result");
     
     // Save to Supabase
-    const { data: postData } = await supabase.from('posts').insert([{ user_id: session.id, content: p }]).select();
-    if (postData?.[0]) setPostId(postData[0].id);
+    if (postId) {
+      await supabase.from('posts').update({ content: p }).eq('id', postId);
+    } else {
+      const { data: postData } = await supabase.from('posts').insert([{ user_id: session.id, content: p }]).select();
+      if (postData?.[0]) setPostId(postData[0].id);
+    }
     if (plan !== "full") {
       const { data: profile } = await supabase.from('profiles').select('posts_used').eq('id', session.id).single();
       const newUsage = (profile?.posts_used || 0) + 1;
@@ -1138,7 +1142,7 @@ ${jsonTpl}`,
 
   const compartilharDireto = async () => {
     if (postId) {
-      try { await supabase.from('posts').update({ content: { ...result, caption, filters } }).eq('id', postId); } catch(e) {}
+      try { await supabase.from('posts').update({ content: { ...result, caption, filters, music: selMusic } }).eq('id', postId); } catch(e) {}
     }
 
     const m = selMusic || result?.musicas?.[0];
@@ -2947,7 +2951,11 @@ const Discover = ({ toast, session, onNavigate }) => {
       if (error) {
         console.error("Feed load error:", error);
       } else if (data) {
-        setFeed(data);
+        // Only show latest post per user to satisfy the "appear once" request
+        const uniqueData = data.filter((post, index, self) =>
+          index === self.findIndex((p) => p.user_id === post.user_id)
+        );
+        setFeed(uniqueData);
       }
     } catch(e) {
       console.error("Feed exception:", e);
