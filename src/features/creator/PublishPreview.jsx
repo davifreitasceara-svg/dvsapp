@@ -413,39 +413,57 @@ const PublishPreview = ({ postId, file, style, initialCaption, initialHashtags, 
            
            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 8 }}>
               {[
-                { name: "Instagram", icon: "📸", color: "#E1306C" },
-                { name: "TikTok", icon: "🎵", color: "#000000" },
-                { name: "WhatsApp", icon: "💬", color: "#25D366" },
-                { name: "Facebook", icon: "📘", color: "#1877F2" },
-                { name: "Threads", icon: "🧵", color: "#000000" },
-                { name: "X", icon: "✖️", color: "#000000" }
+                { name: "Instagram", icon: "📸" },
+                { name: "TikTok", icon: "🎵" },
+                { name: "WhatsApp", icon: "💬" },
+                { name: "Facebook", icon: "📘" },
+                { name: "Threads", icon: "🧵" },
+                { name: "X", icon: "✖️" }
               ].map(network => (
                 <button 
                   key={network.name}
                   onClick={async () => {
-                    toast(`Renderizando imagem para ${network.name}...`, "info");
-                    try { await navigator.clipboard.writeText(caption); } catch(e) {}
-                    
                     try {
-                      const fileToShare = await renderFilteredImage();
-                      
-                      if (navigator.share && navigator.canShare && navigator.canShare({ files: [fileToShare] })) {
-                        await navigator.share({
-                          title: 'Edição Premium',
-                          text: caption,
-                          files: [fileToShare]
-                        });
+                      // Se tem música, gera o vídeo completo para compartilhar fora do app
+                      if (music) {
+                        setStage("processing");
+                        setProcLabel(`🚀 Preparando vídeo para ${network.name}...`);
+                        setProcProgress(5);
+                        const onFfmpegProgress = (p) => setProcProgress(10 + Math.round(p * 85));
+                        
+                        let heavyFile;
+                        if (isVideo) {
+                          heavyFile = await mixAudioWithVideo(file, music.previewUrl, filters, onFfmpegProgress);
+                        } else {
+                          heavyFile = await generateVideo(file, music.previewUrl, filters, onFfmpegProgress);
+                        }
+                        
+                        const fileToShare = new File([heavyFile], isVideo ? "viral_video.mp4" : "premium_video.mp4", { type: "video/mp4" });
+                        
+                        setStage("edit");
+                        if (navigator.share && navigator.canShare && navigator.canShare({ files: [fileToShare] })) {
+                          await navigator.share({ title: 'DVS EduCreator', text: caption, files: [fileToShare] });
+                        } else {
+                          const url = URL.createObjectURL(fileToShare);
+                          const a = document.createElement("a");
+                          a.href = url; a.download = fileToShare.name; a.click();
+                        }
                       } else {
-                        // Fallback download if Web Share API is not supported
-                        const url = URL.createObjectURL(fileToShare);
-                        const a = document.createElement("a");
-                        a.href = url;
-                        a.download = "edicao_premium.jpg";
-                        a.click();
-                        toast(`Pronto! Baixamos a foto. Abra o ${network.name} e cole a legenda.`, "ok");
+                        // Sem música: Apenas imagem filtrada
+                        const fileToShare = await renderFilteredImage();
+                        if (navigator.share && navigator.canShare && navigator.canShare({ files: [fileToShare] })) {
+                          await navigator.share({ title: 'DVS EduCreator', text: caption, files: [fileToShare] });
+                        } else {
+                          const url = URL.createObjectURL(fileToShare);
+                          const a = document.createElement("a");
+                          a.href = url; a.download = "premium_photo.jpg"; a.click();
+                        }
                       }
+                      toast(`Pronto! Compartilhado no ${network.name}.`, "ok");
                     } catch(e) {
-                       toast("Erro ao renderizar imagem.", "err");
+                      console.error("Share error:", e);
+                      setStage("edit");
+                      toast("Erro ao preparar mídia.", "err");
                     }
                   }}
                   style={{ background: "#fff", color: "#000", border: "none", borderRadius: 16, padding: "12px", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontWeight: 800, fontSize: 14, cursor: "pointer", transition: "transform 0.2s" }}
