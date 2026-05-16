@@ -180,8 +180,6 @@ const PublishPreview = ({ postId, file, style, initialCaption, initialHashtags, 
       if (!token) throw new Error("Sessão expirada. Por favor, faça login novamente.");
       console.log(`🔑 Token size: ${token.length} chars`);
 
-      const storageUrl = `${import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, "")}/storage/v1/object/post-media/${path}?apikey=${import.meta.env.VITE_SUPABASE_ANON_KEY}`;
-
       // UPLOAD MANUAL VIA XHR PARA CONTROLE TOTAL DE HEADERS
       const xhr = new XMLHttpRequest();
       const storageUrl = `${import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, "")}/storage/v1/object/post-media/${path}?apikey=${import.meta.env.VITE_SUPABASE_ANON_KEY}`;
