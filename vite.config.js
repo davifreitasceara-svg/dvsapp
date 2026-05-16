@@ -9,10 +9,6 @@ export default defineConfig(({ mode }) => {
     server: {
       host: true,
       port: 5174,
-      headers: {
-        'Cross-Origin-Embedder-Policy': 'credentialless',
-        'Cross-Origin-Opener-Policy': 'same-origin',
-      },
       proxy: {
         '/api/ai': {
           target: 'https://generativelanguage.googleapis.com',
