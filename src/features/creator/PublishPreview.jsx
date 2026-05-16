@@ -162,15 +162,18 @@ const PublishPreview = ({ postId, file, style, initialCaption, initialHashtags, 
 
       // 2. Upload to storage (Manual Fetch Bypass to avoid Header Limit Issues)
       console.log(`📤 Iniciando upload manual (Bypass SDK)...`);
+      
       const cleanExt = isVideo || music ? "mp4" : "jpg";
       const cleanType = isVideo || music ? "video/mp4" : "image/jpeg";
       const fileName = `${Date.now()}.${cleanExt}`;
       const path = `${session.id}/${fileName}`;
-      
       const cleanBlob = fileToUpload.slice(0, fileToUpload.size, cleanType);
       
       const storageUrl = `${import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, "")}/storage/v1/object/post-media/${path}?apikey=${import.meta.env.VITE_SUPABASE_ANON_KEY}`;
-      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      
+      // FORÇAR REFRESH DA SESSÃO
+      const { data: refreshData } = await supabase.auth.refreshSession();
+      const currentSession = refreshData?.session || (await supabase.auth.getSession()).data.session;
       const token = currentSession?.access_token;
 
       if (!token) throw new Error("Sessão expirada. Por favor, faça login novamente.");
@@ -187,6 +190,11 @@ const PublishPreview = ({ postId, file, style, initialCaption, initialHashtags, 
       });
 
       if (!response.ok) {
+        if (response.status === 431) {
+          console.warn("⚠️ Token muito grande (431). Tentando limpar metadados do usuário...");
+          await supabase.auth.updateUser({ data: { full_name: session.name } });
+          throw new Error("Seu perfil estava com dados excessivos acumulados. Os dados foram limpos automaticamente. POR FAVOR, RECARREGUE A PÁGINA (F5) E TENTE POSTAR NOVAMENTE.");
+        }
         const errJson = await response.json().catch(() => ({ message: "Erro desconhecido no servidor" }));
         console.error("Manual upload error:", errJson);
         throw new Error(`Falha no upload (${response.status}): ${errJson.message || errJson.error || "Erro de rede"}`);
