@@ -163,10 +163,13 @@ const PublishPreview = ({ postId, file, style, initialCaption, initialHashtags, 
       // 2. Upload to storage (Manual Fetch Bypass to avoid Header Limit Issues)
       console.log(`📤 Iniciando upload manual (Bypass SDK)...`);
       
+      const userId = session?.id || (await supabase.auth.getSession()).data.session?.user.id;
+      if (!userId) throw new Error("Usuário não identificado. Por favor, faça login.");
+
       const cleanExt = isVideo || music ? "mp4" : "jpg";
       const cleanType = isVideo || music ? "video/mp4" : "image/jpeg";
       const fileName = `${Date.now()}.${cleanExt}`;
-      const path = `${session.id}/${fileName}`;
+      const path = `${userId}/${fileName}`;
       const cleanBlob = fileToUpload.slice(0, fileToUpload.size, cleanType);
       
       // FORÇAR REFRESH DA SESSÃO
@@ -212,7 +215,7 @@ const PublishPreview = ({ postId, file, style, initialCaption, initialHashtags, 
       // 3. Upsert post
       toast("📝 Finalizando publicação...", "info");
       const postData = {
-        user_id: session.id,
+        user_id: session?.id,
         content: {
           media_url: publicUrl,
           media_type: fileToUpload.type.startsWith("video") ? "video" : "image",
