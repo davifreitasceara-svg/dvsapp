@@ -837,6 +837,16 @@ const Criador = ({ toast, session, plan, setPostsUsed, songsChanged, setSongsCha
   const [selMusic, setSelMusic] = useState(null);
   const [filters, setFilters] = useState({ brightness: 100, contrast: 100, saturate: 100 });
   const [filtName, setFiltName] = useState(null);
+  const [postId, setPostId] = useState(null);
+  const [sharing, setSharing] = useState(false);
+  const [vLoad, setVLoad] = useState(false);
+  const [rLoad, setRLoad] = useState(false);
+  const [mock, setMock] = useState(null);
+  const [loadStep, setLoadStep] = useState(0);
+
+  const SI = ["Lendo imagem...", "Extraindo cores...", "Analisando vibe...", "Buscando tendências...", "Gerando conteúdo..."];
+  const SV = ["Processando vídeo...", "Mapeando frames...", "Captando clima...", "Buscando áudio viral...", "Gerando estratégia..."];
+  const loadingSteps = ["Analisando mídia...", "Mapeando tendências...", "Aplicando estratégia viral...", "Mixando SmartSound...", "Finalizando edição..."];
 
   // Sync selection to DB if postId exists
   useEffect(() => {
@@ -851,16 +861,8 @@ const Criador = ({ toast, session, plan, setPostsUsed, songsChanged, setSongsCha
       updateDB();
     }
   }, [filters, selMusic, postId, result, caption]);
-  const [vLoad, setVLoad] = useState(false); const SI = ["Lendo imagem...", "Extraindo cores...", "Analisando vibe...", "Buscando tend ncias...", "Gerando conteúdo..."]; const SV = ["Processando v deo...", "Mapeando frames...", "Captando clima...", "Buscando  udio viral...", "Gerando estrat gia..."]; const [rLoad, setRLoad] = useState(false);
-  const fileId = "dvs-file-input";
 
-  // MOCKUP STATE
-  const [mock, setMock] = useState(null); // { platform, type }
-  const [postId, setPostId] = useState(null);
-  const [sharing, setSharing] = useState(false);
-  
-  const loadingSteps = ["Analisando m dia...", "Mapeando tend ncias...", "Aplicando estrat gia viral...", "Mixando SmartSound...", "Finalizando edi o..."];
-  const [loadStep, setLoadStep] = useState(0);
+  const fileId = "dvs-file-input";
   
   useEffect(() => {
     if (stage === "proc") {
