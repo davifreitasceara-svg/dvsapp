@@ -3710,6 +3710,12 @@ function App() {
     return () => subscription.unsubscribe();
   }, [fetchProfile]);
 
+  useEffect(() => {
+    if (session?.email === "dvscodes@gmail.com") {
+      setPlan("full");
+    }
+  }, [session]);
+
   const [toasts, setToasts] = useState([]);
   const toast = useCallback((msg, tp = "info") => {
     const id = ++_tid;
