@@ -3576,47 +3576,47 @@ const SavedPosts = ({ toast, session, onNavigate }) => {
         ))}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-        {posts.map((p, i) => {
-          const media = p.content;
-          const filt = media?.filters;
-          const fCSS = filt ? `brightness(${filt.brightness || 100}%) contrast(${filt.contrast || 100}%) saturate(${filt.saturate || 100}%) sepia(${filt.sepia || 0}%) hue-rotate(${filt.hue || 0}deg)` : "none";
-          
-          return (
-            <div 
-              key={p.id} 
-              className="cardH"
-              onClick={() => setViewPost(p)}
-              style={{ display: "flex", flexDirection: "column", gap: 10, cursor: "pointer", animation: `fadeUp 0.5s ease ${i * 0.1}s both` }}
-            >
-              <div style={{ aspectRatio: "3/4", borderRadius: 24, overflow: "hidden", background: D.bg2, border: `1px solid ${D.b0}`, position: "relative", boxShadow: "0 8px 20px rgba(0,0,0,0.2)" }}>
-                {media?.media_url ? (
-                  media.media_type === "image" ? (
-                    <img src={media.media_url} style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.5s", filter: fCSS }} className="hover-zoom" />
-                  ) : (
-                    <video src={media.media_url} style={{ width: "100%", height: "100%", objectFit: "cover", filter: fCSS }} />
-                  )
-                ) : (
-                  <div style={{ padding: 20, fontSize: 12, color: D.w3 }}>{media?.caption}</div>
-                )}
-              </div>
-              <div style={{ padding: "0 8px", display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ width: 24, height: 24, borderRadius: 8, background: D.s3, overflow: "hidden" }}>
-                  {p.profiles?.avatar_url && <img src={p.profiles.avatar_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
-                </div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: D.w2 }}>@{p.profiles?.username || "user"}</div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      
-      {posts.length === 0 && (
+      {posts.length === 0 ? (
         <div style={{ textAlign: "center", padding: "80px 20px", color: D.w3, background: D.bg2, borderRadius: 32, display: "flex", flexDirection: "column", gap: 16, border: `1px dashed ${D.b0}` }}>
           <div style={{ fontSize: 50 }}>✨</div>
           <div style={{ fontWeight: 700, fontSize: 16, color: D.w1 }}>Sua galeria está pronta</div>
           <div style={{ fontSize: 13, lineHeight: 1.5 }}>Explore o feed e salve referências para criar sua própria coleção de inspirações.</div>
           <button className="btn primary sm" style={{ alignSelf: "center", marginTop: 10 }} onClick={() => onNavigate("feed")}>Explorar agora</button>
+        </div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          {posts.map((p, i) => {
+            const media = p.content;
+            const filt = media?.filters;
+            const fCSS = filt ? `brightness(${filt.brightness || 100}%) contrast(${filt.contrast || 100}%) saturate(${filt.saturate || 100}%) sepia(${filt.sepia || 0}%) hue-rotate(${filt.hue || 0}deg)` : "none";
+            
+            return (
+              <div 
+                key={p.id} 
+                className="cardH"
+                onClick={() => setViewPost(p)}
+                style={{ display: "flex", flexDirection: "column", gap: 10, cursor: "pointer", animation: `fadeUp 0.5s ease ${i * 0.1}s both` }}
+              >
+                <div style={{ aspectRatio: "3/4", borderRadius: 24, overflow: "hidden", background: D.bg2, border: `1px solid ${D.b0}`, position: "relative", boxShadow: "0 8px 20px rgba(0,0,0,0.2)" }}>
+                  {media?.media_url ? (
+                    media.media_type === "image" ? (
+                      <img src={media.media_url} style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.5s", filter: fCSS }} className="hover-zoom" />
+                    ) : (
+                      <video src={media.media_url} style={{ width: "100%", height: "100%", objectFit: "cover", filter: fCSS }} />
+                    )
+                  ) : (
+                    <div style={{ padding: 20, fontSize: 12, color: D.w3 }}>{media?.caption}</div>
+                  )}
+                </div>
+                <div style={{ padding: "0 8px", display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ width: 24, height: 24, borderRadius: 8, background: D.s3, overflow: "hidden" }}>
+                    {p.profiles?.avatar_url && <img src={p.profiles.avatar_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
+                  </div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: D.w2 }}>@{p.profiles?.username || "user"}</div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
       
