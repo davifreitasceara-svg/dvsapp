@@ -2467,6 +2467,253 @@ const AuthScreen = ({ onLogin, onResetMode }) => {
 
 
 
+// ==================== ADVANCED SOCIAL COMPONENTS ====================
+
+const downloadMedia = async (url, filename) => {
+  try {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = filename || 'dvs-media';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(blobUrl);
+  } catch (e) {
+    console.error("Download failed", e);
+  }
+};
+
+const SavePostBtn = ({ postId, session, toast }) => {
+  const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!session?.id || !postId) return;
+    supabase.from("saved_posts").select("id").eq("post_id", postId).eq("user_id", session.id).then(({ data }) => {
+      if (data?.length) setSaved(true);
+    });
+  }, [postId, session?.id]);
+
+  const toggle = async () => {
+    if (!session?.id) return toast("Faça login para salvar.", "warn");
+    setLoading(true);
+    if (saved) {
+      setSaved(false);
+      const { error } = await supabase.from("saved_posts").delete().eq("post_id", postId).eq("user_id", session.id);
+      if (!error) toast("Removido das inspirações.");
+    } else {
+      setSaved(true);
+      const { error } = await supabase.from("saved_posts").upsert({ post_id: postId, user_id: session.id });
+      if (!error) toast("⭐ Salvo nas inspirações!", "ok");
+      else { setSaved(false); toast("Erro ao salvar: " + error.message, "error"); }
+    }
+    setLoading(false);
+  };
+
+  return (
+    <button
+      onClick={toggle}
+      disabled={loading}
+      style={{
+        background: saved ? "rgba(251,191,36,0.15)" : D.bg2,
+        border: `1.5px solid ${saved ? D.amber : D.b1}`,
+        color: saved ? D.amber : D.w3,
+        padding: "8px 16px", borderRadius: 12,
+        fontWeight: 700, fontSize: 13,
+        display: "flex", alignItems: "center", gap: 6,
+        transition: "all 0.2s"
+      }}
+    >
+      {saved ? "⭐" : "☆"} {saved ? "Salvo" : "Salvar"}
+    </button>
+  );
+};
+
+const ProfileFollowBtn = ({ targetUserId, session, toast }) => {
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (session?.id && targetUserId) {
+      supabase.from("follows").select("id").eq("follower_id", session.id).eq("following_id", targetUserId)
+        .then(({ data }) => setIsFollowing(data?.length > 0));
+    }
+  }, [session?.id, targetUserId]);
+
+  const toggle = async (e) => {
+    e.stopPropagation();
+    if (!session?.id) return toast("Faça login para curtir o perfil.", "warn");
+    setLoading(true);
+    if (isFollowing) {
+      setIsFollowing(false);
+      await supabase.from("follows").delete().eq("follower_id", session.id).eq("following_id", targetUserId);
+    } else {
+      setIsFollowing(true);
+      await supabase.from("follows").insert({ follower_id: session.id, following_id: targetUserId });
+      toast("❤️ Perfil curtido!", "ok");
+    }
+    setLoading(false);
+  };
+
+  return (
+    <button 
+      onClick={toggle} 
+      disabled={loading}
+      style={{ 
+        background: isFollowing ? D.roseLo : "none", 
+        border: `1.5px solid ${isFollowing ? D.rose : D.b2}`, 
+        color: isFollowing ? D.rose : D.w2, 
+        padding: "6px 12px", 
+        borderRadius: 10, 
+        fontSize: 11, 
+        fontWeight: 700, 
+        cursor: "pointer",
+        display: "flex",
+        alignItems: "center",
+        gap: 6
+      }}
+    >
+      {isFollowing ? "❤️ Curtido" : "🤍 Curtir Perfil"}
+    </button>
+  );
+};
+
+const PostCard = ({ post, session, toast, onNavigate }) => {
+  const [liked, setLiked] = useState(false);
+  const [likesCount, setLikesCount] = useState(post.post_likes?.[0]?.count || 0);
+  const [saved, setSaved] = useState(false);
+  
+  useEffect(() => {
+    if (!session?.id) return;
+    supabase.from("post_likes").select("post_id").eq("post_id", post.id).eq("user_id", session.id).then(({ data }) => {
+      if (data?.length) setLiked(true);
+    });
+    supabase.from("saved_posts").select("post_id").eq("post_id", post.id).eq("user_id", session.id).then(({ data }) => {
+      if (data?.length) setSaved(true);
+    });
+  }, [post.id, session?.id]);
+
+  const toggleLike = async () => {
+    if (!session?.id) return toast("Faça login para curtir.", "warn");
+    if (liked) {
+      setLiked(false); setLikesCount(c => Math.max(0, c - 1));
+      await supabase.from("post_likes").delete().eq("post_id", post.id).eq("user_id", session.id);
+    } else {
+      setLiked(true); setLikesCount(c => c + 1);
+      await supabase.from("post_likes").insert({ post_id: post.id, user_id: session.id });
+    }
+  };
+
+  const [showFolderPicker, setShowFolderPicker] = useState(false);
+  const [collections, setCollections] = useState([]);
+
+  useEffect(() => {
+    if (showFolderPicker && session?.id) {
+       supabase.from("collections").select("*").eq("user_id", session.id).then(({ data }) => {
+         if (data) setCollections(data);
+       });
+    }
+  }, [showFolderPicker, session?.id]);
+
+  const toggleSave = async (folderId = null) => {
+    if (!session?.id) return toast("Faça login para salvar.", "warn");
+    
+    if (saved && !folderId) {
+      setSaved(false);
+      await supabase.from("saved_posts").delete().eq("post_id", post.id).eq("user_id", session.id);
+      toast("Removido dos salvos.");
+    } else {
+      setSaved(true);
+      await supabase.from("saved_posts").upsert({ post_id: post.id, user_id: session.id });
+      
+      if (folderId) {
+         await supabase.from("collection_items").upsert({ collection_id: folderId, post_id: post.id });
+         toast("Salvo na pasta!", "ok");
+      } else {
+         toast("Salvo como inspiração!", "ok");
+      }
+    }
+    setShowFolderPicker(false);
+  };
+
+  return (
+    <div className="card" style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ display: "flex", gap: 10, alignItems: "center", cursor: "pointer" }} onClick={() => onNavigate("public_profile", post.user_id)}>
+        <div style={{ width: 40, height: 40, borderRadius: 12, background: D.s3, overflow: "hidden" }}>
+          {post.profiles?.avatar_url ? <img src={post.profiles.avatar_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>👤</div>}
+        </div>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 14 }}>{post.profiles?.full_name || "Criador Anônimo"}</div>
+          <div style={{ fontSize: 11, color: D.w3 }}>{new Date(post.created_at).toLocaleDateString()}</div>
+        </div>
+      </div>
+      
+      <div style={{ width: "100%", borderRadius: 12, background: D.bg2, border: `1px solid ${D.b0}`, overflow: "hidden" }}>
+        {post.content?.media_url && (() => {
+          const filt = post.content?.filters;
+          const fCSS = filt ? `brightness(${filt.brightness||100}%) contrast(${filt.contrast||100}%) saturate(${filt.saturate||100}%) sepia(${filt.sepia||0}%) hue-rotate(${filt.hue||0}deg)` : "none";
+          return (
+            <div style={{ width: "100%", background: "#000", display: "flex", justifyContent: "center", position: "relative" }}>
+              {post.content.media_type === "image" ? (
+                <img src={post.content.media_url} style={{ maxWidth: "100%", maxHeight: 500, objectFit: "contain", filter: fCSS }} />
+              ) : (
+                <video src={post.content.media_url} controls style={{ maxWidth: "100%", maxHeight: 500, filter: fCSS }} />
+              )}
+            </div>
+          );
+        })()}
+        <div style={{ padding: 16 }}>
+          {post.music_metadata?.name && (
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, color: D.w2, fontSize: 12, fontWeight: 700 }}>
+              <span>🎵</span> {post.music_metadata.name} • {post.music_metadata.artist}
+            </div>
+          )}
+          <div style={{ fontSize: 13, lineHeight: 1.5, color: D.w2, whiteSpace: "pre-wrap" }}>
+            {post.content?.caption || "Post visualizado."}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 8 }}>
+        <div style={{ display: "flex", gap: 16 }}>
+          <button onClick={toggleLike} style={{ background: "none", border: "none", color: liked ? D.rose : D.w3, display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 700 }}>
+            {liked ? "❤️" : "🤍"} {likesCount}
+          </button>
+          <button style={{ background: "none", border: "none", color: D.w3, display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 700 }}>
+            🚀 Compartilhar
+          </button>
+        </div>
+        <button onClick={() => setShowFolderPicker(true)} style={{ background: "none", border: "none", color: saved ? D.amber : D.w3, fontSize: 18, display: "flex", alignItems: "center", gap: 8 }}>
+          {saved ? "⭐" : "☆"}
+        </button>
+      </div>
+
+      {showFolderPicker && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 10001, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+           <div className="card" style={{ background: D.bg, width: "100%", maxWidth: 350, padding: 24, borderRadius: 24, display: "flex", flexDirection: "column", gap: 20 }}>
+              <div style={{ fontWeight: 900, fontSize: 18 }}>Salvar em...</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 300, overflowY: "auto" }}>
+                 <button onClick={() => toggleSave()} style={{ padding: "12px 16px", borderRadius: 12, border: `1px solid ${D.b0}`, background: D.bg2, color: D.w1, textAlign: "left", fontWeight: 700 }}>
+                    ⭐ Geral (Sem pasta)
+                 </button>
+                 {collections.map(c => (
+                   <button key={c.id} onClick={() => toggleSave(c.id)} style={{ padding: "12px 16px", borderRadius: 12, border: `1px solid ${D.b0}`, background: D.bg2, color: D.w1, textAlign: "left", fontWeight: 700 }}>
+                      📂 {c.name}
+                   </button>
+                 ))}
+                 {collections.length === 0 && <div style={{ fontSize: 12, color: D.w3, textAlign: "center", padding: 10 }}>Você ainda não tem pastas. Vá em "Inspirar" para criar.</div>}
+              </div>
+              <button className="btn outline" onClick={() => setShowFolderPicker(false)}>Cancelar</button>
+           </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const Perfil = ({ session, plan, postsUsed, songsChanged, onLogout, onUpdateSession, toast, onResetData }) => {
   const [subpage, setSubpage] = useState("main");
   const [editName,  setEditName]  = useState(session?.name || "");
@@ -2738,255 +2985,6 @@ const Perfil = ({ session, plan, postsUsed, songsChanged, onLogout, onUpdateSess
 
 
 
-// ==================== ADVANCED SOCIAL COMPONENTS ====================
-
-
-// Standalone save button used in FeedPostCard and other feed cards
-// Standalone save button used in FeedPostCard and other feed cards
-const downloadMedia = async (url, filename) => {
-  try {
-    const response = await fetch(url);
-    const blob = await response.blob();
-    const blobUrl = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = blobUrl;
-    link.download = filename || 'dvs-media';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(blobUrl);
-  } catch (e) {
-    console.error("Download failed", e);
-  }
-};
-
-const SavePostBtn = ({ postId, session, toast }) => {
-  const [saved, setSaved] = useState(false);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (!session?.id || !postId) return;
-    supabase.from("saved_posts").select("id").eq("post_id", postId).eq("user_id", session.id).then(({ data }) => {
-      if (data?.length) setSaved(true);
-    });
-  }, [postId, session?.id]);
-
-  const toggle = async () => {
-    if (!session?.id) return toast("Faça login para salvar.", "warn");
-    setLoading(true);
-    if (saved) {
-      setSaved(false);
-      const { error } = await supabase.from("saved_posts").delete().eq("post_id", postId).eq("user_id", session.id);
-      if (!error) toast("Removido das inspirações.");
-    } else {
-      setSaved(true);
-      const { error } = await supabase.from("saved_posts").upsert({ post_id: postId, user_id: session.id });
-      if (!error) toast("⭐ Salvo nas inspirações!", "ok");
-      else { setSaved(false); toast("Erro ao salvar: " + error.message, "error"); }
-    }
-    setLoading(false);
-  };
-
-  return (
-    <button
-      onClick={toggle}
-      disabled={loading}
-      style={{
-        background: saved ? "rgba(251,191,36,0.15)" : D.bg2,
-        border: `1.5px solid ${saved ? D.amber : D.b1}`,
-        color: saved ? D.amber : D.w3,
-        padding: "8px 16px", borderRadius: 12,
-        fontWeight: 700, fontSize: 13,
-        display: "flex", alignItems: "center", gap: 6,
-        transition: "all 0.2s"
-      }}
-    >
-      {saved ? "⭐" : "☆"} {saved ? "Salvo" : "Salvar"}
-    </button>
-  );
-};
-
-const ProfileFollowBtn = ({ targetUserId, session, toast }) => {
-  const [isFollowing, setIsFollowing] = useState(false);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (session?.id && targetUserId) {
-      supabase.from("follows").select("id").eq("follower_id", session.id).eq("following_id", targetUserId)
-        .then(({ data }) => setIsFollowing(data?.length > 0));
-    }
-  }, [session?.id, targetUserId]);
-
-  const toggle = async (e) => {
-    e.stopPropagation();
-    if (!session?.id) return toast("Faça login para curtir o perfil.", "warn");
-    setLoading(true);
-    if (isFollowing) {
-      setIsFollowing(false);
-      await supabase.from("follows").delete().eq("follower_id", session.id).eq("following_id", targetUserId);
-    } else {
-      setIsFollowing(true);
-      await supabase.from("follows").insert({ follower_id: session.id, following_id: targetUserId });
-      toast("❤️ Perfil curtido!", "ok");
-    }
-    setLoading(false);
-  };
-
-  return (
-    <button 
-      onClick={toggle} 
-      disabled={loading}
-      style={{ 
-        background: isFollowing ? D.roseLo : "none", 
-        border: `1.5px solid ${isFollowing ? D.rose : D.b2}`, 
-        color: isFollowing ? D.rose : D.w2, 
-        padding: "6px 12px", 
-        borderRadius: 10, 
-        fontSize: 11, 
-        fontWeight: 700, 
-        cursor: "pointer",
-        display: "flex",
-        alignItems: "center",
-        gap: 6
-      }}
-    >
-      {isFollowing ? "❤️ Curtido" : "🤍 Curtir Perfil"}
-    </button>
-  );
-};
-
-const PostCard = ({ post, session, toast, onNavigate }) => {
-  const [liked, setLiked] = useState(false);
-  const [likesCount, setLikesCount] = useState(post.post_likes?.[0]?.count || 0);
-  const [saved, setSaved] = useState(false);
-  
-  useEffect(() => {
-    if (!session?.id) return;
-    supabase.from("post_likes").select("post_id").eq("post_id", post.id).eq("user_id", session.id).then(({ data }) => {
-      if (data?.length) setLiked(true);
-    });
-    supabase.from("saved_posts").select("post_id").eq("post_id", post.id).eq("user_id", session.id).then(({ data }) => {
-      if (data?.length) setSaved(true);
-    });
-  }, [post.id, session?.id]);
-
-  const toggleLike = async () => {
-    if (!session?.id) return toast("Faça login para curtir.", "warn");
-    if (liked) {
-      setLiked(false); setLikesCount(c => Math.max(0, c - 1));
-      await supabase.from("post_likes").delete().eq("post_id", post.id).eq("user_id", session.id);
-    } else {
-      setLiked(true); setLikesCount(c => c + 1);
-      await supabase.from("post_likes").insert({ post_id: post.id, user_id: session.id });
-    }
-  };
-
-  const [showFolderPicker, setShowFolderPicker] = useState(false);
-  const [collections, setCollections] = useState([]);
-
-  useEffect(() => {
-    if (showFolderPicker && session?.id) {
-       supabase.from("collections").select("*").eq("user_id", session.id).then(({ data }) => {
-         if (data) setCollections(data);
-       });
-    }
-  }, [showFolderPicker, session?.id]);
-
-  const toggleSave = async (folderId = null) => {
-    if (!session?.id) return toast("Faça login para salvar.", "warn");
-    
-    if (saved && !folderId) {
-      setSaved(false);
-      await supabase.from("saved_posts").delete().eq("post_id", post.id).eq("user_id", session.id);
-      toast("Removido dos salvos.");
-    } else {
-      setSaved(true);
-      await supabase.from("saved_posts").upsert({ post_id: post.id, user_id: session.id });
-      
-      if (folderId) {
-         await supabase.from("collection_items").upsert({ collection_id: folderId, post_id: post.id });
-         toast("Salvo na pasta!", "ok");
-      } else {
-         toast("Salvo como inspiração!", "ok");
-      }
-    }
-    setShowFolderPicker(false);
-  };
-
-  return (
-    <div className="card" style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
-      <div style={{ display: "flex", gap: 10, alignItems: "center", cursor: "pointer" }} onClick={() => onNavigate("public_profile", post.user_id)}>
-        <div style={{ width: 40, height: 40, borderRadius: 12, background: D.s3, overflow: "hidden" }}>
-          {post.profiles?.avatar_url ? <img src={post.profiles.avatar_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>👤</div>}
-        </div>
-        <div>
-          <div style={{ fontWeight: 700, fontSize: 14 }}>{post.profiles?.full_name || "Criador Anônimo"}</div>
-          <div style={{ fontSize: 11, color: D.w3 }}>{new Date(post.created_at).toLocaleDateString()}</div>
-        </div>
-      </div>
-      
-      <div style={{ width: "100%", borderRadius: 12, background: D.bg2, border: `1px solid ${D.b0}`, overflow: "hidden" }}>
-        {post.content?.media_url && (() => {
-          const filt = post.content?.filters;
-          const fCSS = filt ? `brightness(${filt.brightness||100}%) contrast(${filt.contrast||100}%) saturate(${filt.saturate||100}%) sepia(${filt.sepia||0}%) hue-rotate(${filt.hue||0}deg)` : "none";
-          return (
-            <div style={{ width: "100%", background: "#000", display: "flex", justifyContent: "center", position: "relative" }}>
-              {post.content.media_type === "image" ? (
-                <img src={post.content.media_url} style={{ maxWidth: "100%", maxHeight: 500, objectFit: "contain", filter: fCSS }} />
-              ) : (
-                <video src={post.content.media_url} controls style={{ maxWidth: "100%", maxHeight: 500, filter: fCSS }} />
-              )}
-            </div>
-          );
-        })()}
-        <div style={{ padding: 16 }}>
-          {post.music_metadata?.name && (
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, color: D.w2, fontSize: 12, fontWeight: 700 }}>
-              <span>🎵</span> {post.music_metadata.name} • {post.music_metadata.artist}
-            </div>
-          )}
-          <div style={{ fontSize: 13, lineHeight: 1.5, color: D.w2, whiteSpace: "pre-wrap" }}>
-            {post.content?.caption || "Post visualizado."}
-          </div>
-        </div>
-      </div>
-
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 8 }}>
-        <div style={{ display: "flex", gap: 16 }}>
-          <button onClick={toggleLike} style={{ background: "none", border: "none", color: liked ? D.rose : D.w3, display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 700 }}>
-            {liked ? "❤️" : "🤍"} {likesCount}
-          </button>
-          <button style={{ background: "none", border: "none", color: D.w3, display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 700 }}>
-            🚀 Compartilhar
-          </button>
-        </div>
-        <button onClick={() => setShowFolderPicker(true)} style={{ background: "none", border: "none", color: saved ? D.amber : D.w3, fontSize: 18, display: "flex", alignItems: "center", gap: 8 }}>
-          {saved ? "⭐" : "☆"}
-        </button>
-      </div>
-
-      {showFolderPicker && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 10001, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-           <div className="card" style={{ background: D.bg, width: "100%", maxWidth: 350, padding: 24, borderRadius: 24, display: "flex", flexDirection: "column", gap: 20 }}>
-              <div style={{ fontWeight: 900, fontSize: 18 }}>Salvar em...</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 300, overflowY: "auto" }}>
-                 <button onClick={() => toggleSave()} style={{ padding: "12px 16px", borderRadius: 12, border: `1px solid ${D.b0}`, background: D.bg2, color: D.w1, textAlign: "left", fontWeight: 700 }}>
-                    ⭐ Geral (Sem pasta)
-                 </button>
-                 {collections.map(c => (
-                   <button key={c.id} onClick={() => toggleSave(c.id)} style={{ padding: "12px 16px", borderRadius: 12, border: `1px solid ${D.b0}`, background: D.bg2, color: D.w1, textAlign: "left", fontWeight: 700 }}>
-                      📂 {c.name}
-                   </button>
-                 ))}
-                 {collections.length === 0 && <div style={{ fontSize: 12, color: D.w3, textAlign: "center", padding: 10 }}>Você ainda não tem pastas. Vá em "Inspirar" para criar.</div>}
-              </div>
-              <button className="btn outline" onClick={() => setShowFolderPicker(false)}>Cancelar</button>
-           </div>
-        </div>
-      )}
-    </div>
-  );
-};
 
 
 
