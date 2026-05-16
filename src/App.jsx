@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { supabase } from "./services/supabase";
 import PublishPreview from "./features/creator/PublishPreview";
-import { generateVideo, mixAudioWithVideo, processVideo } from "./services/ffmpegService";
+import { generateVideo, mixAudioWithVideo, processVideo, fetchWithProxy } from "./services/ffmpegService";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Play, Check, Sparkles, X, Music2, MapPin, Users, Send, 
@@ -2620,9 +2620,9 @@ const ShareModal = ({ post, session, toast, onClose }) => {
       const isVideo = post.content?.media_type === "video";
       const filters = post.content?.filters;
 
-      // 1. Fetch the "Light" media from Supabase
-      const mediaResponse = await fetch(mediaUrl);
-      const mediaBlob = await mediaResponse.blob();
+      // 1. Fetch the "Light" media safely via Proxy if needed
+      const mediaData = await fetchWithProxy(mediaUrl);
+      const mediaBlob = new Blob([mediaData.buffer], { type: isVideo ? "video/mp4" : "image/jpeg" });
       const mediaFile = new File([mediaBlob], isVideo ? "input.mp4" : "input.jpg", { type: isVideo ? "video/mp4" : "image/jpeg" });
 
       let finalFile;

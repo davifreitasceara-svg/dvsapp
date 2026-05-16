@@ -147,7 +147,7 @@ export const processVideo = async (videoFile, filters, onProgress) => {
   }
 };
 
-async function fetchAudioData(url) {
+export async function fetchWithProxy(url) {
   const proxies = [
     (u) => u,
     (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
@@ -165,6 +165,10 @@ async function fetchAudioData(url) {
       console.warn(`Proxy failed for ${url}:`, e.message);
     }
   }
-  throw new Error("Não foi possível carregar o áudio. Verifique sua conexão.");
+  throw new Error("Não foi possível carregar o arquivo.");
+}
+
+async function fetchAudioData(url) {
+  return fetchWithProxy(url);
 }
 
