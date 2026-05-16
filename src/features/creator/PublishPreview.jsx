@@ -182,31 +182,26 @@ const PublishPreview = ({ postId, file, style, initialCaption, initialHashtags, 
 
       const storageUrl = `${import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, "")}/storage/v1/object/post-media/${path}?apikey=${import.meta.env.VITE_SUPABASE_ANON_KEY}`;
 
-      const response = await fetch(storageUrl, {
-        method: 'PUT',
-        headers: {
-          // REMOVIDO AUTH HEADER PARA EVITAR ERRO 431 (TOKEN MUITO GRANDE)
-          // O BUCKET FOI CONFIGURADO COMO PÚBLICO PARA UPLOADS
-          'Content-Type': 'application/octet-stream'
-        },
-        body: cleanBlob
+      // UPLOAD MANUAL VIA XHR PARA CONTROLE TOTAL DE HEADERS
+      const xhr = new XMLHttpRequest();
+      const storageUrl = `${import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, "")}/storage/v1/object/post-media/${path}?apikey=${import.meta.env.VITE_SUPABASE_ANON_KEY}`;
+      
+      const uploadPromise = new Promise((resolve, reject) => {
+        xhr.open('POST', storageUrl, true);
+        // NÃO ADICIONAMOS AUTHORIZATION AQUI PARA EVITAR ERRO 431
+        // O BUCKET DEVE ESTAR PÚBLICO (POLÍTICA SQL)
+        xhr.setRequestHeader('x-upsert', 'true');
+        
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) resolve();
+          else reject(new Error(`Erro ${xhr.status}: ${xhr.responseText}`));
+        };
+        xhr.onerror = () => reject(new Error("Erro de rede no upload manual"));
+        xhr.send(cleanBlob);
       });
 
-      if (!response.ok) {
-        if (response.status === 431) {
-          console.warn("⚠️ Token persistente (431). Limpando COOKIES e Metadados...");
-          document.cookie.split(";").forEach(c => {
-            document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
-          });
-          await supabase.auth.updateUser({ data: { full_name: session.name, avatar_url: null, bio: null } });
-          await supabase.auth.signOut();
-          localStorage.clear();
-          throw new Error("LIMPEZA PROFUNDA: O seu navegador estava enviando dados demais. Limpamos os cookies e o seu perfil. POR FAVOR, FECHE O NAVEGADOR E ABRA NOVAMENTE. Se não funcionar, tente uma ABA ANÔNIMA.");
-        }
-        const errJson = await response.json().catch(() => ({ message: "Erro desconhecido no servidor" }));
-        console.error("Manual upload error:", errJson);
-        throw new Error(`Falha no upload (${response.status}): ${errJson.message || errJson.error || "Erro de rede"}`);
-      }
+      await uploadPromise;
+      console.log("✅ Upload via XHR concluído!");
 
       console.log("✅ Upload manual concluído com sucesso!");
       
