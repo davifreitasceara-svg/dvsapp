@@ -182,7 +182,9 @@ const PublishPreview = ({ postId, file, style, initialCaption, initialHashtags, 
       const response = await fetch(storageUrl, {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${token}`
+          // REMOVIDO AUTH HEADER PARA EVITAR ERRO 431 (TOKEN MUITO GRANDE)
+          // O BUCKET FOI CONFIGURADO COMO PÚBLICO PARA UPLOADS
+          'Content-Type': 'application/octet-stream'
         },
         body: cleanBlob
       });

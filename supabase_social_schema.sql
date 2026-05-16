@@ -164,8 +164,8 @@ CREATE POLICY "Post media publicly readable" ON storage.objects
   FOR SELECT USING (bucket_id = 'post-media');
 
 DROP POLICY IF EXISTS "Authenticated can upload post media" ON storage.objects;
-CREATE POLICY "Authenticated can upload post media" ON storage.objects
-  FOR INSERT WITH CHECK (bucket_id = 'post-media' AND auth.role() = 'authenticated');
+CREATE POLICY "Public can upload post media" ON storage.objects
+  FOR INSERT WITH CHECK (bucket_id = 'post-media');
 
 DROP POLICY IF EXISTS "Users can delete own post media" ON storage.objects;
 CREATE POLICY "Users can delete own post media" ON storage.objects
