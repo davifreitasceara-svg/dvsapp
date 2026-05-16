@@ -198,3 +198,18 @@ ALTER TABLE public.saved_posts ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Users manage own saved posts" ON public.saved_posts;
 CREATE POLICY "Users manage own saved posts" ON public.saved_posts
   FOR ALL USING (auth.uid() = user_id);
+CREATE TABLE IF NOT EXISTS public.profile_likes (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  profile_id uuid REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  user_id uuid REFERENCES auth.users ON DELETE CASCADE NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  UNIQUE(profile_id, user_id)
+);
+
+ALTER TABLE public.profile_likes ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Everyone can see profile likes" ON public.profile_likes;
+CREATE POLICY "Everyone can see profile likes" ON public.profile_likes FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Users can like profiles" ON public.profile_likes;
+CREATE POLICY "Users can like profiles" ON public.profile_likes FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can unlike profiles" ON public.profile_likes;
+CREATE POLICY "Users can unlike profiles" ON public.profile_likes FOR DELETE USING (auth.uid() = user_id);
