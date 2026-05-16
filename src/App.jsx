@@ -1026,16 +1026,16 @@ ${jsonTpl}`,
     }
     setPct(100); await sleep(200);
     const ALL_MUSIC = [
-      { tipo: "Viral", nome: "Mtg Quero Te Encontrar", artista: "DJ Luan Gomes", vibe: "Animada" },
-      { tipo: "Em Alta", nome: "Diz A  Qual   o Plano", artista: "Mc IG", vibe: "Urbana" },
-      { tipo: "Recomendada", nome: "Casca de Bala", artista: "Thullio Milion rio", vibe: "Sertanejo" },
-      { tipo: "Viral", nome: "Perna Bamba", artista: "Parangol ", vibe: "Dan a" },
-      { tipo: "Em Alta", nome: "Macetando", artista: "Ivete Sangalo", vibe: "Festa" },
-      { tipo: "Recomendada", nome: "Let's Go 4", artista: "Mc IG", vibe: "Trap" },
-      { tipo: "Viral", nome: "Voando pro Par ", artista: "Joelma", vibe: "Cl ssico" },
-      { tipo: "Em Alta", nome: "Lapada Dela", artista: "Menos   Mais", vibe: "Pagode" },
-      { tipo: "Recomendada", nome: "Chico", artista: "Lu sa Sonza", vibe: "Rom ntica" },
-      { tipo: "Viral", nome: "Toca o Trompete", artista: "Felipe Amorim", vibe: "Eletr nica" }
+      { tipo: "Viral", nome: "Mtg Quero Te Encontrar", artista: "DJ Luan Gomes", previewUrl: "https://bndpscrshvsclyjxihvk.supabase.co/storage/v1/object/public/musics/mtg.mp3" },
+      { tipo: "Em Alta", nome: "Diz Aí Qual é o Plano", artista: "Mc IG", previewUrl: "https://bndpscrshvsclyjxihvk.supabase.co/storage/v1/object/public/musics/plano.mp3" },
+      { tipo: "Recomendada", nome: "Casca de Bala", artista: "Thullio Milionário", previewUrl: "https://bndpscrshvsclyjxihvk.supabase.co/storage/v1/object/public/musics/casca.mp3" },
+      { tipo: "Viral", nome: "Perna Bamba", artista: "Parangolé", previewUrl: "https://bndpscrshvsclyjxihvk.supabase.co/storage/v1/object/public/musics/perna.mp3" },
+      { tipo: "Em Alta", nome: "Macetando", artista: "Ivete Sangalo", previewUrl: "https://bndpscrshvsclyjxihvk.supabase.co/storage/v1/object/public/musics/macetando.mp3" },
+      { tipo: "Recomendada", nome: "Let's Go 4", artista: "Mc IG", previewUrl: "https://bndpscrshvsclyjxihvk.supabase.co/storage/v1/object/public/musics/letsgo.mp3" },
+      { tipo: "Viral", nome: "Voando pro Pará", artista: "Joelma", previewUrl: "https://bndpscrshvsclyjxihvk.supabase.co/storage/v1/object/public/musics/joelma.mp3" },
+      { tipo: "Em Alta", nome: "Lapada Dela", artista: "Menos é Mais", previewUrl: "https://bndpscrshvsclyjxihvk.supabase.co/storage/v1/object/public/musics/lapada.mp3" },
+      { tipo: "Recomendada", nome: "Chico", artista: "Luísa Sonza", previewUrl: "https://bndpscrshvsclyjxihvk.supabase.co/storage/v1/object/public/musics/chico.mp3" },
+      { tipo: "Viral", nome: "Toca o Trompete", artista: "Felipe Amorim", previewUrl: "https://bndpscrshvsclyjxihvk.supabase.co/storage/v1/object/public/musics/trompete.mp3" }
     ];
     // Randomize
     const fallbackMusicas = ALL_MUSIC.sort(() => 0.5 - Math.random()).slice(0, 3);
@@ -3153,20 +3153,39 @@ const Discover = ({ toast, session, onNavigate }) => {
     const filt = p.content?.filters;
     const fCSS = filt ? `brightness(${filt.brightness||100}%) contrast(${filt.contrast||100}%) saturate(${filt.saturate||100}%) sepia(${filt.sepia||0}%) hue-rotate(${filt.hue||0}deg)` : "none";
 
+    const audioRef = useRef(null);
+    const [playing, setPlaying] = useState(false);
+
+    useEffect(() => {
+      if (playing && audioRef.current) {
+        audioRef.current.play().catch(() => {});
+      } else if (audioRef.current) {
+        audioRef.current.pause();
+      }
+    }, [playing]);
+
     return (
-      <div style={{ background: D.s1, border: `1px solid ${D.b0}`, borderRadius: 20, overflow: "hidden", animation: "fadeUp 0.4s ease both" }}>
+      <div 
+        style={{ background: D.s1, border: `1px solid ${D.b0}`, borderRadius: 20, overflow: "hidden", animation: "fadeUp 0.4s ease both" }}
+        onMouseEnter={() => setPlaying(true)}
+        onMouseLeave={() => setPlaying(false)}
+        onClick={() => setPlaying(!playing)}
+      >
         {mediaUrl && (
           <div style={{ width: "100%", background: "#000", position: "relative", minHeight: 200 }}>
             {mediaType === "image" ? (
               <img src={mediaUrl} style={{ width: "100%", maxHeight: 420, objectFit: "cover", display: "block", filter: fCSS }} />
             ) : (
-              <video src={mediaUrl} controls playsInline style={{ width: "100%", maxHeight: 420, display: "block", filter: fCSS }} />
+              <video src={mediaUrl} loop muted={!playing} playsInline style={{ width: "100%", maxHeight: 420, display: "block", filter: fCSS }} />
+            )}
+            {p.music_metadata?.previewUrl && (
+              <audio ref={audioRef} src={p.music_metadata.previewUrl} loop />
             )}
           </div>
         )}
         <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div style={{ display: "flex", gap: 10, alignItems: "center", cursor: "pointer" }} onClick={() => onNavigate("public_profile", p.user_id)}>
+            <div style={{ display: "flex", gap: 10, alignItems: "center", cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); onNavigate("public_profile", p.user_id); }}>
               <div style={{ width: 36, height: 36, borderRadius: 12, background: D.s3, overflow: "hidden", flexShrink: 0 }}>
                 {p.profiles?.avatar_url ? <img src={p.profiles.avatar_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>👤</div>}
               </div>
@@ -3179,8 +3198,8 @@ const Discover = ({ toast, session, onNavigate }) => {
           </div>
           
           {p.music_metadata?.name && (
-            <div style={{ display: "flex", alignItems: "center", gap: 6, color: D.w2, fontSize: 12, fontWeight: 700, background: D.bg2, padding: "6px 12px", borderRadius: 100, alignSelf: "flex-start" }}>
-              <span>🎵</span> {p.music_metadata.name} • {p.music_metadata.artist}
+            <div style={{ display: "flex", alignItems: "center", gap: 6, color: D.blue, fontSize: 12, fontWeight: 800, background: D.bg2, padding: "6px 12px", borderRadius: 100, alignSelf: "flex-start" }}>
+              <span className={playing ? "pulse-anim" : ""}>🎵</span> {p.music_metadata.name} • {p.music_metadata.artist}
             </div>
           )}
 
@@ -3563,11 +3582,15 @@ const SavedPosts = ({ toast, session, onNavigate }) => {
               position: "relative", boxShadow: "0 8px 20px rgba(0,0,0,0.2)"
             }}>
               {p.content?.media_url ? (
-                p.content.media_type === "image" ? (
-                  <img src={p.content.media_url} style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.5s" }} className="hover-zoom" />
-                ) : (
-                  <video src={p.content.media_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                )
+                (() => {
+                  const filt = p.content?.filters;
+                  const fCSS = filt ? `brightness(${filt.brightness||100}%) contrast(${filt.contrast||100}%) saturate(${filt.saturate||100}%) sepia(${filt.sepia||0}%) hue-rotate(${filt.hue||0}deg)` : "none";
+                  return p.content.media_type === "image" ? (
+                    <img src={p.content.media_url} style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.5s", filter: fCSS }} className="hover-zoom" />
+                  ) : (
+                    <video src={p.content.media_url} style={{ width: "100%", height: "100%", objectFit: "cover", filter: fCSS }} />
+                  );
+                })()
               ) : (
                 <div style={{ padding: 20, fontSize: 12, color: D.w3 }}>{p.content?.caption}</div>
               )}
