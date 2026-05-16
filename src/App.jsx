@@ -3001,28 +3001,62 @@ const Perfil = ({ session, plan, postsUsed, songsChanged, onLogout, onUpdateSess
           {loadingPosts ? (
             <div style={{ textAlign: "center", padding: 20 }}><DvsSpin s={24} c={D.blue} /></div>
           ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
-              {myPosts.map(p => {
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+              {myPosts.map((p, idx) => {
                 const filt = p.content?.filters;
                 const fCSS = filt ? `brightness(${filt.brightness||100}%) contrast(${filt.contrast||100}%) saturate(${filt.saturate||100}%) sepia(${filt.sepia||0}%) hue-rotate(${filt.hue||0}deg)` : "none";
                 return (
-                <div key={p.id} onClick={() => setViewPost(p)} style={{ aspectRatio: "1/1", background: D.bg2, borderRadius: 12, overflow: "hidden", cursor: "pointer", position: "relative" }}>
-                  {p.content?.media_url ? (
-                    p.content.media_type === "image" ? (
-                      <img src={p.content.media_url} style={{ width: "100%", height: "100%", objectFit: "cover", filter: fCSS }} />
+                  <motion.div 
+                    key={p.id} 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.05 }}
+                    whileHover={{ y: -5, scale: 1.02 }}
+                    onClick={() => setViewPost(p)} 
+                    style={{ 
+                      aspectRatio: "1/1", 
+                      background: D.bg2, 
+                      borderRadius: 18, 
+                      overflow: "hidden", 
+                      cursor: "pointer", 
+                      position: "relative",
+                      boxShadow: "0 8px 24px rgba(0,0,0,0.3)",
+                      border: `1px solid ${D.b0}`
+                    }}
+                  >
+                    {p.content?.media_url ? (
+                      p.content.media_type === "image" ? (
+                        <img src={p.content.media_url} style={{ width: "100%", height: "100%", objectFit: "cover", filter: fCSS }} />
+                      ) : (
+                        <div style={{ position: "relative", width: "100%", height: "100%" }}>
+                          <video src={p.content.media_url} style={{ width: "100%", height: "100%", objectFit: "cover", filter: fCSS }} />
+                          <div style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.5)", padding: 6, borderRadius: 10, backdropFilter: "blur(4px)" }}>
+                             <Play size={10} color="#fff" fill="#fff" />
+                          </div>
+                        </div>
+                      )
                     ) : (
-                      <div style={{ position: "relative", width: "100%", height: "100%" }}>
-                        <video src={p.content.media_url} style={{ width: "100%", height: "100%", objectFit: "cover", filter: fCSS }} />
-                        <div style={{ position: "absolute", top: 4, right: 4, fontSize: 10 }}>🎥</div>
+                      <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, padding: 4, textAlign: "center", color: D.w3 }}>
+                        {p.content?.caption?.substring(0, 30)}...
                       </div>
-                    )
-                  ) : (
-                    <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, padding: 4, textAlign: "center", color: D.w3 }}>
-                      {p.content?.caption?.substring(0, 30)}...
+                    )}
+                    
+                    <div style={{ 
+                      position: "absolute", 
+                      bottom: 0, left: 0, right: 0, 
+                      background: "linear-gradient(transparent, rgba(0,0,0,0.8))", 
+                      padding: "12px 10px 8px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6
+                    }}>
+                      <div style={{ fontSize: 8, fontWeight: 900, color: D.blue, background: "rgba(56,189,248,0.15)", padding: "2px 6px", borderRadius: 4, textTransform: "uppercase" }}>
+                        {p.content?.filters?.name || "Original"}
+                      </div>
                     </div>
-                  )}
-                </div>
-              )})}
+                  </motion.div>
+                );
+              })}
             </div>
           )}
           {!loadingPosts && myPosts.length === 0 && (
@@ -3463,21 +3497,56 @@ const PublicProfile = ({ userId, session, onBack, onNavigate }) => {
          ))}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
-        {posts.map(p => {
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+        {posts.map((p, idx) => {
            const filt = p.content?.filters;
            const fCSS = filt ? `brightness(${filt.brightness||100}%) contrast(${filt.contrast||100}%) saturate(${filt.saturate||100}%) sepia(${filt.sepia||0}%) hue-rotate(${filt.hue||0}deg)` : "none";
            return (
-           <div key={p.id} onClick={() => setViewPost(p)} style={{ aspectRatio: "1/1", background: D.bg2, borderRadius: 12, overflow: "hidden", cursor: "pointer", position: "relative" }}>
-              {p.content?.media_url ? (
-                p.content.media_type === "image" ? <img src={p.content.media_url} style={{ width: "100%", height: "100%", objectFit: "cover", filter: fCSS }} /> : <video src={p.content.media_url} style={{ width: "100%", height: "100%", objectFit: "cover", filter: fCSS }} />
-              ) : <div style={{ padding: 10, fontSize: 10, color: D.w3 }}>{p.content?.caption}</div>}
-              {p.content?.filters && (
-                <div style={{ position: "absolute", bottom: 6, left: 6, background: "rgba(0,0,0,0.6)", padding: "4px 8px", borderRadius: 8, fontSize: 10, color: "#fff", fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
-                   🎨 {p.content.filters.name || "Editado"}
-                </div>
-              )}
-           </div>
+            <motion.div 
+              key={p.id} 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: idx * 0.05 }}
+              whileHover={{ y: -5, scale: 1.02 }}
+              onClick={() => setViewPost(p)} 
+              style={{ 
+                aspectRatio: "1/1", 
+                background: D.bg2, 
+                borderRadius: 18, 
+                overflow: "hidden", 
+                cursor: "pointer", 
+                position: "relative",
+                boxShadow: "0 8px 24px rgba(0,0,0,0.3)",
+                border: `1px solid ${D.b0}`
+              }}
+            >
+               {p.content?.media_url ? (
+                 p.content.media_type === "image" ? (
+                   <img src={p.content.media_url} style={{ width: "100%", height: "100%", objectFit: "cover", filter: fCSS }} />
+                 ) : (
+                   <div style={{ position: "relative", width: "100%", height: "100%" }}>
+                     <video src={p.content.media_url} style={{ width: "100%", height: "100%", objectFit: "cover", filter: fCSS }} />
+                     <div style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.5)", padding: 6, borderRadius: 10, backdropFilter: "blur(4px)" }}>
+                        <Play size={10} color="#fff" fill="#fff" />
+                     </div>
+                   </div>
+                 )
+               ) : <div style={{ padding: 10, fontSize: 10, color: D.w3 }}>{p.content?.caption}</div>}
+               
+               <div style={{ 
+                 position: "absolute", 
+                 bottom: 0, left: 0, right: 0, 
+                 background: "linear-gradient(transparent, rgba(0,0,0,0.8))", 
+                 padding: "12px 10px 8px",
+                 display: "flex",
+                 alignItems: "center",
+                 gap: 6
+               }}>
+                 <div style={{ fontSize: 8, fontWeight: 900, color: D.blue, background: "rgba(56,189,248,0.15)", padding: "2px 6px", borderRadius: 4, textTransform: "uppercase" }}>
+                   {p.content?.filters?.name || "Original"}
+                 </div>
+               </div>
+            </motion.div>
         )})}
       </div>
 
