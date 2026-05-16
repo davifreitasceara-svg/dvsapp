@@ -2679,15 +2679,6 @@ const PostCard = ({ post, session, toast, onNavigate }) => {
     }
   }, [playing]);
 
-  const handleDelete = async () => {
-    if (window.confirm("Deseja deletar esta publicação permanentemente?")) {
-      const { error } = await supabase.from("posts").delete().eq("id", post.id);
-      if (!error) {
-        toast("Publicação deletada.", "ok");
-        if (onNavigate) onNavigate("feed");
-      }
-    }
-  };
 
   return (
     <div 
