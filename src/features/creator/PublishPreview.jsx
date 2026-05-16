@@ -101,46 +101,59 @@ const PublishPreview = ({ postId, file, style, initialCaption, initialHashtags, 
     try {
       // 1. Process media (Apply filters and music)
       let fileToUpload = file;
-      toast("🚀 Processando mídia com IA...", "info");
+      toast("🎬 Processando sua mídia...", "info");
 
       if (isVideo || music) {
         try {
-          if (!isVideo && music) {
-            // Convert image to video with music and filter
-            const imgFile = await renderFilteredImage();
-            const videoBlob = await generateVideo(imgFile, music.previewUrl, filters);
-            fileToUpload = new File([videoBlob], "processed_video.mp4", { type: "video/mp4" });
-          } else if (isVideo && music) {
-            // Mix video with music and filter
-            const videoBlob = await mixAudioWithVideo(file, music.previewUrl, filters);
-            fileToUpload = new File([videoBlob], "processed_video.mp4", { type: "video/mp4" });
-          } else if (isVideo && !music) {
-            // Process video filters only
-            const videoBlob = await processVideo(file, filters);
-            fileToUpload = new File([videoBlob], "processed_video.mp4", { type: "video/mp4" });
-          } else {
-             // Image without music - just apply filter
-             fileToUpload = await renderFilteredImage();
-          }
+          // Promise that rejects after 25 seconds
+          const timeout = (ms) => new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), ms));
+          
+          const process = async () => {
+            if (!isVideo && music) {
+              toast("🎵 Criando vídeo com música e filtros...", "info");
+              const imgFile = await renderFilteredImage();
+              const videoBlob = await generateVideo(imgFile, music.previewUrl, filters);
+              return new File([videoBlob], "processed_video.mp4", { type: "video/mp4" });
+            } else if (isVideo && music) {
+              toast("🎵 Mixando áudio e aplicando filtros...", "info");
+              const videoBlob = await mixAudioWithVideo(file, music.previewUrl, filters);
+              return new File([videoBlob], "processed_video.mp4", { type: "video/mp4" });
+            } else if (isVideo && !music) {
+              toast("✨ Aplicando filtros ao vídeo...", "info");
+              const videoBlob = await processVideo(file, filters);
+              return new File([videoBlob], "processed_video.mp4", { type: "video/mp4" });
+            } else {
+               toast("✨ Aplicando filtros à imagem...", "info");
+               return await renderFilteredImage();
+            }
+          };
+
+          // Race processing against timeout
+          fileToUpload = await Promise.race([process(), timeout(30000)]);
         } catch (err) {
-          console.error("FFmpeg processing failed:", err);
-          toast("⚠️ Erro no processamento. Tentando upload original.", "warn");
-          // Fallback to original if processing fails
+          console.error("Media processing failed or timed out:", err);
+          toast("⚠️ Processamento lento ou falhou. Usando original.", "warn");
+          fileToUpload = file; // Fallback to original
         }
       } else {
-        // Just apply filter to image
+        toast("✨ Aplicando filtros...", "info");
         fileToUpload = await renderFilteredImage();
       }
 
       // 2. Upload to storage
+      toast("📤 Fazendo upload para a nuvem...", "info");
       const ext = fileToUpload.name.split('.').pop();
       const path = `${session.id}/${Date.now()}.${ext}`;
       const { error: uploadError } = await supabase.storage.from("post-media").upload(path, fileToUpload);
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error("Upload error:", uploadError);
+        throw new Error("Falha no upload: " + (uploadError.message || "Erro desconhecido"));
+      }
       
       const { data: { publicUrl } } = supabase.storage.from("post-media").getPublicUrl(path);
 
       // 3. Upsert post
+      toast("📝 Finalizando publicação...", "info");
       const postData = {
         user_id: session.id,
         content: {

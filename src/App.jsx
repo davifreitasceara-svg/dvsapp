@@ -2724,6 +2724,24 @@ const Perfil = ({ session, plan, postsUsed, songsChanged, onLogout, onUpdateSess
 
 
 // Standalone save button used in FeedPostCard and other feed cards
+// Standalone save button used in FeedPostCard and other feed cards
+const downloadMedia = async (url, filename) => {
+  try {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = filename || 'dvs-media';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(blobUrl);
+  } catch (e) {
+    console.error("Download failed", e);
+  }
+};
+
 const SavePostBtn = ({ postId, session, toast }) => {
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -2766,6 +2784,55 @@ const SavePostBtn = ({ postId, session, toast }) => {
       }}
     >
       {saved ? "⭐" : "☆"} {saved ? "Salvo" : "Salvar"}
+    </button>
+  );
+};
+
+const ProfileFollowBtn = ({ targetUserId, session, toast }) => {
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (session?.id && targetUserId) {
+      supabase.from("follows").select("id").eq("follower_id", session.id).eq("following_id", targetUserId)
+        .then(({ data }) => setIsFollowing(data?.length > 0));
+    }
+  }, [session?.id, targetUserId]);
+
+  const toggle = async (e) => {
+    e.stopPropagation();
+    if (!session?.id) return toast("Faça login para curtir o perfil.", "warn");
+    setLoading(true);
+    if (isFollowing) {
+      setIsFollowing(false);
+      await supabase.from("follows").delete().eq("follower_id", session.id).eq("following_id", targetUserId);
+    } else {
+      setIsFollowing(true);
+      await supabase.from("follows").insert({ follower_id: session.id, following_id: targetUserId });
+      toast("❤️ Perfil curtido!", "ok");
+    }
+    setLoading(false);
+  };
+
+  return (
+    <button 
+      onClick={toggle} 
+      disabled={loading}
+      style={{ 
+        background: isFollowing ? D.roseLo : "none", 
+        border: `1.5px solid ${isFollowing ? D.rose : D.b2}`, 
+        color: isFollowing ? D.rose : D.w2, 
+        padding: "6px 12px", 
+        borderRadius: 10, 
+        fontSize: 11, 
+        fontWeight: 700, 
+        cursor: "pointer",
+        display: "flex",
+        alignItems: "center",
+        gap: 6
+      }}
+    >
+      {isFollowing ? "❤️ Curtido" : "🤍 Curtir Perfil"}
     </button>
   );
 };
@@ -3020,14 +3087,17 @@ const Discover = ({ toast, session, onNavigate }) => {
           </div>
         )}
         <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={{ display: "flex", gap: 10, alignItems: "center", cursor: "pointer" }} onClick={() => onNavigate("public_profile", p.user_id)}>
-            <div style={{ width: 36, height: 36, borderRadius: 12, background: D.s3, overflow: "hidden", flexShrink: 0 }}>
-              {p.profiles?.avatar_url ? <img src={p.profiles.avatar_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>👤</div>}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ display: "flex", gap: 10, alignItems: "center", cursor: "pointer" }} onClick={() => onNavigate("public_profile", p.user_id)}>
+              <div style={{ width: 36, height: 36, borderRadius: 12, background: D.s3, overflow: "hidden", flexShrink: 0 }}>
+                {p.profiles?.avatar_url ? <img src={p.profiles.avatar_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>👤</div>}
+              </div>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 13 }}>{p.profiles?.full_name || "Criador"}</div>
+                <div style={{ fontSize: 11, color: D.w3 }}>{new Date(p.created_at).toLocaleDateString("pt-BR")}</div>
+              </div>
             </div>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: 13 }}>{p.profiles?.full_name || "Criador"}</div>
-              <div style={{ fontSize: 11, color: D.w3 }}>{new Date(p.created_at).toLocaleDateString("pt-BR")}</div>
-            </div>
+            <ProfileFollowBtn targetUserId={p.user_id} session={session} toast={toast} />
           </div>
           
           {p.music_metadata?.name && (
@@ -3049,7 +3119,28 @@ const Discover = ({ toast, session, onNavigate }) => {
             </div>
           )}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 4 }}>
-            <SavePostBtn postId={p.id} session={session} toast={toast} />
+            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+              <button 
+                onClick={() => downloadMedia(mediaUrl, `dvs-${p.id}.mp4`)}
+                style={{ background: D.bg2, border: `1.5px solid ${D.b1}`, color: D.w2, padding: "8px 12px", borderRadius: 12, fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
+              >
+                📥 Baixar
+              </button>
+              {p.user_id === session?.id && (
+                <button 
+                  onClick={async () => {
+                    if (window.confirm("Deseja deletar esta publicação?")) {
+                      await supabase.from("posts").delete().eq("id", p.id);
+                      toast("Deletado com sucesso!", "ok");
+                      loadFeed();
+                    }
+                  }}
+                  style={{ background: "none", border: "none", color: D.rose, fontSize: 16, cursor: "pointer", padding: 8 }}
+                >
+                  🗑️
+                </button>
+              )}
+            </div>
             {p.location && <span style={{ fontSize: 11, color: D.w3 }}>📍 {p.location}</span>}
           </div>
         </div>
