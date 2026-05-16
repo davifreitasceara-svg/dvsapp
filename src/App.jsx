@@ -3717,6 +3717,7 @@ const SavedPosts = ({ toast, session, onNavigate }) => {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState("all"); // all | folders
   const [selectedFolder, setSelectedFolder] = useState(null);
+  const [viewPost, setViewPost] = useState(null);
 
   useEffect(() => {
     if (session?.id) {
