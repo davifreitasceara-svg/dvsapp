@@ -721,12 +721,17 @@ const MindMap = ({ data }) => {
 /* 
    PREVIEW MOCKUPS (IG / TIKTOK)
  */
-const PreviewMockup = ({ platform, type, fileURL, isImg, fCSS, caption, music, onClose, onFinish }) => {
+const PreviewMockup = ({ platform, type, fileURL, isImg, fCSS, caption, music, onClose, onFinish, onShare }) => {
   const [loading, setLoading] = useState(false);
   
   const handlePublish = async () => {
     setLoading(true);
-    await new Promise(r => setTimeout(r, 2000));
+    if (onShare) {
+      await onShare(platform);
+    } else {
+      await new Promise(r => setTimeout(r, 2000));
+    }
+    setLoading(false);
     onFinish();
   };
 
@@ -1087,163 +1092,86 @@ ${jsonTpl}`,
     const compartilharRede = async (rede) => {
     if (sharing) return;
     setSharing(true);
+    
+    // Sync state
     if (postId) {
       try { await supabase.from("posts").update({ content: { ...result, caption, filters, music: selMusic } }).eq("id", postId); } catch(e) {}
     }
 
-    toast("🚀 Preparando vídeo viral...", "info");
+    toast("🚀 Processando mídia premium...", "info");
     const text = caption;
     try { 
       await navigator.clipboard.writeText(text); 
-      toast("📝 Legenda copiada! Cole no " + rede.toUpperCase(), "ok");
-    } catch(e) {
-      console.warn("Clipboard failed", e);
-    }
+      toast("📝 Legenda copiada!", "ok");
+    } catch(e) {}
 
-    let blob = null;
-    if (isImg) {
-      try {
-        const el = document.getElementById("preview-to-export");
-        if (el) {
-          const canvas = await html2canvas(el, { useCORS: true, scale: 2, backgroundColor: D.bg2 });
-          blob = await new Promise(res => canvas.toBlob(res, "image/png"));
-        }
-      } catch(e) { console.error("Canvas failed", e); }
-    }
-
-    // Se não for imagem ou o canvas falhou, tenta usar o arquivo original se existir
-    let fileToShare = blob 
-      ? new File([blob], "EduCreator-Post.png", { type: "image/png" }) 
-      : (file ? new File([file], file.name, { type: file.type }) : null);
-
+    let fileToShare = null;
     const activeMusic = selMusic || result?.musicas?.[0];
-    if (activeMusic && activeMusic.previewUrl) {
-      toast("🎵 Mixando áudio viral...", "info");
-      try {
-        const timeout = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error("Timeout")), 25000) // Aumentado timeout para vídeos
-        );
+
+    try {
+      if (isImg) {
+        // IMAGE FLOW
+        const el = document.getElementById("preview-to-export");
+        if (!el) throw new Error("Preview element not found");
         
-        let videoBlob;
-        if (isImg && blob) {
-          // Image is already filtered by html2canvas
-          videoBlob = await Promise.race([
-            generateVideo(blob, activeMusic.previewUrl, { brightness: 100, contrast: 100, saturate: 100 }),
-            timeout
-          ]);
-        } else if (!isImg && file) {
-          // Video needs filters applied by FFmpeg
-          videoBlob = await Promise.race([
-            mixAudioWithVideo(file, activeMusic.previewUrl, filters),
-            timeout
-          ]);
-        }
+        // Fix for html2canvas with filters: sometimes it ignores them if they are on the element itself.
+        // But here we capture the whole container.
+        const canvas = await html2canvas(el, { 
+          useCORS: true, 
+          scale: 2, 
+          backgroundColor: D.bg2,
+          logging: false
+        });
+        const imgBlob = await new Promise(res => canvas.toBlob(res, "image/png"));
 
-        if (videoBlob) {
+        if (activeMusic && activeMusic.previewUrl) {
+          toast("🎵 Mixando áudio viral...", "info");
+          const videoBlob = await generateVideo(imgBlob, activeMusic.previewUrl, { brightness: 100, contrast: 100, saturate: 100 });
           fileToShare = new File([videoBlob], "EduCreator-Viral.mp4", { type: "video/mp4" });
-          toast("✅ Vídeo pronto!", "ok");
+        } else {
+          fileToShare = new File([imgBlob], "EduCreator-Post.png", { type: "image/png" });
         }
-      } catch (err) {
-        console.error("Video generation failed:", err);
-        toast("⚠️ Erro na mixagem: " + (err.message || "processamento falhou"), "warn");
-        // Don't override fileToShare here, keep the original if possible
+      } else {
+        // VIDEO FLOW
+        if ((activeMusic && activeMusic.previewUrl) || filtName !== "Original") {
+          toast("⚙️ Aplicando efeitos e música...", "info");
+          let videoBlob;
+          if (activeMusic && activeMusic.previewUrl) {
+            videoBlob = await mixAudioWithVideo(file, activeMusic.previewUrl, filters);
+          } else {
+            videoBlob = await processVideo(file, filters);
+          }
+          fileToShare = new File([videoBlob], "EduCreator-Viral.mp4", { type: "video/mp4" });
+        } else {
+          fileToShare = new File([file], file.name, { type: file.type });
+        }
       }
-    }
 
-    if (!fileToShare) {
-      toast("❌ Erro: Nenhum arquivo para compartilhar.", "error");
-      setSharing(false);
-      return;
-    }
-
-    let shareAttempted = false;
-    if (fileToShare && navigator.canShare && navigator.canShare({ files: [fileToShare] })) {
-      shareAttempted = true;
-      try {
+      if (fileToShare && navigator.canShare && navigator.canShare({ files: [fileToShare] })) {
         await navigator.share({ 
           files: [fileToShare], 
           title: "EduCreator Viral", 
           text: text 
         });
-      } catch(err) {
-        if (err.name !== 'AbortError') toast("Falha no compartilhamento nativo.", "error");
-        return;
+        toast("🔥 Compartilhado com sucesso!", "ok");
+      } else {
+        // Fallback: Download
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(fileToShare);
+        link.download = fileToShare.name;
+        link.click();
+        toast("✅ Mídia processada e baixada!", "ok");
       }
+    } catch (err) {
+      console.error("Sharing failed:", err);
+      toast("⚠️ Erro no processamento: " + (err.message || "tente novamente"), "error");
     }
-
-    if (!shareAttempted) {
-      toast("Seu navegador não permite o compartilhamento direto de arquivos.", "warn");
-    }
+    
     setSharing(false);
   };
 
-  const compartilharDireto = async () => {
-    if (postId) {
-      try { 
-        await supabase.from('posts').update({ 
-          content: { ...result, caption, filters, music: selMusic, is_public: true } 
-        }).eq('id', postId); 
-      } catch(e) {}
-    }
+  const compartilharDireto = () => compartilharRede("Geral");
 
-    const m = selMusic || result?.musicas?.[0];
-    
-    if (m?.previewUrl) {
-      toast("🚀 Gerando vídeo com música...");
-      try {
-        const el = document.getElementById('preview-to-export');
-        if (!el) return;
-        const canvas = await html2canvas(el, { useCORS: true, scale: 2, backgroundColor: D.bg2 });
-        
-        canvas.toBlob(async (blob) => {
-          try {
-            const videoBlob = await generateVideo(blob, m.previewUrl, (p) => {
-               // Optional: update toast or progress bar
-            });
-            const fileToShare = new File([videoBlob], 'dvs-viral.mp4', { type: 'video/mp4' });
-            
-            if (navigator.share) {
-              await navigator.share({
-                files: [fileToShare],
-                title: 'EduCreator',
-                text: caption
-              });
-              toast("🔥 Compartilhado com sucesso!");
-            } else {
-               toast("Seu navegador não suporta compartilhamento de vídeo.");
-            }
-          } catch (err) {
-            toast("Erro ao gerar vídeo: " + err.message);
-          }
-        }, 'image/png');
-        return;
-      } catch (e) {
-        toast("Erro: " + e.message);
-        return;
-      }
-    }
-
-    // Caso não tenha música, compartilha imagem/vídeo original
-    if (navigator.share) {
-      try {
-        const el = document.getElementById('preview-to-export');
-        if (el && isImg) {
-           const canvas = await html2canvas(el, { useCORS: true, scale: 2 });
-           canvas.toBlob(async (blob) => {
-             const fileToShare = new File([blob], 'dvs-viral.png', { type: 'image/png' });
-             await navigator.share({ files: [fileToShare], title: 'EduCreator', text: caption });
-           });
-        } else {
-           await navigator.share({ title: 'EduCreator', text: caption, url: fileURL });
-        }
-        toast("Enviado!");
-      } catch(e) {
-        if (e.name !== 'AbortError') toast("Use os botões de rede social abaixo.");
-      }
-    } else {
-      toast("Compartilhamento nativo indisponível.");
-    }
-  };
   const fCSS = `brightness(${filters.brightness}%) contrast(${filters.contrast}%) saturate(${filters.saturate}%) sepia(${filters.sepia || 0}%) hue-rotate(${filters.hue || 0}deg)`;
 
   const copiar = () => { navigator.clipboard.writeText(caption); toast("Copiado!"); };
@@ -1251,10 +1179,10 @@ ${jsonTpl}`,
   const viral = async () => {
     setVLoad(true);
     try {
-      const prompt = `Melhore esta legenda para torn -la viral no Instagram/TikTok. Use ganchos (hooks) poderosos, emojis estrat gicos e hashtags de alta performance.\n\nLegenda original: ${caption}`;
+      const prompt = `Melhore esta legenda para torná-la viral no Instagram/TikTok. Use ganchos (hooks) poderosos, emojis estratégicos e hashtags de alta performance.\n\nLegenda original: ${caption}`;
       const res = await callAI(prompt);
       if (res) setCaption(res.replace(/^"|"$/g, ''));
-      toast(" Legenda turbinada com sucesso!");
+      toast("✨ Legenda turbinada!");
     } catch (e) { toast("Erro ao turbinar."); }
     setVLoad(false);
   };
@@ -1298,7 +1226,11 @@ ${jsonTpl}`,
             caption={caption}
             music={selMusic || result?.musicas?.[0]}
             onClose={() => setMock(null)}
-            onFinish={() => { toast("Publicado com sucesso!"); setMock(null); }}
+            onShare={compartilharRede}
+            onFinish={() => {
+               setMock(null);
+               toast("Finalizado!", "ok");
+            }}
           />
         )}
         <div style={{ padding: "18px 16px", display: "flex", flexDirection: "column", gap: 16 }}>
@@ -1338,6 +1270,32 @@ ${jsonTpl}`,
                     <img src={fileURL} alt="" style={{ width: "100%", height: "auto", display: "block", filter: fCSS }} />
                   ) : (
                     <video src={fileURL} autoPlay muted loop playsInline style={{ width: "100%", height: "auto", display: "block", filter: fCSS }} />
+                  )}
+                  
+                  {/* Music Sticker Overlay (Visible in export) */}
+                  {selMusic && (
+                    <div style={{
+                      position: "absolute",
+                      bottom: "15%",
+                      left: "50%",
+                      transform: "translateX(-50%)",
+                      background: "rgba(255,255,255,0.9)",
+                      padding: "10px 16px",
+                      borderRadius: 16,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
+                      maxWidth: "85%",
+                      zIndex: 10,
+                      animation: "pulse 2s infinite"
+                    }}>
+                      <div style={{ width: 36, height: 36, borderRadius: 8, background: "linear-gradient(45deg, #f09433, #bc1888)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 20 }}>🎵</div>
+                      <div style={{ overflow: "hidden" }}>
+                        <div style={{ fontSize: 13, fontWeight: 900, color: "#000", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{selMusic.titulo || selMusic.nome}</div>
+                        <div style={{ fontSize: 11, color: "#666", fontWeight: 600 }}>{selMusic.artista}</div>
+                      </div>
+                    </div>
                   )}
                 </div>
               ) : <div style={{ color: D.w3 }}>Sem prévia</div>}
