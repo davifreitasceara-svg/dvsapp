@@ -3346,6 +3346,8 @@ const PublicProfile = ({ userId, session, onBack, onNavigate }) => {
   const [tab, setTab] = useState("posts");
   const [isFollowing, setIsFollowing] = useState(false);
   const [followersCount, setFollowersCount] = useState(0);
+  const [isLiked, setIsLiked] = useState(false);
+  const [likesCount, setLikesCount] = useState(0);
   const [viewPost, setViewPost] = useState(null);
 
   useEffect(() => {
@@ -3361,9 +3363,16 @@ const PublicProfile = ({ userId, session, onBack, onNavigate }) => {
     const { count: fCount } = await supabase.from("follows").select("*", { count: 'exact', head: true }).eq("following_id", userId);
     setFollowersCount(fCount || 0);
 
+    // Profile Likes
+    const { count: lCount } = await supabase.from("profile_likes").select("*", { count: 'exact', head: true }).eq("profile_id", userId);
+    setLikesCount(lCount || 0);
+
     if (session?.id) {
        const { data: fData } = await supabase.from("follows").select("*").eq("follower_id", session.id).eq("following_id", userId);
        setIsFollowing(fData && fData.length > 0);
+       
+       const { data: lData } = await supabase.from("profile_likes").select("*").eq("user_id", session.id).eq("profile_id", userId);
+       setIsLiked(lData && lData.length > 0);
     }
 
     // Posts
@@ -3375,26 +3384,29 @@ const PublicProfile = ({ userId, session, onBack, onNavigate }) => {
       .order("created_at", { ascending: false });
     if (ptData) setPosts(ptData);
 
-    // Get Total Likes
-    let tLikes = 0;
-    if (ptData && ptData.length > 0) {
-       const postIds = ptData.map(p => p.id);
-       const { count } = await supabase.from("post_likes").select("*", { count: "exact", head: true }).in("post_id", postIds);
-       tLikes = count || 0;
-    }
-    setFollowersCount(tLikes); // reusing the state variable for Total Likes
-
     setLoading(false);
   };
 
   const toggleFollow = async () => {
-    if (!session?.id) return;
+    if (!session?.id) return toast("Faça login para seguir!");
     if (isFollowing) {
       setIsFollowing(false); setFollowersCount(c => Math.max(0, c - 1));
       await supabase.from("follows").delete().eq("follower_id", session.id).eq("following_id", userId);
     } else {
       setIsFollowing(true); setFollowersCount(c => c + 1);
       await supabase.from("follows").insert({ follower_id: session.id, following_id: userId });
+    }
+  };
+
+  const toggleLike = async () => {
+    if (!session?.id) return toast("Faça login para curtir o perfil!");
+    if (isLiked) {
+      setIsLiked(false); setLikesCount(c => Math.max(0, c - 1));
+      await supabase.from("profile_likes").delete().eq("user_id", session.id).eq("profile_id", userId);
+    } else {
+      setIsLiked(true); setLikesCount(c => c + 1);
+      await supabase.from("profile_likes").insert({ user_id: session.id, profile_id: userId });
+      toast("Perfil curtido! ❤️");
     }
   };
 
@@ -3421,15 +3433,21 @@ const PublicProfile = ({ userId, session, onBack, onNavigate }) => {
 
         <div style={{ display: "flex", gap: 30 }}>
            <div><div style={{ fontWeight: 900, fontSize: 18 }}>{posts.length}</div><div style={{ fontSize: 11, color: D.w3, fontWeight: 700 }}>Edições</div></div>
-           <div><div style={{ fontWeight: 900, fontSize: 18 }}>{followersCount}</div><div style={{ fontSize: 11, color: D.w3, fontWeight: 700 }}>Curtidas</div></div>
+           <div><div style={{ fontWeight: 900, fontSize: 18 }}>{followersCount}</div><div style={{ fontSize: 11, color: D.w3, fontWeight: 700 }}>Seguidores</div></div>
+           <div><div style={{ fontWeight: 900, fontSize: 18 }}>{likesCount}</div><div style={{ fontSize: 11, color: D.w3, fontWeight: 700 }}>Curtidas</div></div>
         </div>
 
         {profile.bio && <div style={{ fontSize: 14, color: D.w2, maxWidth: 300, lineHeight: 1.5 }}>{profile.bio}</div>}
         
-        <div style={{ display: "flex", gap: 12 }}>
+        <div style={{ display: "flex", gap: 12, width: "100%", justifyContent: "center" }}>
+           <button onClick={toggleFollow} style={{ flex: 1, maxWidth: 120, height: 40, borderRadius: 12, background: isFollowing ? D.bg2 : D.blue, color: isFollowing ? D.w1 : "#000", border: isFollowing ? `1px solid ${D.b1}` : "none", fontWeight: 800, fontSize: 13, cursor: "pointer" }}>
+             {isFollowing ? "Seguindo" : "Seguir"}
+           </button>
+           <button onClick={toggleLike} style={{ width: 40, height: 40, borderRadius: 12, background: isLiked ? D.rose : D.bg2, border: "none", fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+             {isLiked ? "❤️" : "🤍"}
+           </button>
            {profile.instagram_url && <button onClick={() => window.open(`https://instagram.com/${profile.instagram_url.replace("@","")}`, "_blank")} style={{ background: D.bg2, border: "none", width: 40, height: 40, borderRadius: 12, fontSize: 18 }}>📸</button>}
            {profile.tiktok_url && <button onClick={() => window.open(`https://tiktok.com/@${profile.tiktok_url.replace("@","")}`, "_blank")} style={{ background: D.bg2, border: "none", width: 40, height: 40, borderRadius: 12, fontSize: 18 }}>🎵</button>}
-           <button onClick={() => { navigator.clipboard.writeText(window.location.href); toast("Link do perfil copiado!"); }} style={{ background: D.bg2, border: "none", width: 40, height: 40, borderRadius: 12, fontSize: 18 }}>🔗</button>
         </div>
       </div>
 
