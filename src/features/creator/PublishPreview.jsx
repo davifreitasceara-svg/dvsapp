@@ -160,15 +160,20 @@ const PublishPreview = ({ postId, file, style, initialCaption, initialHashtags, 
         fileToUpload = await renderFilteredImage();
       }
 
-      // 2. Upload to storage
-      console.log(`📤 Tentando upload: ${fileToUpload.size} bytes, tipo: ${fileToUpload.type}`);
-      const ext = isVideo || music ? "mp4" : "jpg";
-      const path = `${session.id}/${Date.now()}.${ext}`;
+      // 2. Upload to storage (Cleaned version)
+      console.log(`📤 Iniciando upload de ${fileToUpload.size} bytes...`);
+      const cleanExt = isVideo || music ? "mp4" : "jpg";
+      const cleanType = isVideo || music ? "video/mp4" : "image/jpeg";
+      const fileName = `${Date.now()}.${cleanExt}`;
+      const path = `${session.id}/${fileName}`;
+      
+      // Criar um novo Blob limpo para garantir que nenhum metadado estranho vá no cabeçalho
+      const cleanBlob = fileToUpload.slice(0, fileToUpload.size, cleanType);
       
       const { error: uploadError } = await supabase.storage
         .from("post-media")
-        .upload(path, fileToUpload, {
-          contentType: fileToUpload.type,
+        .upload(path, cleanBlob, {
+          contentType: cleanType,
           upsert: true,
           cacheControl: '3600'
         });
