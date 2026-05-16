@@ -7,6 +7,7 @@ const D = {
   bg: "#020B1A", bg2: "#04132B", bg3: "#072146", 
   s1: "#0E3C7D", s2: "#134B9A", s3: "#185BB7",
   w1: "#F8FAFC", w2: "#CBD5E1", w3: "#64748B", b0: "rgba(255,255,255,0.08)",
+  b1: "rgba(255,255,255,0.12)",
   blue: "#38BDF8", blue2: "#7DD3FC", amber: "#FBBF24", rose: "#FB7185",
   gBlue: "linear-gradient(135deg,#0E3C7D 0%,#185BB7 100%)",
   gCyan: "linear-gradient(135deg,#0284C7 0%,#06B6D4 100%)",
@@ -25,8 +26,12 @@ const FPRESET = {
   "Ludwig":    { brightness: 106, contrast: 110, saturate: 92,  sepia: 9,  hue: 0   },
   "Aden":      { brightness: 112, contrast: 86,  saturate: 72,  sepia: 18, hue: -12 },
   "Valencia":  { brightness: 110, contrast: 108, saturate: 90,  sepia: 24, hue: 5   },
+  "Hudson":    { brightness: 118, contrast: 92,  saturate: 98,  sepia: 14, hue: -12 },
+  "Nashville": { brightness: 112, contrast: 106, saturate: 118, sepia: 14, hue: 6   },
   "HDR":       { brightness: 106, contrast: 132, saturate: 122, sepia: 0,  hue: 0   },
+  "P&B":       { brightness: 105, contrast: 130, saturate: 0,   sepia: 0,  hue: 0   },
   "V\u00edvido":    { brightness: 104, contrast: 108, saturate: 152, sepia: 0,  hue: 0   },
+  "Cyber":     { brightness: 110, contrast: 120, saturate: 160, sepia: 0,  hue: 160 },
 };
 
 const PublishPreview = ({ postId, file, style, initialCaption, initialHashtags, session, onClose, onPublish, supabase, toast, filters: initialFilters, music: initialMusic }) => {
@@ -67,6 +72,13 @@ const PublishPreview = ({ postId, file, style, initialCaption, initialHashtags, 
       audioRef.current.currentTime = musicStartTime;
     }
   }, [music]);
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      if (audioRef.current) audioRef.current.pause();
+    };
+  }, []);
 
   const togglePlay = () => {
     if (musicPlaying) {

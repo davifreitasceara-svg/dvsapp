@@ -1457,6 +1457,8 @@ ${jsonTpl}`,
           filters={filters}
           music={selMusic}
           session={session} 
+          supabase={supabase}
+          toast={toast}
           onClose={() => setStage("result")} 
           onPublish={() => { 
             toast("🎉 Publicado! Veja no feed.", "ok");
