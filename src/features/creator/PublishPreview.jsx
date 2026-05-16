@@ -30,6 +30,10 @@ const FPRESET = {
 };
 
 const PublishPreview = ({ postId, file, style, initialCaption, initialHashtags, session, onClose, onPublish, supabase, toast, filters: initialFilters, music: initialMusic }) => {
+  const [stage, setStage] = useState("edit"); // edit | processing
+  const [procLabel, setProcLabel] = useState("");
+  const [procProgress, setProcProgress] = useState(0);
+
   const [caption, setCaption] = useState(initialCaption || "");
   const [hashtags, setHashtags] = useState(initialHashtags || "");
   const [location, setLocation] = useState("");
@@ -101,40 +105,43 @@ const PublishPreview = ({ postId, file, style, initialCaption, initialHashtags, 
     try {
       // 1. Process media (Apply filters and music)
       let fileToUpload = file;
-      toast("🎬 Processando sua mídia...", "info");
-
+      
       if (isVideo || music) {
+        setStage("processing");
+        setProcLabel("⚙️ Preparando estúdio de renderização...");
+        setProcProgress(5);
+
         try {
-          const timeout = (ms) => new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), ms));
-          
-          const process = async () => {
-            if (!isVideo && music) {
-              // Image to Video with Music
-              toast("🎵 Criando vídeo viral...", "info");
-              return await generateVideo(file, music.previewUrl, filters);
-            } else if (isVideo && music) {
-              // Video with Music
-              toast("🎵 Mixando áudio e filtros...", "info");
-              return await mixAudioWithVideo(file, music.previewUrl, filters);
-            } else if (isVideo && !music) {
-              // Video only (Apply filters)
-              toast("✨ Aplicando filtros ao vídeo...", "info");
-              return await processVideo(file, filters);
-            } else {
-               // Photo only (Fallback case, should use renderFilteredImage)
-               toast("✨ Aplicando filtros...", "info");
-               return await renderFilteredImage();
-            }
+          const onFfmpegProgress = (p) => {
+            setProcProgress(10 + Math.round(p * 85));
+            if (p > 0.1) setProcLabel("🎬 Renderizando vídeo premium...");
+            if (p > 0.5) setProcLabel("🎨 Aplicando filtros cinematográficos...");
+            if (p > 0.8) setProcLabel("🔊 Sincronizando áudio e efeitos...");
           };
 
-          const processedBlob = await Promise.race([process(), timeout(45000)]);
-          fileToUpload = new File([processedBlob], isVideo || music ? "viral_content.mp4" : "premium_photo.jpg", { 
-            type: isVideo || music ? "video/mp4" : "image/jpeg" 
-          });
+          const processedBlob = await Promise.race([
+            (async () => {
+              if (isVideo) {
+                if (music) return await mixAudioWithVideo(file, music.previewUrl, filters, onFfmpegProgress);
+                return await processVideo(file, filters, onFfmpegProgress);
+              } else {
+                return await generateVideo(file, music.previewUrl, filters, onFfmpegProgress);
+              }
+            })(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 60000))
+          ]);
+
+          if (processedBlob) {
+            fileToUpload = new File([processedBlob], isVideo || music ? "viral_content.mp4" : "premium_photo.jpg", { 
+              type: isVideo || music ? "video/mp4" : "image/jpeg" 
+            });
+          }
         } catch (err) {
           console.error("Media processing failed:", err);
-          toast("⚠️ Processamento lento. Usando original.", "warn");
+          toast("⚠️ Processamento excedeu o tempo. Usando original.", "warn");
           fileToUpload = file;
+        } finally {
+          setStage("edit");
         }
       } else {
         toast("✨ Aplicando filtros...", "info");
@@ -453,6 +460,21 @@ const PublishPreview = ({ postId, file, style, initialCaption, initialHashtags, 
           </motion.div>
         )}
       </AnimatePresence>
+      {stage === "processing" && (
+        <div style={{ position: "fixed", inset: 0, background: D.bg, zIndex: 20000, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 40, textAlign: "center" }}>
+           <div style={{ position: "relative", marginBottom: 32 }}>
+              <div style={{ width: 120, height: 120, borderRadius: "50%", border: `4px solid ${D.b1}`, borderTopColor: D.blue, animation: "spin 1s linear infinite" }} />
+              <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>🚀</div>
+           </div>
+           <h2 style={{ fontWeight: 900, fontSize: 22, marginBottom: 8, color: D.w1 }}>{procLabel}</h2>
+           <p style={{ color: D.w3, fontSize: 14, marginBottom: 32, maxWidth: 300 }}>Isso pode levar alguns segundos dependendo da velocidade do seu dispositivo.</p>
+           
+           <div style={{ width: "100%", maxWidth: 300, height: 8, background: D.b1, borderRadius: 10, overflow: "hidden" }}>
+              <div style={{ width: `${procProgress}%`, height: "100%", background: D.gBlue, transition: "width 0.3s ease" }} />
+           </div>
+           <div style={{ marginTop: 12, fontSize: 12, fontWeight: 800, color: D.blue }}>{procProgress}% COMPLETO</div>
+        </div>
+      )}
     </div>
   );
 };

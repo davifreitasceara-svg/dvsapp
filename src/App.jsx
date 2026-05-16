@@ -1045,6 +1045,7 @@ ${jsonTpl}`,
     setCaption(`${p.hook}\n\n${p.caption}\n\n${p.hashtags.map(h => "#" + h).join(" ")}`);
     setResult(p);
     if (p.filtro) applyFilt(p.filtro);
+    if (p.musicas?.[0]) setSelMusic(p.musicas[0]);
     setStage("result");
     
     // Save to Supabase
