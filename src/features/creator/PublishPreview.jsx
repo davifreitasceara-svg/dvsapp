@@ -161,10 +161,17 @@ const PublishPreview = ({ postId, file, style, initialCaption, initialHashtags, 
       }
 
       // 2. Upload to storage
-      toast("📤 Fazendo upload para a nuvem...", "info");
-      const ext = fileToUpload.name.split('.').pop();
+      console.log(`📤 Tentando upload: ${fileToUpload.size} bytes, tipo: ${fileToUpload.type}`);
+      const ext = isVideo || music ? "mp4" : "jpg";
       const path = `${session.id}/${Date.now()}.${ext}`;
-      const { error: uploadError } = await supabase.storage.from("post-media").upload(path, fileToUpload);
+      
+      const { error: uploadError } = await supabase.storage
+        .from("post-media")
+        .upload(path, fileToUpload, {
+          contentType: fileToUpload.type,
+          upsert: true,
+          cacheControl: '3600'
+        });
       if (uploadError) {
         console.error("Upload error:", uploadError);
         throw new Error("Falha no upload: " + (uploadError.message || "Erro desconhecido"));
