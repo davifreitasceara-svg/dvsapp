@@ -191,9 +191,11 @@ const PublishPreview = ({ postId, file, style, initialCaption, initialHashtags, 
 
       if (!response.ok) {
         if (response.status === 431) {
-          console.warn("⚠️ Token muito grande (431). Tentando limpar metadados do usuário...");
-          await supabase.auth.updateUser({ data: { full_name: session.name } });
-          throw new Error("Seu perfil estava com dados excessivos acumulados. Os dados foram limpos automaticamente. POR FAVOR, RECARREGUE A PÁGINA (F5) E TENTE POSTAR NOVAMENTE.");
+          console.warn("⚠️ Token ainda muito grande (431). Forçando logout total para limpeza...");
+          await supabase.auth.updateUser({ data: { full_name: session.name, avatar_url: null } });
+          await supabase.auth.signOut();
+          localStorage.clear();
+          throw new Error("ERRO DE TOKEN: Sua conta estava com dados excessivos. O sistema realizou uma limpeza profunda e te desconectou. POR FAVOR, FAÇA LOGIN NOVAMENTE e o problema estará resolvido.");
         }
         const errJson = await response.json().catch(() => ({ message: "Erro desconhecido no servidor" }));
         console.error("Manual upload error:", errJson);
