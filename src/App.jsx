@@ -214,6 +214,12 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
   padding: 5px 0; position: relative;
   -webkit-tap-highlight-color: transparent;
 }
+@keyframes pulse-anim {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.1); opacity: 0.8; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.pulse-anim { animation: pulse-anim 1s infinite; }
 `;
 
 /* 
@@ -2653,10 +2659,37 @@ const PostCard = ({ post, session, toast, onNavigate }) => {
     }
   };
 
+  const audioRef = useRef(null);
+  const [playing, setPlaying] = useState(false);
+
+  useEffect(() => {
+    if (playing && audioRef.current) {
+      audioRef.current.play().catch(() => {});
+    } else if (audioRef.current) {
+      audioRef.current.pause();
+    }
+  }, [playing]);
+
+  const handleDelete = async () => {
+    if (window.confirm("Deseja deletar esta publicação permanentemente?")) {
+      const { error } = await supabase.from("posts").delete().eq("id", post.id);
+      if (!error) {
+        toast("Publicação deletada.", "ok");
+        if (onNavigate) onNavigate("feed");
+      }
+    }
+  };
+
   return (
-    <div className="card" style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
+    <div 
+      className="card" 
+      style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12, position: "relative" }}
+      onMouseEnter={() => setPlaying(true)}
+      onMouseLeave={() => setPlaying(false)}
+      onClick={() => setPlaying(!playing)}
+    >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ display: "flex", gap: 10, alignItems: "center", cursor: "pointer" }} onClick={() => onNavigate("public_profile", post.user_id)}>
+        <div style={{ display: "flex", gap: 10, alignItems: "center", cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); onNavigate("public_profile", post.user_id); }}>
           <div style={{ width: 40, height: 40, borderRadius: 12, background: D.s3, overflow: "hidden" }}>
             {post.profiles?.avatar_url ? <img src={post.profiles.avatar_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>👤</div>}
           </div>
@@ -2668,14 +2701,14 @@ const PostCard = ({ post, session, toast, onNavigate }) => {
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
           <ProfileFollowBtn targetUserId={post.user_id} session={session} toast={toast} />
           {post.user_id === session?.id && (
-            <button onClick={handleDelete} style={{ background: "none", border: "none", color: D.rose, fontSize: 16, cursor: "pointer", padding: 8 }}>
+            <button onClick={(e) => { e.stopPropagation(); handleDelete(); }} style={{ background: "none", border: "none", color: D.rose, fontSize: 16, cursor: "pointer", padding: 8 }}>
               🗑️
             </button>
           )}
         </div>
       </div>
       
-      <div style={{ width: "100%", borderRadius: 12, background: D.bg2, border: `1px solid ${D.b0}`, overflow: "hidden" }}>
+      <div style={{ width: "100%", borderRadius: 12, background: D.bg2, border: `1px solid ${D.b0}`, overflow: "hidden", position: "relative" }}>
         {post.content?.media_url && (() => {
           const filt = post.content?.filters;
           const fCSS = filt ? `brightness(${filt.brightness||100}%) contrast(${filt.contrast||100}%) saturate(${filt.saturate||100}%) sepia(${filt.sepia||0}%) hue-rotate(${filt.hue||0}deg)` : "none";
@@ -2684,15 +2717,20 @@ const PostCard = ({ post, session, toast, onNavigate }) => {
               {post.content.media_type === "image" ? (
                 <img src={post.content.media_url} style={{ maxWidth: "100%", maxHeight: 500, objectFit: "contain", filter: fCSS }} />
               ) : (
-                <video src={post.content.media_url} controls style={{ maxWidth: "100%", maxHeight: 500, filter: fCSS }} />
+                <video src={post.content.media_url} loop muted={!playing} style={{ maxWidth: "100%", maxHeight: 500, filter: fCSS }} />
               )}
             </div>
           );
         })()}
+        
+        {post.music_metadata?.previewUrl && (
+          <audio ref={audioRef} src={post.music_metadata.previewUrl} loop />
+        )}
+
         <div style={{ padding: 16 }}>
           {post.music_metadata?.name && (
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, color: D.w2, fontSize: 12, fontWeight: 700 }}>
-              <span>🎵</span> {post.music_metadata.name} • {post.music_metadata.artist}
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, color: D.blue, fontSize: 12, fontWeight: 800 }}>
+              <span className={playing ? "pulse-anim" : ""}>🎵</span> {post.music_metadata.name} • {post.music_metadata.artist}
             </div>
           )}
           <div style={{ fontSize: 13, lineHeight: 1.5, color: D.w2, whiteSpace: "pre-wrap" }}>
@@ -2704,20 +2742,20 @@ const PostCard = ({ post, session, toast, onNavigate }) => {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 8 }}>
         <div style={{ display: "flex", gap: 16 }}>
           <button 
-            onClick={() => downloadMedia(post.content.media_url, `dvs-${post.id}.mp4`)}
+            onClick={(e) => { e.stopPropagation(); downloadMedia(post.content.media_url, `dvs-${post.id}.mp4`); }}
             style={{ background: "none", border: "none", color: D.w3, display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 700 }}
           >
             📥 Baixar
           </button>
         </div>
-        <button onClick={() => setShowFolderPicker(true)} style={{ background: "none", border: "none", color: saved ? D.amber : D.w3, fontSize: 18, display: "flex", alignItems: "center", gap: 8 }}>
+        <button onClick={(e) => { e.stopPropagation(); setShowFolderPicker(true); }} style={{ background: "none", border: "none", color: saved ? D.amber : D.w3, fontSize: 18, display: "flex", alignItems: "center", gap: 8 }}>
           {saved ? "⭐" : "☆"}
         </button>
       </div>
 
       {showFolderPicker && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 10001, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-           <div className="card" style={{ background: D.bg, width: "100%", maxWidth: 350, padding: 24, borderRadius: 24, display: "flex", flexDirection: "column", gap: 20 }}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 10001, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={(e) => { e.stopPropagation(); setShowFolderPicker(false); }}>
+           <div className="card" style={{ background: D.bg, width: "100%", maxWidth: 350, padding: 24, borderRadius: 24, display: "flex", flexDirection: "column", gap: 20 }} onClick={e => e.stopPropagation()}>
               <div style={{ fontWeight: 900, fontSize: 18 }}>Salvar em...</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 300, overflowY: "auto" }}>
                  <button onClick={() => toggleSave()} style={{ padding: "12px 16px", borderRadius: 12, border: `1px solid ${D.b0}`, background: D.bg2, color: D.w1, textAlign: "left", fontWeight: 700 }}>
