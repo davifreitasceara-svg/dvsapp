@@ -2606,10 +2606,123 @@ const ProfileFollowBtn = ({ targetUserId, session, toast }) => {
   );
 };
 
+const ShareModal = ({ post, session, toast, onClose }) => {
+  const [stage, setStage] = useState("init"); // init | processing
+  const [progress, setProgress] = useState(0);
+
+  const handleShare = async (networkName) => {
+    try {
+      setStage("processing");
+      setProgress(5);
+
+      const mediaUrl = post.content?.media_url;
+      const musicUrl = post.music_metadata?.previewUrl || post.content?.music?.previewUrl;
+      const isVideo = post.content?.media_type === "video";
+      const filters = post.content?.filters;
+
+      // 1. Fetch the "Light" media from Supabase
+      const mediaResponse = await fetch(mediaUrl);
+      const mediaBlob = await mediaResponse.blob();
+      const mediaFile = new File([mediaBlob], isVideo ? "input.mp4" : "input.jpg", { type: isVideo ? "video/mp4" : "image/jpeg" });
+
+      let finalFile;
+      
+      if (musicUrl) {
+        // 2. Heavy Render: Merge with Music
+        const onFfmpegProgress = (p) => setProgress(10 + Math.round(p * 85));
+        if (isVideo) {
+          finalFile = await mixAudioWithVideo(mediaFile, musicUrl, filters, onFfmpegProgress);
+        } else {
+          finalFile = await generateVideo(mediaFile, musicUrl, filters, onFfmpegProgress);
+        }
+      } else {
+        // No music, just use the light media
+        finalFile = mediaBlob;
+      }
+
+      const fileToShare = new File([finalFile], isVideo || musicUrl ? "dvs_export.mp4" : "dvs_export.jpg", { type: isVideo || musicUrl ? "video/mp4" : "image/jpeg" });
+
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [fileToShare] })) {
+        await navigator.share({
+          title: "DVS EduCreator",
+          text: post.content?.caption || "",
+          files: [fileToShare]
+        });
+      } else {
+        const url = URL.createObjectURL(fileToShare);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = fileToShare.name;
+        a.click();
+        toast("Download concluído! Agora poste no " + networkName);
+      }
+      
+      onClose();
+    } catch (err) {
+      console.error("Share error:", err);
+      toast("Erro ao preparar compartilhamento.", "err");
+      setStage("init");
+    }
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.9)", zindex: 20000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, backdropFilter: "blur(10px)" }} onClick={onClose}>
+      <motion.div 
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        style={{ width: "100%", maxWidth: 400, background: D.bg2, borderRadius: 32, padding: 24, border: `1px solid ${D.b0}`, textAlign: "center" }}
+        onClick={e => e.stopPropagation()}
+      >
+        {stage === "init" ? (
+          <>
+            <h3 style={{ fontSize: 20, fontWeight: 900, marginBottom: 8 }}>Compartilhar</h3>
+            <p style={{ fontSize: 13, color: D.w3, marginBottom: 24 }}>Escolha onde deseja postar sua edição premium</p>
+            
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              {[
+                { name: "Instagram", icon: "📸" },
+                { name: "TikTok", icon: "🎵" },
+                { name: "WhatsApp", icon: "💬" },
+                { name: "Facebook", icon: "📘" },
+                { name: "Threads", icon: "🧵" },
+                { name: "X", icon: "✖️" }
+              ].map(n => (
+                <button 
+                  key={n.name}
+                  onClick={() => handleShare(n.name)}
+                  style={{ background: D.bg3, border: `1px solid ${D.b0}`, padding: 16, borderRadius: 20, display: "flex", flexDirection: "column", alignItems: "center", gap: 8, color: "#fff", fontWeight: 700, cursor: "pointer" }}
+                >
+                  <span style={{ fontSize: 24 }}>{n.icon}</span>
+                  <span style={{ fontSize: 12 }}>{n.name}</span>
+                </button>
+              ))}
+            </div>
+            
+            <button className="btn ghost sm" style={{ width: "100%", marginTop: 24 }} onClick={onClose}>Cancelar</button>
+          </>
+        ) : (
+          <div style={{ padding: "40px 0" }}>
+            <div style={{ width: 80, height: 80, margin: "0 auto 20px" }}>
+               <DvsSpin s={60} c={D.blue} />
+            </div>
+            <h4 style={{ fontWeight: 800, color: D.w1 }}>Processando Mídia Premium...</h4>
+            <p style={{ fontSize: 13, color: D.w3, marginTop: 8 }}>Mesclando filtros e música para exportação</p>
+            <div style={{ width: "100%", height: 6, background: D.b0, borderRadius: 3, marginTop: 24, overflow: "hidden" }}>
+              <motion.div animate={{ width: `${progress}%` }} style={{ height: "100%", background: D.blue }} />
+            </div>
+            <div style={{ fontSize: 11, fontWeight: 800, color: D.blue, marginTop: 8 }}>{progress}% CONCLUÍDO</div>
+          </div>
+        )}
+      </motion.div>
+    </div>
+  );
+};
+
 const PostCard = ({ post, session, toast, onNavigate, onDelete }) => {
   const [liked, setLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(post.post_likes?.[0]?.count || 0);
   const [saved, setSaved] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
   
   useEffect(() => {
     if (!session?.id) return;
@@ -2756,9 +2869,24 @@ const PostCard = ({ post, session, toast, onNavigate, onDelete }) => {
             onClick={(e) => { e.stopPropagation(); downloadMedia(post.content.media_url, `dvs-${post.id}.mp4`); }}
             style={{ background: "none", border: "none", color: D.w3, display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 700 }}
           >
-            📥 Baixar
+            <Download size={16} /> Baixar
+          </button>
+          <button 
+            onClick={(e) => { e.stopPropagation(); setShowShareModal(true); }}
+            style={{ background: "none", border: "none", color: D.blue, display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 700 }}
+          >
+            <Share2 size={16} /> Compartilhar
           </button>
         </div>
+
+        {showShareModal && (
+          <ShareModal 
+            post={post} 
+            session={session} 
+            toast={toast} 
+            onClose={() => setShowShareModal(false)} 
+          />
+        )}
         <button onClick={(e) => { e.stopPropagation(); setShowFolderPicker(true); }} style={{ background: "none", border: "none", color: saved ? D.amber : D.w3, fontSize: 18, display: "flex", alignItems: "center", gap: 8 }}>
           {saved ? "⭐" : "☆"}
         </button>
