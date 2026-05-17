@@ -179,8 +179,8 @@ export async function fetchWithProxy(url) {
 
   const proxies = [
     (u) => u,
-    (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
     (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+    (u) => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(u)}`,
     (u) => `https://cors-anywhere.herokuapp.com/${u}`,
   ];
 
