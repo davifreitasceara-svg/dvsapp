@@ -190,7 +190,10 @@ export async function fetchWithProxy(url) {
       if (!res.ok) throw new Error("HTTP " + res.status);
       const buffer = await res.arrayBuffer();
       if (buffer.byteLength < 100) throw new Error("Empty buffer");
-      return new Uint8Array(buffer);
+      const arr = new Uint8Array(buffer);
+      // Verifica se o proxy retornou uma página HTML (começando com '<')
+      if (arr[0] === 0x3C) throw new Error("O servidor proxy bloqueou o download do áudio.");
+      return arr;
     } catch (e) {
       console.warn(`Proxy failed for ${url}:`, e.message);
     }

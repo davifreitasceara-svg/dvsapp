@@ -1161,7 +1161,9 @@ ${jsonTpl}`,
       }
     } catch (err) {
       console.error("Sharing failed:", err);
-      toast("⚠️ Erro no processamento: " + (err.message || "tente novamente"), "error");
+      if (err && err.name !== 'AbortError') {
+        toast("⚠️ Erro no processamento: " + (err.message || err.toString()), "error");
+      }
     }
     
     setSharing(false);
@@ -2635,7 +2637,9 @@ const ShareModal = ({ post, session, toast, onClose }) => {
       onClose();
     } catch (err) {
       console.error("Share error:", err);
-      toast("Erro ao preparar compartilhamento.", "err");
+      if (err && err.name !== 'AbortError') {
+        toast("Erro ao preparar compartilhamento.", "err");
+      }
       setStage("init");
     }
   };
