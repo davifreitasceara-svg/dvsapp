@@ -1,6 +1,4 @@
 import { FFmpeg } from '@ffmpeg/ffmpeg';
-import coreURL from '@ffmpeg/core/dist/esm/ffmpeg-core.js?url';
-import wasmURL from '@ffmpeg/core/dist/esm/ffmpeg-core.wasm?url';
 
 let ffmpeg = null;
 
@@ -16,8 +14,8 @@ export const loadFFmpeg = async (onProgress) => {
   });
   
   await ffmpeg.load({
-    coreURL,
-    wasmURL,
+    coreURL: '/ffmpeg-core.js',
+    wasmURL: '/ffmpeg-core.wasm',
   });
   
   return ffmpeg;
