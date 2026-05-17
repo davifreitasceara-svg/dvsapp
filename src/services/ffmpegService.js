@@ -1,6 +1,5 @@
 import { FFmpeg } from '@ffmpeg/ffmpeg';
-import coreURL from '@ffmpeg/core/dist/umd/ffmpeg-core.js?url';
-import wasmURL from '@ffmpeg/core/dist/umd/ffmpeg-core.wasm?url';
+import { toBlobURL } from '@ffmpeg/util';
 
 let ffmpeg = null;
 
@@ -16,8 +15,8 @@ export const loadFFmpeg = async (onProgress) => {
   });
   
   await ffmpeg.load({
-    coreURL,
-    wasmURL,
+    coreURL: await toBlobURL('/ffmpeg-core.js', 'text/javascript'),
+    wasmURL: await toBlobURL('/ffmpeg-core.wasm', 'application/wasm'),
   });
   
   return ffmpeg;
