@@ -440,8 +440,8 @@ const PublishPreview = ({ postId, file, style, initialCaption, initialHashtags, 
                     } catch(e) {
                       console.error("Share error:", e);
                       setStage("edit");
-                      if (e.name !== 'AbortError') {
-                        toast(`Erro no processamento: ${e.message}`, "err");
+                      if (e && e.name !== 'AbortError') {
+                        toast(`Erro no processamento: ${e.message || e.toString()}`, "err");
                       }
                     }
                   }}
