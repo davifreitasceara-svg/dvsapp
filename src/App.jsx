@@ -1121,26 +1121,7 @@ ${jsonTpl}`,
             // Bake the CSS filter directly into the canvas pixels
             ctx.filter = fCSS;
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            // Draw music sticker on top if selected
-            if (selMusic) {
-              ctx.filter = 'none';
-              const sw = 280, sh = 64;
-              const sx = (canvas.width - sw) / 2;
-              const sy = canvas.height * 0.74;
-              ctx.fillStyle = 'rgba(255,255,255,0.92)';
-              ctx.beginPath();
-              if (ctx.roundRect) ctx.roundRect(sx, sy, sw, sh, 16);
-              else ctx.rect(sx, sy, sw, sh);
-              ctx.fill();
-              ctx.font = 'bold 24px sans-serif';
-              ctx.fillText('\uD83C\uDFB5', sx + 14, sy + 42);
-              ctx.fillStyle = '#111';
-              ctx.font = 'bold 18px Inter, sans-serif';
-              ctx.fillText((selMusic.titulo || selMusic.nome || '').slice(0, 22), sx + 52, sy + 30);
-              ctx.fillStyle = '#666';
-              ctx.font = '14px Inter, sans-serif';
-              ctx.fillText((selMusic.artista || '').slice(0, 26), sx + 52, sy + 52);
-            }
+            // Music sticker has been removed per user request
             canvas.toBlob(resolve, 'image/png');
           };
           img.onerror = reject;
