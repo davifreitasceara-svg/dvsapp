@@ -713,15 +713,7 @@ const StudioView = ({ file, onReset, onSave }) => {
           </div>
 
           {/* Music Status */}
-          {musicPlaying && currentMusic && (
-            <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} style={{ position: 'absolute', top: '16px', left: '16px', background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(12px)', borderRadius: '100px', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '10px', border: '1px solid rgba(255,255,255,0.1)' }}>
-              <RhythmBars active color="#7c3aed" size="sm" />
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <span style={{ fontSize: '0.65rem', color: '#ccc', fontWeight: '700', textTransform: 'uppercase' }}>Now Syncing</span>
-                <span style={{ fontSize: '0.75rem', color: 'white', fontWeight: '900' }}>{currentMusic.name}</span>
-              </div>
-            </motion.div>
-          )}
+          {/* Removido a pedido do usuário */}
         </div>
 
         {/* Style selection: Journey Grid Style */}

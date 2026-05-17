@@ -440,7 +440,9 @@ const PublishPreview = ({ postId, file, style, initialCaption, initialHashtags, 
                     } catch(e) {
                       console.error("Share error:", e);
                       setStage("edit");
-                      toast("Erro ao preparar mídia.", "err");
+                      if (e.name !== 'AbortError') {
+                        toast(`Erro no processamento: ${e.message}`, "err");
+                      }
                     }
                   }}
                   style={{ background: "#fff", color: "#000", border: "none", borderRadius: 16, padding: "12px", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontWeight: 800, fontSize: 14, cursor: "pointer", transition: "transform 0.2s" }}
